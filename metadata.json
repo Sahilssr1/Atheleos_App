@@ -1,0 +1,6 @@
+{
+  "name": "Atheleos",
+  "description": "A sports-first social and athlete discovery platform connecting players, scouts, coaches, and clubs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

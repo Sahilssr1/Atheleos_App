@@ -1,0 +1,36 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile system tracking athlete, coach, brand or federation details",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique user ID matching Firebase Auth uid" },
+        "username": { "type": "string", "description": "Unique username used for discovery and mentions" },
+        "displayName": { "type": "string", "description": "The user's full public display name" },
+        "email": { "type": "string", "format": "email", "description": "Primary contact email address" },
+        "phone": { "type": "string", "description": "Verified phone number used for OTP authentication" },
+        "role": { "type": "string", "enum": ["Athlete", "Coach", "Brand", "Federation"], "description": "Primary role on the platform" },
+        "sport": { "type": "string", "description": "Primary sport of interest or coaching expertise" },
+        "city": { "type": "string", "description": "User's current city" },
+        "state": { "type": "string", "description": "User's current state (2 letters code)" },
+        "bio": { "type": "string", "description": "Short bio description detailing interests or professional pitch" },
+        "photoUrl": { "type": "string", "format": "uri", "description": "Direct URL to user's profile picture stored in Firebase Storage" },
+        "coverPhoto": { "type": "string", "format": "uri", "description": "Direct URL to user's cover banner image stored in Firebase Storage" },
+        "verified": { "type": "boolean", "description": "Whether the profile has been officially verified by Atheleos" },
+        "followersCount": { "type": "integer", "description": "Count of users following this profile" },
+        "followingCount": { "type": "integer", "description": "Count of users this profile is following" },
+        "postsCount": { "type": "integer", "description": "Total count of feed posts created by this user" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "ISO timestamp indicating when profile was created" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "ISO timestamp indicating last profile modification" }
+      },
+      "required": ["uid", "username", "displayName", "role"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "Primary collection storing public and semi-private profiles"
+    }
+  }
+}

@@ -1,0 +1,221 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shimmer/shimmer.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../controllers/profile_controller.dart';
+import 'athlete_profile_widget.dart';
+import 'coach_profile_widget.dart';
+import 'brand_profile_widget.dart';
+import 'federation_profile_widget.dart';
+import '../controllers/settings_controller.dart';
+import '../../domain/models/profile_model.dart';
+
+class ProfileLoader extends ConsumerWidget {
+  final String userId;
+
+  const ProfileLoader({super.key, required this.userId});
+
+  Widget _buildSkeletonLoader() {
+    return Shimmer.fromColors(
+      baseColor: const Color(0xFF1E293B),
+      highlightColor: const Color(0xFF334155),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Banner/Header block
+            Container(
+              height: 150,
+              color: Colors.white,
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 150,
+                          height: 20,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: 100,
+                          height: 14,
+                          color: Colors.white,
+                        ),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Container(
+                width: double.infinity,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Container(
+                width: 120,
+                height: 16,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Container(
+                width: double.infinity,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch the profile of the requested user ID
+    final profileAsync = ref.watch(universalProfileControllerProvider(userId));
+
+    // Watch the requested user's privacy settings
+    final settingsAsync = ref.watch(publicUserSettingsProvider(userId));
+    final blockedByUser = ref.watch(blockedByUserProvider(userId));
+
+    // Logged in user ID for owner check
+    final loggedInId = ref.watch(loggedInUserIdProvider);
+    final isOwner = userId == loggedInId;
+
+    if (blockedByUser.valueOrNull == true) {
+      return const Center(
+        child: Text(
+          'Profile unavailable',
+          style: TextStyle(color: Colors.white54, fontSize: 14),
+        ),
+      );
+    }
+
+    return profileAsync.when(
+      loading: () => _buildSkeletonLoader(),
+      error: (err, stack) => _buildErrorState(err.toString(), ref),
+      data: (profile) {
+        if (profile == null) {
+          return const Center(
+            child: Text(
+              'Profile not found',
+              style: TextStyle(color: Colors.white54, fontSize: 14),
+            ),
+          );
+        }
+
+        return settingsAsync.when(
+            loading: () => _buildSkeletonLoader(),
+            error: (err, stack) => _buildErrorState(err.toString(), ref),
+            data: (settings) {
+              ProfileModel displayProfile = profile;
+
+              // Mask fields if not owner
+              if (!isOwner) {
+                final p = settings.privacy;
+                displayProfile = profile.copyWith(
+                  height: p.hideHeight ? null : profile.height,
+                  weight: p.hideWeight ? null : profile.weight,
+                  email: p.hideEmail ? '' : profile.email,
+                  phoneNumber: p.hidePhone ? '' : profile.phoneNumber,
+                  dateOfBirth: p.hideDob ? '' : profile.dateOfBirth,
+                  personalNotes:
+                      p.hidePersonalNotes ? '' : profile.personalNotes,
+                  verificationRequestDetails: p.hidePerformanceRating
+                      ? {
+                          ...profile.verificationRequestDetails,
+                          'performanceMetrics': null
+                        }
+                      : profile.verificationRequestDetails,
+                );
+              }
+
+              // Render appropriate widget based on role
+              switch (displayProfile.role) {
+                case 'Athlete':
+                  return AthleteProfileWidget(profile: displayProfile);
+                case 'Coach':
+                  return CoachProfileWidget(profile: displayProfile);
+                case 'Brand':
+                  return BrandProfileWidget(profile: displayProfile);
+                case 'Federation':
+                  return FederationProfileWidget(profile: displayProfile);
+                default:
+                  return AthleteProfileWidget(profile: displayProfile);
+              }
+            });
+      },
+    );
+  }
+
+  Widget _buildErrorState(String error, WidgetRef ref) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+            const SizedBox(height: 12),
+            Text(
+              'Error loading profile: $error',
+              style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.black,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('RETRY',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              onPressed: () {
+                ref.invalidate(universalProfileControllerProvider(userId));
+                ref.invalidate(publicUserSettingsProvider(userId));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -1,0 +1,478 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // HELPER FUNCTIONS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// Request carries a valid Firebase Auth token.
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    /// The authenticated user's uid matches the supplied uid.
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    /// The authenticated user exists in Firestore and has not been soft-deleted.
+    function isActiveUser() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isDeleted', false) != true;
+    }
+
+    /// Write touches ONLY the listed keys — no extra fields allowed.
+    function onlyFields(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    /// Write touches a SUBSET of listed keys — useful for partial profile updates.
+    function subsetOfFields(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(keys)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // USERS  /users/{uid}
+    //
+    // Field-level security design
+    // ────────────────────────────
+    // Server-managed (blocked from direct client writes):
+    //   verified, verificationStatus, verificationBadge, verificationDate,
+    //   verificationLevel, verificationRejectedReason, verificationRequestDetails
+    //   isDeleted, deletedAt, deletionVersion  ← owner gets a narrow carve-out
+    //   followersCount   ← any active user gets ±1 only via transactions
+    //   profileViews, portfolioViews, portfolioShares, searchAppearances
+    //
+    // Three update classes, each with different field scope:
+    //   A. Owner edits their own profile (userEditableFields only)
+    //   B. Any active user updates followersCount via follow transaction
+    //   C. Any active user increments analytics counters
+    //   D. Owner performs soft-delete (narrow carve-out)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    match /users/{uid} {
+
+      // All fields a profile owner is allowed to change directly from the client.
+      // Sensitive / server-managed fields are intentionally omitted.
+      function userEditableFields() {
+        return [
+          'displayName', 'username', 'bio', 'role', 'sport',
+          'primaryPosition', 'clubOrAcademy',
+          'city', 'state', 'country',
+          'email', 'phoneNumber', 'phoneVerified',
+          'alternateEmail', 'alternateEmailVerified',
+          'pendingAlternateEmail', 'alternateEmailVerificationSentAt',
+          'googleEmail', 'googlePhotoUrl', 'googleVerified',
+          'recoveryPhone', 'recoveryPhoneVerified', 'emailVerified',
+          'photoUrl', 'coverPhoto',
+          'dateOfBirth', 'gender', 'height', 'weight',
+          'experienceYears', 'personalNotes', 'website',
+          'achievements', 'certifications', 'socialLinks',
+          'resumeFileName', 'mediaGallery',
+          'industry', 'organizationName', 'statistics',
+          'postsCount', 'clipsCount', 'followingCount',
+          'createdAt', 'updatedAt'
+        ];
+      }
+
+      // Public read: hide soft-deleted profiles except to the owner.
+      allow read: if resource.data.get('isDeleted', false) != true || isOwner(uid);
+
+      // Create: only the authenticated user can create their own profile doc.
+      // Block any attempt to pre-set server-managed fields at creation time.
+      allow create: if isAuthenticated() && request.auth.uid == uid
+        && !('verified' in request.resource.data)
+        && !('isDeleted' in request.resource.data)
+        && !('verificationStatus' in request.resource.data);
+
+      // Update — Class A: owner edits their own profile (safe fields only)
+      allow update: if resource.data.get('isDeleted', false) != true
+        && isOwner(uid)
+        && subsetOfFields(userEditableFields());
+
+      // Update — Class B: follow/unfollow transaction updates followersCount only.
+      // No absolute value check here; the Dart transaction enforces ±1 semantics.
+      // A future migration to Cloud Functions can tighten this to server-side only.
+      allow update: if resource.data.get('isDeleted', false) != true
+        && isActiveUser()
+        && onlyFields(['followersCount']);
+
+      // Update — Class C: any active user increments analytics counters
+      // (incrementProfileViews, incrementPortfolioShares in user_repository).
+      allow update: if resource.data.get('isDeleted', false) != true
+        && isActiveUser()
+        && onlyFields(['profileViews', 'portfolioViews', 'portfolioShares', 'searchAppearances']);
+
+      // Update — Class D: owner soft-deletes their own account
+      // (AccountSettingsActions.deleteAccount in settings_controller.dart).
+      allow update: if isOwner(uid)
+        && onlyFields(['isDeleted', 'deletedAt', 'deletionVersion', 'updatedAt']);
+
+      // Hard delete is permanently disabled to preserve platform history.
+      allow delete: if false;
+
+
+      // ── User settings ────────────────────────────────────────────────────────
+      // Any active user may read another user's preferences (DM permission checks,
+      // read-receipt toggles in messaging_access_service and chat_repository_impl).
+      match /settings/{settingsId} {
+        allow read: if isActiveUser();
+        allow write: if isOwner(uid) && isActiveUser();
+      }
+
+      // ── Hidden keywords (content filter) ─────────────────────────────────────
+      match /hidden_keywords/{keywordId} {
+        allow read, write: if isOwner(uid) && isActiveUser();
+      }
+
+      // ── Blocked users ─────────────────────────────────────────────────────────
+      // Any active user may GET a single block entry to check if the sender is
+      // blocked (messaging_access_service.dart uses this before allowing DMs).
+      match /blocked_users/{blockedUid} {
+        allow get:                    if isActiveUser();
+        allow list:                   if isOwner(uid) && isActiveUser();
+        allow create, update, delete: if isOwner(uid) && isActiveUser();
+      }
+
+      // ── Muted users ───────────────────────────────────────────────────────────
+      match /muted_users/{mutedUid} {
+        allow read, write: if isOwner(uid) && isActiveUser();
+      }
+
+      // ── Followers  /users/{uid}/followers/{followerUid} ───────────────────────
+      // Document is keyed by the follower's uid so only that user may write it.
+      match /followers/{followerUid} {
+        allow read:           if isActiveUser();
+        allow create, delete: if isActiveUser() && request.auth.uid == followerUid;
+        allow update:         if false;
+      }
+
+      // ── Following  /users/{uid}/following/{targetUid} ─────────────────────────
+      match /following/{targetUid} {
+        allow read:  if isActiveUser();
+        allow write: if isOwner(uid) && isActiveUser();
+      }
+
+      // ── Notifications ──────────────────────────────────────────────────────────
+      match /notifications/{notificationId} {
+        // Inbox owner: read and delete their own notifications.
+        allow read, delete: if isOwner(uid) && isActiveUser();
+
+        // Owner may update only the 'read' flag (markAsRead / markAllAsRead).
+        allow update: if isOwner(uid) && isActiveUser()
+          && onlyFields(['read']);
+
+        // Any active user may push a notification on their own behalf.
+        // All fields are validated to prevent spoofing or garbage data.
+        allow create: if isActiveUser()
+          // senderId must equal the caller
+          && request.resource.data.senderId == request.auth.uid
+          // Required fields must exist
+          && 'senderId'   in request.resource.data
+          && 'senderName' in request.resource.data
+          && 'text'       in request.resource.data
+          && 'type'       in request.resource.data
+          && 'createdAt'  in request.resource.data
+          && 'read'       in request.resource.data
+          // Cannot arrive pre-marked as read
+          && request.resource.data.read == false
+          // type must be a known value to prevent garbage injection
+          && request.resource.data.type in [
+               'like', 'comment', 'follow', 'mention',
+               'bookmark', 'reply', 'event', 'system'
+             ];
+      }
+
+      // ── Sessions (device management dashboard) ────────────────────────────────
+      match /sessions/{sessionId} {
+        allow read, write: if isOwner(uid) && isActiveUser();
+      }
+
+      // ── Verification applications ──────────────────────────────────────────────
+      // Users submit an application; admin SDK handles approval/rejection.
+      match /verification_applications/{applicationId} {
+        allow read, create: if isOwner(uid) && isActiveUser();
+        allow update, delete: if false;
+      }
+
+      // ── Bookmarked posts ───────────────────────────────────────────────────────
+      match /bookmarks/{postId} {
+        allow read, write: if isOwner(uid) && isActiveUser();
+      }
+
+      // ── Bookmarked clips ───────────────────────────────────────────────────────
+      match /bookmarks_clips/{clipId} {
+        allow read, write: if isOwner(uid) && isActiveUser();
+      }
+
+      // ── Bookmarked events ──────────────────────────────────────────────────────
+      match /bookmarked_events/{eventId} {
+        allow read, write: if isOwner(uid) && isActiveUser();
+      }
+
+      // ── User likes index  /users/{uid}/likes/{postId} ──────────────────────────
+      // Written atomically with /posts/{postId}/likes/{userId} in a transaction.
+      // Read by userLikesIdsProvider to drive the heart-icon state.
+      match /likes/{postId} {
+        allow read:  if isOwner(uid) && isActiveUser();
+        allow write: if isActiveUser() && request.auth.uid == uid;
+      }
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // USERNAMES  /usernames/{username}
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /usernames/{username} {
+      allow read: if isAuthenticated();
+      allow create: if isActiveUser()
+        && request.resource.data.uid == request.auth.uid;
+      allow update: if isActiveUser()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if isActiveUser()
+        && resource.data.uid == request.auth.uid;
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // REPORTS  /reports/{reportId}   (written via .add() — auto-generated ID)
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /reports/{reportId} {
+      allow read:           if isActiveUser() && resource.data.uid == request.auth.uid;
+      allow create:         if isActiveUser() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;   // immutable once filed; admin SDK resolves
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CHATS  /chats/{chatId}
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /chats/{chatId} {
+
+      function isParticipant() {
+        return isActiveUser()
+          && request.auth.uid in resource.data.participantIds;
+      }
+
+      allow read, update: if isParticipant();
+
+      // Create: caller must be one of exactly two participants.
+      allow create: if isActiveUser()
+        && request.auth.uid in request.resource.data.participantIds
+        && request.resource.data.participantIds.size() == 2;
+
+      // Delete: a participant may clear/leave their own chat room.
+      // (ChatListNotifier.deleteChatRoom in chat_list_controller.dart)
+      allow delete: if isParticipant();
+
+      // ── Messages  /chats/{chatId}/messages/{messageId} ─────────────────────
+      match /messages/{messageId} {
+
+        // getAfter() for create: parent chat is part of the same write batch.
+        function parentChatAfter() {
+          return getAfter(/databases/$(database)/documents/chats/$(chatId));
+        }
+
+        // get() for read/update/delete: parent already exists.
+        function parentChatNow() {
+          return get(/databases/$(database)/documents/chats/$(chatId));
+        }
+
+        allow read: if isActiveUser()
+          && request.auth.uid in parentChatNow().data.participantIds;
+
+        allow create: if isActiveUser()
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.receiverId in parentChatAfter().data.participantIds;
+
+        // Update covers reaction toggles; delete covers message removal.
+        allow update, delete: if isActiveUser()
+          && request.auth.uid in parentChatNow().data.participantIds;
+      }
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // POSTS  /posts/{postId}
+    // Also covers clips (same collection, mediaType field distinguishes them).
+    //
+    // Update security design:
+    //   Update is split into 5 narrow cases — no blanket "any user can update".
+    //   1. Post owner edits content fields only
+    //   2. Like transaction: likedBy + likes counter
+    //   3. Bookmark transaction: bookmarkedBy + bookmarks counter
+    //   4. Comment count update: commentsCount ±1
+    //   5. Share / view counter increments
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /posts/{postId} {
+
+      function isPostOwner() {
+        return isAuthenticated() && resource.data.userId == request.auth.uid;
+      }
+
+      // Publicly readable — unauthenticated users can browse the feed.
+      allow read: if true;
+
+      // Create: userId in the new document must match the caller.
+      allow create: if isActiveUser()
+        && request.resource.data.userId == request.auth.uid;
+
+      // Update — Case 1: post owner edits content (caption, category, sport, mentions)
+      allow update: if isActiveUser() && isPostOwner()
+        && subsetOfFields(['content', 'category', 'sport', 'mentions', 'updatedAt']);
+
+      // Update — Case 2: like/unlike transaction (likedBy array + likes counter)
+      allow update: if isActiveUser()
+        && onlyFields(['likedBy', 'likes']);
+
+      // Update — Case 3: bookmark transaction (bookmarkedBy array + bookmarks counter)
+      allow update: if isActiveUser()
+        && onlyFields(['bookmarkedBy', 'bookmarks']);
+
+      // Update — Case 4: comment count change (commentsCount ±1 via transaction)
+      allow update: if isActiveUser()
+        && onlyFields(['commentsCount']);
+
+      // Update — Case 5: share or view count increments
+      allow update: if isActiveUser()
+        && onlyFields(['shares', 'views']);
+
+      // Delete: only the post owner.
+      allow delete: if isActiveUser() && isPostOwner();
+
+
+      // ── Likes  /posts/{postId}/likes/{userId} ─────────────────────────────
+      match /likes/{userId} {
+        allow read: if true;
+        // Owner controls their own like entry.
+        // Post owner may also delete any like during cascade cleanup on deletion.
+        allow write: if isActiveUser()
+          && (request.auth.uid == userId || isPostOwner());
+      }
+
+
+      // ── Comments  /posts/{postId}/comments/{commentId} ────────────────────
+      //
+      // Update security design:
+      //   1. Comment author edits their own comment (text + edited flag only)
+      //   2. Any active user updates the comment's like counters
+      //   3. Any active user updates the reply counter (replyCount ±1)
+      // ────────────────────────────────────────────────────────────────────────
+      match /comments/{commentId} {
+
+        function isCommentAuthor() {
+          return isAuthenticated() && resource.data.userId == request.auth.uid;
+        }
+
+        // Look up the parent post's owner without a second get() on every rule.
+        function isParentPostOwner() {
+          return isAuthenticated()
+            && get(/databases/$(database)/documents/posts/$(postId)).data.userId
+               == request.auth.uid;
+        }
+
+        allow read: if true;
+
+        // Create: userId in the new comment must equal the caller.
+        allow create: if isActiveUser()
+          && request.resource.data.userId == request.auth.uid;
+
+        // Update — author edits comment text only
+        allow update: if isActiveUser() && isCommentAuthor()
+          && onlyFields(['text', 'edited', 'updatedAt']);
+
+        // Update — like toggle on a comment (likedBy array + likesCount)
+        allow update: if isActiveUser()
+          && onlyFields(['likedBy', 'likesCount']);
+
+        // Update — reply counter (replyCount ±1 when a reply is added/deleted)
+        allow update: if isActiveUser()
+          && onlyFields(['replyCount']);
+
+        // Delete: comment author or post owner only.
+        allow delete: if isActiveUser()
+          && (isCommentAuthor() || isParentPostOwner());
+      }
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STORIES  /stories/{storyId}
+    //
+    // Update security design:
+    //   1. Story owner edits caption / visibility only
+    //   2. Any active user may like a story (likes array)
+    //   3. Any active user may mark a story viewed (viewedBy array)
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /stories/{storyId} {
+
+      function isStoryOwner() {
+        return isAuthenticated() && resource.data.userId == request.auth.uid;
+      }
+
+      // Any signed-in user may view stories.
+      allow read: if isAuthenticated();
+
+      // Create: userId in the new story must equal the caller.
+      allow create: if isActiveUser()
+        && request.resource.data.userId == request.auth.uid;
+
+      // Update — Case 1: story owner edits caption / visibility
+      allow update: if isActiveUser() && isStoryOwner()
+        && subsetOfFields(['caption', 'visibility', 'updatedAt']);
+
+      // Update — Case 2: any user likes the story (likes array mutation)
+      allow update: if isActiveUser()
+        && onlyFields(['likes']);
+
+      // Update — Case 3: any user marks the story viewed (viewedBy array)
+      allow update: if isActiveUser()
+        && onlyFields(['viewedBy']);
+
+      // Delete: only the story author.
+      allow delete: if isActiveUser() && isStoryOwner();
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EVENTS  /events/{eventId}
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /events/{eventId} {
+
+      function isEventOwner() {
+        return isAuthenticated() && resource.data.createdBy == request.auth.uid;
+      }
+
+      // Any signed-in user may browse events.
+      allow read: if isAuthenticated();
+
+      // Create: createdBy must equal the caller.
+      allow create: if isActiveUser()
+        && request.resource.data.createdBy == request.auth.uid;
+
+      // Update: event owner can change anything; any active user may update
+      // only the participant counter during join/leave transactions.
+      allow update: if isActiveUser()
+        && (
+          isEventOwner()
+          || onlyFields(['currentParticipants', 'updatedAt'])
+        );
+
+      allow delete: if isActiveUser() && isEventOwner();
+
+      // ── Participants  /events/{eventId}/participants/{userId} ──────────────
+      match /participants/{userId} {
+        // Any signed-in user may view the participant list / avatars.
+        allow read: if isAuthenticated();
+        // Only the user themselves may join (create) or leave (delete).
+        allow create, delete: if isActiveUser() && request.auth.uid == userId;
+        allow update: if false;
+      }
+    }
+
+  }
+}
