@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -17,7 +18,7 @@ import '../../domain/models/comment_model.dart';
 import '../controllers/feed_controller.dart';
 import '../widgets/post_card.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
-import '../../../../core/widgets/offline_banner.dart';
+import '../../../notifications/data/notification_service.dart';
 import '../../../../core/services/cache_manager.dart';
 import '../../../../core/services/network_service.dart';
 import '../../../../core/services/offline_sync_service.dart';
@@ -69,7 +70,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       appBar: const AtheleosAppBar(),
       body: Column(
         children: [
-          const OfflineBanner(),
           Expanded(
             child: Center(
               child: Container(
@@ -1394,6 +1394,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
 
     final commentId = 'comment_${DateTime.now().millisecondsSinceEpoch}_$userId';
     final parentId = _replyingToComment?.commentId;
+    final replyTargetUserId = _replyingToComment?.userId;
 
     final comment = CommentModel(
       commentId: commentId,
@@ -1435,6 +1436,48 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
 
     try {
       await ref.read(commentRepositoryProvider).addComment(comment);
+
+      // Notify the relevant recipients (owner / parent-comment author).
+      final actor = NotificationActor(
+          id: userId, name: username, avatar: profileImage);
+      final media =
+          widget.post.media.isNotEmpty ? widget.post.media.first : null;
+      final thumb = media?.thumbnailUrl ?? media?.mediaUrl;
+      final preview = text.length > 60 ? '${text.substring(0, 57)}...' : text;
+
+      if (parentId != null && replyTargetUserId != null) {
+        // Reply → notify the author of the parent comment.
+        unawaited(NotificationService.instance.commentReply(
+          receiverId: replyTargetUserId,
+          actor: actor,
+          contentId: widget.post.id,
+          commentId: commentId,
+          preview: preview,
+        ));
+        // Also notify the post owner if they are a different person.
+        if (widget.post.userId != replyTargetUserId) {
+          unawaited(NotificationService.instance.comment(
+            receiverId: widget.post.userId,
+            actor: actor,
+            contentId: widget.post.id,
+            commentId: commentId,
+            isReel: widget.post.hasVideo,
+            preview: preview,
+            thumbnailUrl: thumb,
+          ));
+        }
+      } else {
+        // Top-level comment → notify the post owner.
+        unawaited(NotificationService.instance.comment(
+          receiverId: widget.post.userId,
+          actor: actor,
+          contentId: widget.post.id,
+          commentId: commentId,
+          isReel: widget.post.hasVideo,
+          preview: preview,
+          thumbnailUrl: thumb,
+        ));
+      }
 
       // Trigger notifications for mentioned users
       await MentionService.sendMentionNotifications(

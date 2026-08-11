@@ -1,0 +1,26 @@
+{
+  "name": "atheleos-functions",
+  "scripts": {
+    "lint": "tslint --project tsconfig.json",
+    "build": "tsc",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-admin": "^11.8.0",
+    "firebase-functions": "^4.3.1",
+    "fluent-ffmpeg": "^2.1.2",
+    "@google-cloud/storage": "^6.9.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.4",
+    "firebase-functions-test": "^3.1.0"
+  },
+  "private": true
+}

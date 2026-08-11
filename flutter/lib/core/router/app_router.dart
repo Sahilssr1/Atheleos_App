@@ -8,6 +8,7 @@ import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/feed/presentation/screens/feed_screen.dart';
+import '../../features/feed/presentation/screens/post_detail_screen.dart';
 import '../../features/search/presentation/screens/search_screen.dart';
 import '../../features/upload/presentation/screens/upload_screen.dart';
 import '../../features/clips/presentation/screens/clips_screen.dart';
@@ -124,6 +125,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/notifications',
         builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/post/:postId',
+        builder: (context, state) {
+          final postId = state.pathParameters['postId']!;
+          final commentId = state.uri.queryParameters['commentId'];
+          return PostDetailScreen(postId: postId, commentId: commentId);
+        },
       ),
       GoRoute(
         path: '/events',

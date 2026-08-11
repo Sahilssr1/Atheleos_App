@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import '../../domain/models/profile_model.dart';
 import '../../domain/repositories/user_repository.dart';
 import '../../data/repositories/dummy_user_repository.dart';
@@ -7,6 +8,8 @@ import '../../data/repositories/firestore_user_repository.dart';
 import '../../../../core/services/cache_manager.dart';
 import '../../../../core/services/network_service.dart';
 import '../../../../core/services/offline_sync_service.dart';
+import '../../../notifications/data/notification_service.dart';
+import '../../../notifications/domain/models/notification_model.dart';
 
 enum UserRepositoryType { dummy, firestore }
 
@@ -222,6 +225,19 @@ class UniversalProfileController
         }
         state = AsyncValue.data(updated);
         _ref.read(profileListProvider.notifier).loadAllProfiles();
+
+        // Emit a follow notification to the target only when following (not on unfollow).
+        if (nextFollowState) {
+          final me = _ref.read(currentUserProvider).valueOrNull;
+          unawaited(NotificationService.instance.follow(
+            receiverId: _userId,
+            actor: NotificationActor(
+              id: _ref.read(loggedInUserIdProvider),
+              name: me?.name ?? 'Someone',
+              avatar: me?.avatarUrl ?? '',
+            ),
+          ));
+        }
       } catch (_) {
         await _ref.read(offlineSyncProvider.notifier).queueAction(
           actionType: 'follow',
@@ -266,6 +282,18 @@ class UniversalProfileController
       });
       state = AsyncValue.data(updatedProfile);
       _ref.read(profileListProvider.notifier).loadAllProfiles();
+
+      // Self-notification confirming the submission (also email-eligible).
+      unawaited(NotificationService.instance.system(
+        receiverId: _userId,
+        type: NotificationType.verificationSubmitted,
+        title: 'Verification submitted',
+        body: 'Your verification request was submitted and is under review.',
+        emailSubject: 'ATHELEOS — Verification request received',
+        emailHtml:
+            '<p>Your verification request was submitted and is now under review. '
+            'We will notify you once a decision has been made.</p>',
+      ));
     }
   }
 
@@ -301,6 +329,25 @@ class UniversalProfileController
       await _repository.updateUser(updatedProfile);
       state = AsyncValue.data(updatedProfile);
       _ref.read(profileListProvider.notifier).loadAllProfiles();
+
+      // Notify the applicant of the decision.
+      final decisionType = switch (status) {
+        'approved' => NotificationType.verificationApproved,
+        'rejected' => NotificationType.verificationRejected,
+        'more_info' => NotificationType.verificationMoreInfo,
+        _ => null,
+      };
+      if (decisionType != null) {
+        unawaited(NotificationService.instance.system(
+          receiverId: _userId,
+          type: decisionType,
+          body: status == 'rejected'
+              ? 'Your verification request was declined: '
+                  '${rejectedReason ?? 'Documents did not meet criteria.'}'
+              : null,
+          emailSubject: 'ATHELEOS — Verification update',
+        ));
+      }
     }
   }
 }

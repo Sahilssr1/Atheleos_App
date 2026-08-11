@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:async';
 import '../../../../core/theme/app_theme.dart';
+import '../../../notifications/data/notification_service.dart';
+import '../../../notifications/domain/models/notification_model.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../domain/models/event_model.dart';
 import '../../domain/repositories/events_repository.dart';
@@ -392,6 +395,25 @@ class EventDetailsScreen extends ConsumerWidget {
                                         'role': userProfile?.role ?? 'Athlete',
                                       };
                                       await ref.read(eventsRepositoryProvider).joinEvent(event.eventId, currentUserId, details);
+                                      // Let the organiser know a new athlete registered.
+                                      if (event.organizerUid.isNotEmpty &&
+                                          event.organizerUid != currentUserId) {
+                                        unawaited(NotificationService.instance.create(
+                                          receiverId: event.organizerUid,
+                                          type: NotificationType.eventAccepted,
+                                          actor: NotificationActor(
+                                            id: currentUserId,
+                                            name: userProfile?.name ?? 'An athlete',
+                                            avatar: userProfile?.avatarUrl ?? '',
+                                          ),
+                                          body:
+                                              'registered for your event "${event.title}"',
+                                          relatedObjectId: event.eventId,
+                                          thumbnailUrl: event.bannerUrl,
+                                          dedupeKey:
+                                              'event_join_${event.eventId}_$currentUserId',
+                                        ));
+                                      }
                                     }
                                   } catch (e) {
                                     if (context.mounted) {

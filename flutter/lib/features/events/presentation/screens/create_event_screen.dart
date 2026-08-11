@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/sports_service.dart';
-import '../../../../core/services/cloudinary_service.dart';
+import '../../../../core/services/upload_queue_coordinator.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../domain/models/event_model.dart';
 import '../../domain/repositories/events_repository.dart';
@@ -208,12 +210,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     return '$hour:$minute $period';
   }
 
-  String _getCloudinaryImageThumbnail(String url) {
-    if (url.contains('/upload/')) {
-      return url.replaceFirst('/upload/', '/upload/c_fill,h_200,w_300/');
-    }
-    return url;
-  }
+  // Cloudinary event banner thumbnail helper removed. R2 generated thumbnails are used directly.
 
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -258,9 +255,6 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
 
       // Handle Cloudinary upload if a banner is picked
       if (_bannerFile != null) {
-        final config = ref.read(cloudinaryConfigProvider);
-        final service = CloudinaryServiceImpl(config);
-
         Uint8List? bytes;
         String? filePath;
 
@@ -270,13 +264,38 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
           filePath = _bannerFile!.path;
         }
 
-        mediaUrl = await service.uploadImage(
+        final idempotencyKey = const Uuid().v4();
+        final queue = ref.read(uploadQueueProvider.notifier);
+        final taskId = await queue.addTask(
           bytes: bytes,
           filePath: filePath,
           fileName: _bannerFile!.name,
+          ownerType: 'event',
+          idempotencyKey: idempotencyKey,
         );
-        publicId = 'event_banner_${DateTime.now().millisecondsSinceEpoch}';
-        thumbnailUrl = _getCloudinaryImageThumbnail(mediaUrl);
+
+        UploadTask? completedTask;
+        await for (final tasks in ref.read(uploadQueueProvider.notifier).stream) {
+          final t = tasks.where((t) => t.id == taskId).firstOrNull;
+          if (t == null) break;
+          if (t.status == UploadStatus.completed) {
+            completedTask = t;
+            break;
+          }
+          if (t.status == UploadStatus.failed || t.status == UploadStatus.cancelled) {
+            throw Exception(t.errorMessage ?? 'Banner upload failed');
+          }
+        }
+
+        if (completedTask == null || completedTask.mediaId == null) {
+          throw Exception('Banner task failed to return media ID');
+        }
+
+        publicId = completedTask.mediaId!;
+        final doc = await FirebaseFirestore.instance.collection('media').doc(publicId).get();
+        final urls = doc.data()?['urls'] as Map?;
+        mediaUrl = urls?['original'] as String? ?? mediaUrl;
+        thumbnailUrl = urls?['thumbnail'] as String? ?? mediaUrl;
       }
 
       final eventId = 'event_${DateTime.now().millisecondsSinceEpoch}';

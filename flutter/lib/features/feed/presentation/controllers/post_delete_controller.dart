@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/post_model.dart';
 import '../../../clips/presentation/controllers/clips_controller.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
-import '../../../../core/services/cloudinary_service.dart';
 import 'feed_controller.dart';
 
 /// Central controller for deleting a post/reel from everywhere at once:
@@ -47,19 +46,7 @@ class PostDeleteController {
     // 2. Delete the Firestore document (source of truth) + counters.
     await _ref.read(postRepositoryProvider).deletePost(post);
 
-    // 3. Best-effort Cloudinary media cleanup using the stored publicId/URL.
-    final cloudinary = _ref.read(cloudinaryServiceProvider);
-    for (final media in post.media) {
-      try {
-        await cloudinary.deleteMedia(
-          mediaUrl: media.mediaUrl,
-          publicId: media.publicId,
-          resourceType: media.mediaType,
-        );
-      } catch (e) {
-        debugPrint('PostDeleteController: Cloudinary cleanup failed: $e');
-      }
-    }
+    // 3. Media deletion and reference counting are handled automatically on the backend via Firestore triggers.
 
     // 4. Refresh profiles so postsCount and galleries stay in sync.
     try {

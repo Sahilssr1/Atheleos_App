@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
@@ -22,7 +23,9 @@ import '../../../../core/services/offline_sync_service.dart';
 import '../../../../core/widgets/post_media_widget.dart' show preloadedVideoUrlProvider;
 import '../../domain/repositories/story_repository.dart';
 import '../../data/repositories/story_repository_impl.dart';
-import '../../../../core/services/cloudinary_service.dart';
+import '../../../../core/services/upload_queue_coordinator.dart';
+import '../../../notifications/data/notification_service.dart';
+import '../../../notifications/presentation/controllers/notifications_controller.dart';
 
 // Provide instances of modular repositories
 final postRepositoryProvider = Provider<PostRepository>((ref) {
@@ -405,9 +408,12 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
 
     if (nextVideoUrl == _lastPreloadedVideoUrl) return;
     _lastPreloadedVideoUrl = nextVideoUrl;
-    try {
-      _ref.read(preloadedVideoUrlProvider.notifier).state = nextVideoUrl;
-    } catch (_) {}
+    final targetUrl = nextVideoUrl;
+    Future.microtask(() {
+      try {
+        _ref.read(preloadedVideoUrlProvider.notifier).state = targetUrl;
+      } catch (_) {}
+    });
     if (nextVideoUrl != null) {
       unawaited(CacheManager().preloadVideo(nextVideoUrl));
     }
@@ -431,10 +437,12 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
 
   Future<void> toggleLike(String postId, bool currentlyLiked) async {
     // Optimistic UI updates
+    PostModel? likedPost;
     if (state is AsyncData<List<PostModel>>) {
       final posts = state.asData!.value;
       final updated = posts.map((p) {
         if (p.id == postId) {
+          likedPost = p;
           final newLikes = currentlyLiked ? p.likes - 1 : p.likes + 1;
           return p.copyWith(hasLiked: !currentlyLiked, likes: newLikes);
         }
@@ -455,6 +463,10 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
 
     try {
       await _ref.read(likeRepositoryProvider).togglePostLike(postId, _userId);
+      // Only emit a notification when adding a like (not on unlike).
+      if (!currentlyLiked && likedPost != null) {
+        _notifyLike(likedPost!);
+      }
     } catch (_) {
       // Catch network exception and queue it
       await _ref.read(offlineSyncProvider.notifier).queueAction(
@@ -463,6 +475,17 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
         data: {'userId': _userId, 'isLiked': !currentlyLiked},
       );
     }
+  }
+
+  void _notifyLike(PostModel post) {
+    final media = post.media.isNotEmpty ? post.media.first : null;
+    unawaited(NotificationService.instance.like(
+      receiverId: post.userId,
+      actor: notificationActorOf(_ref),
+      contentId: post.id,
+      isReel: post.hasVideo,
+      thumbnailUrl: media?.thumbnailUrl ?? media?.mediaUrl,
+    ));
   }
 
   Future<void> toggleBookmark(String postId, bool currentlyBookmarked) async {
@@ -668,12 +691,40 @@ class StoriesNotifier extends StateNotifier<AsyncValue<List<StoryModel>>> {
     final userAvatar = user?.avatarUrl ?? 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150';
     final verified = user?.verified ?? true;
 
-    final fileName = 'story_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final mediaUrl = await _ref.read(cloudinaryServiceProvider).uploadImage(
+    final idempotencyKey = const Uuid().v4();
+    final fileName = filePath.split('/').last;
+    final queue = _ref.read(uploadQueueProvider.notifier);
+    final taskId = await queue.addTask(
       bytes: null,
       filePath: filePath,
       fileName: fileName,
+      ownerType: 'story',
+      idempotencyKey: idempotencyKey,
     );
+
+    UploadTask? completedTask;
+    await for (final tasks in _ref.read(uploadQueueProvider.notifier).stream) {
+      final t = tasks.where((t) => t.id == taskId).firstOrNull;
+      if (t == null) break;
+      if (t.status == UploadStatus.completed) {
+        completedTask = t;
+        break;
+      }
+      if (t.status == UploadStatus.failed || t.status == UploadStatus.cancelled) {
+        throw Exception(t.errorMessage ?? 'Story upload failed');
+      }
+    }
+
+    if (completedTask == null || completedTask.mediaId == null) {
+      throw Exception('Story task failed to return media ID');
+    }
+
+    final doc = await FirebaseFirestore.instance.collection('media').doc(completedTask.mediaId).get();
+    final urls = doc.data()?['urls'] as Map?;
+    final mediaUrl = urls?['original'] as String?;
+    if (mediaUrl == null) {
+      throw Exception('Story image variant URL is missing.');
+    }
 
     final story = StoryModel(
       id: 'story_${DateTime.now().millisecondsSinceEpoch}_$userId',

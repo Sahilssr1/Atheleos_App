@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/post_media_widget.dart';
 import '../../../../core/services/sports_service.dart';
@@ -16,6 +17,7 @@ import '../../../feed/domain/models/comment_model.dart';
 import '../controllers/clips_controller.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../feed/presentation/controllers/feed_controller.dart';
+import '../../../notifications/data/notification_service.dart';
 import '../../../feed/presentation/controllers/post_delete_controller.dart';
 import 'dart:io';
 import '../../../../core/services/cache_manager.dart';
@@ -821,7 +823,14 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => ClipCommentsBottomSheet(clipId: widget.clip.id),
+      builder: (context) => ClipCommentsBottomSheet(
+        clipId: widget.clip.id,
+        clipOwnerId: widget.clip.userId,
+        thumbnailUrl: widget.clip.media.isNotEmpty
+            ? (widget.clip.media.first.thumbnailUrl ??
+                widget.clip.media.first.mediaUrl)
+            : null,
+      ),
     );
   }
 
@@ -945,8 +954,15 @@ class _VisualClipComment {
 // ---------------------- CLIPS COMMENT BOTTOM SHEET ----------------------
 class ClipCommentsBottomSheet extends ConsumerStatefulWidget {
   final String clipId;
+  final String? clipOwnerId;
+  final String? thumbnailUrl;
 
-  const ClipCommentsBottomSheet({super.key, required this.clipId});
+  const ClipCommentsBottomSheet({
+    super.key,
+    required this.clipId,
+    this.clipOwnerId,
+    this.thumbnailUrl,
+  });
 
   @override
   ConsumerState<ClipCommentsBottomSheet> createState() => _ClipCommentsBottomSheetState();
@@ -1003,6 +1019,7 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
 
     final commentId = 'comment_clip_${DateTime.now().millisecondsSinceEpoch}_$userId';
     final parentId = _replyingToComment?.commentId;
+    final replyTargetUserId = _replyingToComment?.userId;
 
     final comment = CommentModel(
       commentId: commentId,
@@ -1023,6 +1040,43 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
 
     try {
       await ref.read(commentRepositoryProvider).addComment(comment);
+
+      // Notify the reel owner / parent-comment author.
+      final actor =
+          NotificationActor(id: userId, name: username, avatar: avatar);
+      final preview = text.length > 60 ? '${text.substring(0, 57)}...' : text;
+      final ownerId = widget.clipOwnerId;
+
+      if (parentId != null && replyTargetUserId != null) {
+        unawaited(NotificationService.instance.commentReply(
+          receiverId: replyTargetUserId,
+          actor: actor,
+          contentId: widget.clipId,
+          commentId: commentId,
+          preview: preview,
+        ));
+        if (ownerId != null && ownerId != replyTargetUserId) {
+          unawaited(NotificationService.instance.comment(
+            receiverId: ownerId,
+            actor: actor,
+            contentId: widget.clipId,
+            commentId: commentId,
+            isReel: true,
+            preview: preview,
+            thumbnailUrl: widget.thumbnailUrl,
+          ));
+        }
+      } else if (ownerId != null) {
+        unawaited(NotificationService.instance.comment(
+          receiverId: ownerId,
+          actor: actor,
+          contentId: widget.clipId,
+          commentId: commentId,
+          isReel: true,
+          preview: preview,
+          thumbnailUrl: widget.thumbnailUrl,
+        ));
+      }
 
       // Trigger notifications for mentioned users
       await MentionService.sendMentionNotifications(

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/services/cloudinary_service.dart';
+import '../../../../core/services/upload_queue_coordinator.dart';
 import '../../../../core/services/sports_service.dart';
 import '../../../../core/services/mention_service.dart';
 import '../../../../core/widgets/mention_autocomplete_overlay.dart';
@@ -64,17 +65,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     super.dispose();
   }
 
-  String getCloudinaryVideoThumbnail(String videoUrl) {
-    if (videoUrl.contains('cloudinary.com') && videoUrl.contains('/video/upload/')) {
-      var transformed = videoUrl.replaceAll('/video/upload/', '/video/upload/w_400,h_600,c_limit,so_0/');
-      final lastDot = transformed.lastIndexOf('.');
-      if (lastDot != -1) {
-        transformed = transformed.substring(0, lastDot) + '.jpg';
-      }
-      return transformed;
-    }
-    return videoUrl;
-  }
+  // Cloudinary video thumbnail helper removed. R2 generated thumbnails are used directly.
 
   Future<void> _pickMedia(bool pickVideo) async {
     final picker = ImagePicker();
@@ -122,17 +113,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     );
   }
 
-  void _startFakeProgress() {
-    _uploadProgress = 0.0;
-    _progressTimer = Timer.periodic(const Duration(milliseconds: 120), (timer) {
-      if (!mounted) { timer.cancel(); return; }
-      setState(() {
-        if (_uploadProgress < 0.88) {
-          _uploadProgress += (0.88 - _uploadProgress) * 0.06;
-        }
-      });
-    });
-  }
+
 
   Future<void> _handlePublish() async {
     if (_contentController.text.trim().isEmpty) {
@@ -151,15 +132,13 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     }
 
     setState(() { _isUploading = true; _uploadProgress = 0.0; });
-    _startFakeProgress();
 
     String? mediaUrl;
+    String? thumbnailUrl;
+    final postId = const Uuid().v4();
 
     try {
       if (_pickedFile != null) {
-        final config = ref.read(cloudinaryConfigProvider);
-        final service = CloudinaryServiceImpl(config);
-
         Uint8List? bytes;
         String? filePath;
 
@@ -169,23 +148,68 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           filePath = _pickedFile!.path;
         }
 
-        mediaUrl = _isVideo
-            ? await service.uploadVideo(
-                bytes: bytes, filePath: filePath, fileName: _pickedFile!.name)
-            : await service.uploadImage(
-                bytes: bytes, filePath: filePath, fileName: _pickedFile!.name);
+        final idempotencyKey = const Uuid().v4();
+        final queue = ref.read(uploadQueueProvider.notifier);
+        
+        final taskId = await queue.addTask(
+          bytes: bytes,
+          filePath: filePath,
+          fileName: _pickedFile!.name,
+          ownerType: 'post',
+          idempotencyKey: idempotencyKey,
+        );
+
+        UploadTask? completedTask;
+        
+        // Await the queue coordinator task execution
+        await for (final tasks in ref.read(uploadQueueProvider.notifier).stream) {
+          final matchingTasks = tasks.where((t) => t.id == taskId);
+          final t = matchingTasks.isNotEmpty ? matchingTasks.first : null;
+          if (t == null) break;
+          
+          if (t.status == UploadStatus.completed) {
+            completedTask = t;
+            break;
+          }
+          if (t.status == UploadStatus.failed || t.status == UploadStatus.cancelled) {
+            throw Exception(t.errorMessage ?? 'Upload failed');
+          }
+          setState(() {
+            _uploadProgress = t.progress;
+          });
+        }
+
+        if (completedTask == null || completedTask.mediaId == null) {
+          throw Exception('Upload task failed to return a valid media ID.');
+        }
+
+        final mediaId = completedTask.mediaId!;
+        
+        debugPrint('AtheleosDebug: Step 0 - Subscribing to media document snapshots...');
+        DocumentSnapshot<Map<String, dynamic>> docSnap;
+        try {
+          docSnap = await FirebaseFirestore.instance
+              .collection('media')
+              .doc(mediaId)
+              .snapshots()
+              .firstWhere((snap) => snap.exists && snap.data()?['status'] == 'ready')
+              .timeout(const Duration(minutes: 1), onTimeout: () {
+                throw TimeoutException('Media processing timed out.');
+              });
+          debugPrint('AtheleosDebug: Step 0 - Success!');
+        } catch (err) {
+          debugPrint('AtheleosDebug: Step 0 - Failed: $err');
+          rethrow;
+        }
+
+        final mediaData = docSnap.data()!;
+        final urls = mediaData['urls'] as Map;
+        mediaUrl = urls['original'] as String;
+        thumbnailUrl = urls['thumbnail'] as String?;
       }
 
-      _progressTimer?.cancel();
       setState(() { _uploadProgress = 1.0; });
       await Future.delayed(const Duration(milliseconds: 300));
-
-      final postId = 'post_${DateTime.now().millisecondsSinceEpoch}';
-
-      String? thumbnailUrl;
-      if (_isVideo && mediaUrl != null) {
-        thumbnailUrl = getCloudinaryVideoThumbnail(mediaUrl);
-      }
 
       // Resolve actual media dimensions from the picked file
       int actualWidth = _isVideo ? 1080 : 1080;
@@ -266,23 +290,45 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       final Map<String, dynamic> data = post.toMap();
       data['createdAt'] = FieldValue.serverTimestamp();
 
-      await FirebaseFirestore.instance.collection('posts').doc(postId).set(data);
+      debugPrint('AtheleosDebug: Step 1 - Writing post document to Firestore...');
+      try {
+        await FirebaseFirestore.instance.collection('posts').doc(postId).set(data);
+        debugPrint('AtheleosDebug: Step 1 - Success!');
+      } catch (err) {
+        debugPrint('AtheleosDebug: Step 1 - Failed: $err');
+        rethrow;
+      }
 
       // Trigger mention notifications
-      await MentionService.sendMentionNotifications(
-        senderId: userProfile.id,
-        senderName: userProfile.name,
-        senderAvatar: userProfile.avatarUrl,
-        textContent: _contentController.text.trim(),
-        targetType: 'post',
-        targetId: postId,
-        mentions: mentions,
-      );
+      debugPrint('AtheleosDebug: Step 2 - Sending mention notifications...');
+      try {
+        await MentionService.sendMentionNotifications(
+          senderId: userProfile.id,
+          senderName: userProfile.name,
+          senderAvatar: userProfile.avatarUrl,
+          textContent: _contentController.text.trim(),
+          targetType: 'post',
+          targetId: postId,
+          mentions: mentions,
+        );
+        debugPrint('AtheleosDebug: Step 2 - Success!');
+      } catch (err) {
+        debugPrint('AtheleosDebug: Step 2 - Failed: $err');
+        rethrow;
+      }
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userProfile.id)
-          .update({'postsCount': FieldValue.increment(1)});
+      debugPrint('AtheleosDebug: Step 3 - Incrementing user postsCount...');
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userProfile.id)
+            .update({'postsCount': FieldValue.increment(1)});
+        debugPrint('AtheleosDebug: Step 3 - Success!');
+      } catch (err) {
+        debugPrint('AtheleosDebug: Step 3 - Failed: $err');
+        rethrow;
+      }
+      
       ref.invalidate(feedPostsProvider);
 
       ref.read(profileListProvider.notifier).loadAllProfiles();
@@ -501,7 +547,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                                   style: GoogleFonts.spaceGrotesk(
                                       fontWeight: FontWeight.bold, color: Colors.white54)),
                               const SizedBox(height: 4),
-                              Text('Uploads directly to Cloudinary',
+                              Text('Uploads directly to Cloudflare R2',
                                   style: GoogleFonts.inter(
                                       color: Colors.white24, fontSize: 11)),
                             ],
@@ -549,7 +595,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        _pickedFile != null ? 'Uploading to Cloudinary...' : 'Publishing...',
+                        _pickedFile != null ? 'Uploading to Cloudflare...' : 'Publishing...',
                         style: GoogleFonts.spaceGrotesk(
                           color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                       ),

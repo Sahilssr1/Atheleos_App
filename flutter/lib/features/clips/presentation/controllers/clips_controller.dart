@@ -1,11 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:async';
 import '../../domain/repositories/clip_repository.dart';
 import '../../data/repositories/clip_repository_impl.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../feed/presentation/controllers/feed_controller.dart';
 import '../../../feed/domain/models/post_model.dart';
+import '../../../notifications/data/notification_service.dart';
+import '../../../notifications/presentation/controllers/notifications_controller.dart';
 
 final clipRepositoryProvider = Provider<ClipRepository>((ref) {
   return ClipRepositoryImpl();
@@ -139,10 +142,12 @@ class ClipsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
 
   Future<void> toggleLike(String clipId, bool currentlyLiked) async {
     // Optimistic UI Update
+    PostModel? likedClip;
     if (state is AsyncData<List<PostModel>>) {
       final clips = state.asData!.value;
       final updated = clips.map((c) {
         if (c.id == clipId) {
+          likedClip = c;
           final newLikes = currentlyLiked ? c.likes - 1 : c.likes + 1;
           return c.copyWith(hasLiked: !currentlyLiked, likes: newLikes);
         }
@@ -150,8 +155,20 @@ class ClipsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
       }).toList();
       state = AsyncValue.data(updated);
     }
-    
+
     await _ref.read(likeRepositoryProvider).togglePostLike(clipId, _userId);
+
+    // Notify the reel owner only when adding a like.
+    if (!currentlyLiked && likedClip != null) {
+      final media = likedClip!.media.isNotEmpty ? likedClip!.media.first : null;
+      unawaited(NotificationService.instance.like(
+        receiverId: likedClip!.userId,
+        actor: notificationActorOf(_ref),
+        contentId: likedClip!.id,
+        isReel: true,
+        thumbnailUrl: media?.thumbnailUrl ?? media?.mediaUrl,
+      ));
+    }
   }
 
   Future<void> toggleBookmark(String clipId, bool currentlyBookmarked) async {

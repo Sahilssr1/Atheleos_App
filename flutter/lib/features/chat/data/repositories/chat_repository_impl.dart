@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/services/messaging_access_service.dart';
+import '../../../notifications/data/notification_service.dart';
 import '../../domain/models/chat_message.dart';
 import '../../domain/models/chat_room_model.dart';
 import '../../domain/repositories/chat_repository.dart';
@@ -58,29 +59,31 @@ class ChatRepositoryImpl implements ChatRepository {
     batch.set(messageRef, message.toMap());
     await batch.commit();
 
-    final settings = await _firestore
-        .collection('users')
-        .doc(message.receiverId)
-        .collection('settings')
-        .doc('preferences')
-        .get();
-    final notifications = Map<String, dynamic>.from(
-      settings.data()?['notifications'] ?? const {},
-    );
-    if ((notifications['directMessages'] as bool?) ?? true) {
-      await _firestore
-          .collection('users')
-          .doc(message.receiverId)
-          .collection('notifications')
-          .doc('message_${message.id}')
-          .set({
-        'senderId': message.senderId,
-        'text': 'sent you a message',
-        'type': 'directMessages',
-        'targetId': roomId,
-        'createdAt': FieldValue.serverTimestamp(),
-        'read': false,
-      });
+    // Emit a message notification through the central pipeline (handles the
+    // receiver's directMessages preference, de-duplication and deep-linking).
+    try {
+      final senderSnap =
+          await _firestore.collection('users').doc(message.senderId).get();
+      final senderData = senderSnap.data() ?? const {};
+      final preview = message.content.length > 60
+          ? '${message.content.substring(0, 57)}...'
+          : message.content;
+      await NotificationService.instance.message(
+        receiverId: message.receiverId,
+        actor: NotificationActor(
+          id: message.senderId,
+          name: senderData['displayName'] ??
+              senderData['name'] ??
+              senderData['username'] ??
+              'Someone',
+          avatar: senderData['photoUrl'] ?? senderData['avatarUrl'] ?? '',
+        ),
+        messageId: message.id,
+        preview: preview.isEmpty ? null : preview,
+        isRequest: access.isRequest,
+      );
+    } catch (_) {
+      // Never let notification failures block message delivery.
     }
   }
 

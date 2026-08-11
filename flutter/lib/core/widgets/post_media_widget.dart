@@ -6,6 +6,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 import 'package:shimmer/shimmer.dart';
 import '../services/cache_manager.dart';
 import '../theme/app_theme.dart';
+import 'dart:io';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Video lifecycle policy (Instagram-style)
@@ -221,8 +222,16 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
 
     VideoPlayerController? localController;
     try {
-      final adaptiveUrl = _getAdaptiveStreamUrl(widget.mediaUrl);
-      localController = VideoPlayerController.networkUrl(Uri.parse(adaptiveUrl));
+      final cachedPath = await CacheManager().getCachedVideoPath(widget.mediaUrl);
+      if (!mounted || generation != _initGeneration) return;
+
+      if (cachedPath != null) {
+        localController = VideoPlayerController.file(File(cachedPath));
+      } else {
+        final adaptiveUrl = _getAdaptiveStreamUrl(widget.mediaUrl);
+        localController = VideoPlayerController.networkUrl(Uri.parse(adaptiveUrl));
+        CacheManager().preloadVideo(widget.mediaUrl);
+      }
 
       await localController.initialize();
 

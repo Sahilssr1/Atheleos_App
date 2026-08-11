@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:timezone/data/latest.dart' as timezone_data;
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'firebase_options.dart';
 import 'core/services/cache_manager.dart';
+import 'core/services/push_notification_service.dart';
 import 'features/profile/presentation/controllers/settings_controller.dart';
+import 'features/profile/presentation/controllers/profile_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +28,11 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // Register the background/terminated message handler and boot the push
+  // notification pipeline (permissions, local-notification channel, listeners).
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  await PushNotificationService.instance.initialize();
+
   runApp(
     const ProviderScope(
       child: AtheleosApp(),
@@ -32,11 +40,58 @@ void main() async {
   );
 }
 
-class AtheleosApp extends ConsumerWidget {
+class AtheleosApp extends ConsumerStatefulWidget {
   const AtheleosApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AtheleosApp> createState() => _AtheleosAppState();
+}
+
+class _AtheleosAppState extends ConsumerState<AtheleosApp> {
+  final _push = PushNotificationService.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    // Route to any notification that launched the app from a terminated state.
+    _push.pendingRoute.addListener(_handlePendingRoute);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handlePendingRoute();
+      // Register the FCM token for the currently logged-in user.
+      final uid = ref.read(loggedInUserIdProvider);
+      if (uid.isNotEmpty) {
+        _push.registerToken(uid);
+      }
+    });
+  }
+
+  void _handlePendingRoute() {
+    final route = _push.consumePendingRoute();
+    if (route == null || route.isEmpty) return;
+    final router = ref.read(appRouterProvider);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      router.push(route);
+    });
+  }
+
+  @override
+  void dispose() {
+    _push.pendingRoute.removeListener(_handlePendingRoute);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Keep the FCM token bound to whoever is logged in.
+    ref.listen<String>(loggedInUserIdProvider, (previous, next) {
+      if (previous != null && previous.isNotEmpty && previous != next) {
+        _push.unregisterToken(previous);
+      }
+      if (next.isNotEmpty) {
+        _push.registerToken(next);
+      }
+    });
+
     final router = ref.watch(appRouterProvider);
     final preferences = ref.watch(appPreferencesProvider);
     final themeMode = switch (preferences.theme) {

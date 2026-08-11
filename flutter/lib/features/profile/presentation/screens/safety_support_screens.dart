@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
 
-import '../../../../core/services/cloudinary_service.dart';
+import '../../../../core/services/upload_queue_coordinator.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../controllers/profile_controller.dart';
 import '../controllers/settings_controller.dart';
@@ -301,11 +302,39 @@ class _ReportProblemScreenState extends ConsumerState<ReportProblemScreen> {
     if (image == null) return;
     setState(() => _loading = true);
     try {
-      final url = await ref.read(cloudinaryServiceProvider).uploadImage(
-            bytes: kIsWeb ? await image.readAsBytes() : null,
-            filePath: kIsWeb ? null : image.path,
-            fileName: 'report_${DateTime.now().millisecondsSinceEpoch}.jpg',
-          );
+      final idempotencyKey = const Uuid().v4();
+      final queue = ref.read(uploadQueueProvider.notifier);
+      final taskId = await queue.addTask(
+        bytes: kIsWeb ? await image.readAsBytes() : null,
+        filePath: kIsWeb ? null : image.path,
+        fileName: image.name,
+        ownerType: 'report',
+        idempotencyKey: idempotencyKey,
+      );
+
+      UploadTask? completedTask;
+      await for (final tasks in ref.read(uploadQueueProvider.notifier).stream) {
+        final t = tasks.where((t) => t.id == taskId).firstOrNull;
+        if (t == null) break;
+        if (t.status == UploadStatus.completed) {
+          completedTask = t;
+          break;
+        }
+        if (t.status == UploadStatus.failed || t.status == UploadStatus.cancelled) {
+          throw Exception(t.errorMessage ?? 'Upload failed');
+        }
+      }
+
+      if (completedTask == null || completedTask.mediaId == null) {
+        throw Exception('Report screenshot task failed to return media ID');
+      }
+
+      final doc = await FirebaseFirestore.instance.collection('media').doc(completedTask.mediaId).get();
+      final urls = doc.data()?['urls'] as Map?;
+      final url = urls?['original'] as String?;
+      if (url == null) {
+        throw Exception('Report image variant URL is missing.');
+      }
       if (!mounted) return;
       setState(() {
         _screenshots.add(url);

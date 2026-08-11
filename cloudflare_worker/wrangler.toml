@@ -1,0 +1,16 @@
+name = "atheleos-media-worker"
+main = "src/index.ts"
+compatibility_date = "2023-05-18"
+node_compat = true
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "atheleos-media"
+
+[vars]
+FIREBASE_PROJECT_ID = "atheleos-4a146"
+WORKER_VERSION = "1.0.0"
+PIPELINE_VERSION = "1.0.0"
+VIDEO_PROCESSOR_URL = "https://us-central1-atheleos-4a146.cloudfunctions.net/processVideoJob"
+MAX_UPLOADS_PER_HOUR = "30"
+MAX_UPLOADS_PER_DAY = "100"

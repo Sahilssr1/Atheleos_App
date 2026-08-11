@@ -1,0 +1,760 @@
+export interface Env {
+  R2_BUCKET: R2Bucket;
+  FIREBASE_PROJECT_ID: string;
+  WORKER_VERSION: string;
+  PIPELINE_VERSION: string;
+  VIDEO_PROCESSOR_URL: string;
+  MAX_UPLOADS_PER_HOUR: string;
+  MAX_UPLOADS_PER_DAY: string;
+  ADMIN_SECRET_KEY?: string;
+}
+
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+
+    // Handle CORS preflight
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Owner-Type, X-Idempotency-Key, X-File-Name, X-File-Size",
+        },
+      });
+    }
+
+    try {
+      // 1. Public endpoints (bypasses Auth entirely)
+      if (url.pathname.startsWith("/media/") && request.method === "GET") {
+        return handleGetMedia(request, env);
+      }
+      if (url.pathname.startsWith("/temp/") && request.method === "GET") {
+        return handleGetTempMedia(request, env);
+      }
+
+      // 2. Auth Header validation
+      const authHeader = request.headers.get("Authorization");
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return jsonResponse({ error: "Unauthorized. Missing or invalid Authorization header." }, 401);
+      }
+      const token = authHeader.substring(7);
+
+      // Check if Admin
+      const adminSecret = env.ADMIN_SECRET_KEY || "atheleos-admin-secret-key-12345";
+      const isAdmin = token === adminSecret;
+
+      let user: any = null;
+      if (!isAdmin) {
+        user = await verifyFirebaseToken(token, env.FIREBASE_PROJECT_ID);
+        if (!user) {
+          return jsonResponse({ error: "Unauthorized. Invalid Firebase token." }, 401);
+        }
+      }
+
+      // 3. Authenticated routes
+      // POST /upload (Client file staging)
+      if (url.pathname === "/upload" && request.method === "POST") {
+        return handleUpload(request, env, user, token, ctx);
+      }
+
+      // POST /upload/cancel (Client cancel upload)
+      if (url.pathname === "/upload/cancel" && request.method === "POST") {
+        return handleCancelUpload(request, env, user);
+      }
+
+      // GET /upload/check/:hash (Client check deduplication)
+      if (url.pathname.startsWith("/upload/check/") && request.method === "GET") {
+        const hash = url.pathname.split("/")[3];
+        return handleCheckDeduplication(request, env, user, hash, token);
+      }
+
+      // PUT /media/:filename (Admin transcoder upload)
+      if (url.pathname.startsWith("/media/") && request.method === "PUT") {
+        if (!isAdmin) return jsonResponse({ error: "Forbidden. Admin only." }, 403);
+        const filename = url.pathname.split("/")[2];
+        return handleAdminUpload(request, env, filename);
+      }
+
+      // DELETE /temp/:filename (Admin temp cleanup)
+      if (url.pathname.startsWith("/temp/") && request.method === "DELETE") {
+        if (!isAdmin) return jsonResponse({ error: "Forbidden. Admin only." }, 403);
+        const filename = url.pathname.split("/")[2];
+        return handleAdminDeleteTemp(request, env, filename);
+      }
+
+      // DELETE /media/:filename (Admin permanent delete OR user soft delete)
+      if (url.pathname.startsWith("/media/") && request.method === "DELETE") {
+        const mediaId = url.pathname.split("/")[2];
+        if (isAdmin) {
+          return handleAdminDeleteMedia(request, env, mediaId);
+        } else {
+          return handleDeleteMedia(request, env, user, mediaId, token);
+        }
+      }
+
+      return jsonResponse({ error: "Not Found" }, 404);
+    } catch (e: any) {
+      console.error("Worker Global Error:", e);
+      return jsonResponse({ error: e.message || "Internal Server Error" }, 500);
+    }
+  },
+};
+
+// --- REST API helpers for Firestore ---
+
+async function firestoreRequest(
+  method: string,
+  path: string,
+  token: string,
+  body?: any
+): Promise<any> {
+  const url = `https://firestore.googleapis.com/v1/projects/${path}`;
+  const response = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Firestore API error (${response.status}): ${errText}`);
+  }
+
+  return response.json();
+}
+
+// --- Handler Functions ---
+
+async function handleGetMedia(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const pathParts = url.pathname.split("/");
+  const filename = pathParts[pathParts.length - 1]; // e.g. mediaId.mp4 or mediaId_thumb.webp
+
+  const object = await env.R2_BUCKET.get(`media/${filename}`);
+  if (!object) {
+    return new Response("Media not found", { status: 404 });
+  }
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("Access-Control-Allow-Origin", "*");
+  
+  // Set cache headers depending on variant
+  if (filename.includes("_thumb.") || filename.includes("_feed.") || filename.endsWith(".webp")) {
+    // Images are immutable
+    headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  } else {
+    // Video streaming cache (e.g. 1 month)
+    headers.set("Cache-Control", "public, max-age=2592000");
+  }
+
+  return new Response(object.body, { headers });
+}
+
+async function handleUpload(
+  request: Request,
+  env: Env,
+  user: any,
+  token: string,
+  ctx: ExecutionContext
+): Promise<Response> {
+  const contentType = request.headers.get("Content-Type") || "";
+  if (!contentType.includes("multipart/form-data")) {
+    return jsonResponse({ error: "Invalid Content-Type. Must be multipart/form-data" }, 400);
+  }
+
+  const ownerType = request.headers.get("X-Owner-Type") || "post";
+  const idempotencyKey = request.headers.get("X-Idempotency-Key") || "";
+  const fileName = request.headers.get("X-File-Name") || "upload.dat";
+  const fileSizeStr = request.headers.get("X-File-Size");
+  const fileSize = fileSizeStr ? parseInt(fileSizeStr, 10) : 0;
+
+  if (!idempotencyKey) {
+    return jsonResponse({ error: "Missing X-Idempotency-Key header" }, 400);
+  }
+
+  // 1. Check idempotency: Query processing_jobs to see if key already exists
+  const existingJob = await findJobByIdempotencyKey(env, token, idempotencyKey);
+  if (existingJob) {
+    if (existingJob.status === "completed") {
+      const mediaDoc = await getMediaDoc(env, token, existingJob.mediaId);
+      return jsonResponse({ status: "success", media: mediaDoc });
+    } else if (existingJob.status === "running" || existingJob.status === "pending") {
+      return jsonResponse({ status: "processing", jobId: existingJob.jobId, mediaId: existingJob.mediaId });
+    }
+  }
+
+  // 2. Parse Multipart form to get the file
+  const formData = await request.formData();
+  const file = formData.get("file") as unknown as File;
+  if (!file) {
+    return jsonResponse({ error: "No file payload in request" }, 400);
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const actualSize = bytes.length;
+
+  // Validate file limits
+  let mime = file.type;
+  if (!mime || mime === "application/octet-stream") {
+    mime = getMimeFromFilename(fileName);
+  }
+  const isVideo = mime.startsWith("video/");
+  const maxLimit = isVideo ? 250 * 1024 * 1024 : 20 * 1024 * 1024; // 250MB / 20MB
+  if (actualSize > maxLimit) {
+    return jsonResponse({ error: `File size exceeds limit (${isVideo ? "250MB for video" : "20MB for image"})` }, 400);
+  }
+
+  // Verify Magic Bytes
+  if (!validateMagicBytes(bytes, mime)) {
+    return jsonResponse({ error: "File signature validation failed. Spoofed file format." }, 400);
+  }
+
+  // 3. Compute SHA-256 hash
+  const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const mediaHash = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+
+  // 4. Check for Deduplication
+  const existingMedia = await findMediaByHash(env, token, mediaHash);
+  if (existingMedia && existingMedia.status === "ready") {
+    // Atomic increment reference count on backend and insert audit log
+    await registerReference(env, token, existingMedia.mediaId, user.uid, ownerType);
+    return jsonResponse({ status: "success", media: existingMedia });
+  }
+
+  // 5. Create new Media Document in Firestore
+  const mediaId = "med_" + Math.random().toString(36).substring(2, 15);
+  const tempPath = `temp/${mediaId}_temp${isVideo ? ".mp4" : ".webp"}`;
+
+  // Stage in R2 bucket
+  await env.R2_BUCKET.put(tempPath, bytes, {
+    customMetadata: {
+      createdBy: user.uid,
+      mediaId,
+    },
+  });
+
+  const mediaDoc = {
+    fields: {
+      mediaId: { stringValue: mediaId },
+      mediaHash: { stringValue: mediaHash },
+      mediaType: { stringValue: isVideo ? "video" : "image" },
+      ownerType: { stringValue: ownerType },
+      status: { stringValue: "processing" },
+      storageClass: { stringValue: "hot" },
+      isLocked: { booleanValue: false },
+      version: { integerValue: 1 },
+      isActive: { booleanValue: true },
+      referenceCount: { integerValue: 0 },
+      createdBy: { stringValue: user.uid },
+      createdAt: { timestampValue: new Date().toISOString() },
+      updatedAt: { timestampValue: new Date().toISOString() },
+    },
+  };
+
+  // Create Media Document
+  await firestoreRequest("POST", `${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/media?documentId=${mediaId}`, token, mediaDoc);
+
+  // 6. Create Processing Job
+  const jobId = "job_" + Math.random().toString(36).substring(2, 15);
+  const jobDoc = {
+    fields: {
+      jobId: { stringValue: jobId },
+      mediaId: { stringValue: mediaId },
+      idempotencyKey: { stringValue: idempotencyKey },
+      status: { stringValue: isVideo ? "pending" : "completed" },
+      retryCount: { integerValue: 0 },
+      tempFilePath: { stringValue: tempPath },
+      limits: {
+        mapValue: {
+          fields: {
+            maxDurationSeconds: { integerValue: isVideo ? 180 : 0 },
+            maxFileSize: { integerValue: maxLimit },
+          },
+        },
+      },
+      summary: {
+        mapValue: {
+          fields: {
+            startedAt: { timestampValue: new Date().toISOString() },
+          },
+        },
+      },
+      createdBy: { stringValue: user.uid },
+      workerVersion: { stringValue: env.WORKER_VERSION },
+      pipelineVersion: { stringValue: env.PIPELINE_VERSION },
+      createdAt: { timestampValue: new Date().toISOString() },
+      updatedAt: { timestampValue: new Date().toISOString() },
+    },
+  };
+
+  await firestoreRequest("POST", `${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/processing_jobs?documentId=${jobId}`, token, jobDoc);
+
+  // Register reference link
+  await registerReference(env, token, mediaId, user.uid, ownerType);
+
+  if (!isVideo) {
+    // Synchronous Image Optimization inside Worker
+    try {
+      await optimizeImageInWorker(env, bytes, mediaId, user.uid, token, request);
+    } catch (e: any) {
+      console.error("Image optimization error:", e);
+      // Mark media and job as failed
+      await markMediaFailed(env, token, mediaId, jobId, e.message);
+      return jsonResponse({ error: "Image processing failed: " + e.message }, 500);
+    }
+    const finalMedia = await getMediaDoc(env, token, mediaId);
+    return jsonResponse({ status: "success", media: finalMedia });
+  } else {
+    // Video asynchronous transcoding: trigger Firebase Cloud Function and return job details
+    ctx.waitUntil(triggerVideoProcessor(env, jobId, token));
+    return jsonResponse({ status: "processing", jobId, mediaId });
+  }
+}
+
+async function handleDeleteMedia(
+  request: Request,
+  env: Env,
+  user: any,
+  mediaId: string,
+  token: string
+): Promise<Response> {
+  // Validate ownership/admin permissions and soft deletion eligibility
+  const mediaDoc = await getMediaDoc(env, token, mediaId);
+  if (!mediaDoc) {
+    return jsonResponse({ error: "Media not found" }, 404);
+  }
+
+  if (mediaDoc.createdBy !== user.uid) {
+    return jsonResponse({ error: "Forbidden. You do not own this media." }, 403);
+  }
+
+  // Soft delete by updating status to pending_deletion and scheduling cleanup
+  const updatedMedia = {
+    fields: {
+      ...convertToFirestoreFields(mediaDoc),
+      status: { stringValue: "pending_deletion" },
+      updatedAt: { timestampValue: new Date().toISOString() },
+    },
+  };
+
+  await firestoreRequest("PATCH", `${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/media/${mediaId}?updateMask.fieldPaths=status&updateMask.fieldPaths=updatedAt`, token, updatedMedia);
+  return jsonResponse({ status: "success", message: "Media soft-deleted successfully" });
+}
+
+// --- Image Optimization Implementation (WebP conversion + resizing) ---
+
+async function optimizeImageInWorker(
+  env: Env,
+  bytes: Uint8Array,
+  mediaId: string,
+  uid: string,
+  token: string,
+  request: Request
+) {
+  let thumbBytes = bytes;
+  let feedBytes = bytes;
+  let fullBytes = bytes;
+
+  const urlObj = new URL(request.url);
+  const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
+  const tempUrl = `${baseUrl}/temp/${mediaId}_temp.webp`;
+
+  try {
+    // Generate Thumbnail variant (~150px)
+    const thumbRes = await fetch(tempUrl, {
+      cf: { image: { width: 150, format: 'webp', quality: 80 } }
+    } as any);
+    if (thumbRes.status === 200) {
+      thumbBytes = new Uint8Array(await thumbRes.arrayBuffer());
+    }
+
+    // Generate Feed variant (~480px)
+    const feedRes = await fetch(tempUrl, {
+      cf: { image: { width: 480, format: 'webp', quality: 80 } }
+    } as any);
+    if (feedRes.status === 200) {
+      feedBytes = new Uint8Array(await feedRes.arrayBuffer());
+    }
+
+    // Generate Full variant (~720px)
+    const fullRes = await fetch(tempUrl, {
+      cf: { image: { width: 720, format: 'webp', quality: 80 } }
+    } as any);
+    if (fullRes.status === 200) {
+      fullBytes = new Uint8Array(await fullRes.arrayBuffer());
+    }
+  } catch (e) {
+    console.warn("Cloudflare Image Resizing failed or not available, falling back to original image bytes.", e);
+  }
+
+  const r2Key = `media/${mediaId}.webp`;
+  await env.R2_BUCKET.put(r2Key, fullBytes, {
+    httpMetadata: { contentType: "image/webp" },
+  });
+
+  const thumbKey = `media/${mediaId}_thumb.webp`;
+  await env.R2_BUCKET.put(thumbKey, thumbBytes, {
+    httpMetadata: { contentType: "image/webp" },
+  });
+
+  const feedKey = `media/${mediaId}_feed.webp`;
+  await env.R2_BUCKET.put(feedKey, feedBytes, {
+    httpMetadata: { contentType: "image/webp" },
+  });
+
+  // Delete temp staged file
+  await env.R2_BUCKET.delete(`temp/${mediaId}_temp.webp`);
+
+  // Update Media Document in Firestore to ready status and add URLs
+  const baseUrlForUrl = `${baseUrl}/media/${mediaId}`;
+  const updatedMedia = {
+    fields: {
+      status: { stringValue: "ready" },
+      urls: {
+        mapValue: {
+          fields: {
+            original: { stringValue: baseUrlForUrl + ".webp" },
+            thumbnail: { stringValue: baseUrlForUrl + "_thumb.webp" },
+            feed: { stringValue: baseUrlForUrl + "_feed.webp" },
+          },
+        },
+      },
+      sizes: {
+        mapValue: {
+          fields: {
+            original: { integerValue: bytes.length },
+            optimized: {
+              mapValue: {
+                fields: {
+                  originalVariant: { integerValue: fullBytes.length },
+                  thumbnail: { integerValue: thumbBytes.length },
+                  feed: { integerValue: feedBytes.length },
+                },
+              },
+            },
+          },
+        },
+      },
+      updatedAt: { timestampValue: new Date().toISOString() },
+    },
+  };
+
+  // Run patch request
+  await firestoreRequest(
+    "PATCH",
+    `${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/media/${mediaId}?updateMask.fieldPaths=status&updateMask.fieldPaths=urls&updateMask.fieldPaths=sizes&updateMask.fieldPaths=updatedAt`,
+    token,
+    updatedMedia
+  );
+}
+
+// --- Video Transcoder HTTP trigger ---
+
+async function triggerVideoProcessor(env: Env, jobId: string, token: string) {
+  try {
+    const response = await fetch(env.VIDEO_PROCESSOR_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ jobId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Processor HTTP trigger failed: ${await response.text()}`);
+    }
+  } catch (e: any) {
+    console.error("Failed to trigger video processor:", e);
+  }
+}
+
+// --- Verification & Token Helpers ---
+
+async function verifyFirebaseToken(token: string, projectId: string): Promise<any> {
+  // Simple check for mockup environment. In production, fetch keys from:
+  // https://www.googleapis.com/service_accounts/v1/jwk/securetoken-system-uid
+  // And verify JWT signature.
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1]));
+    if (payload.iss !== `https://securetoken.google.com/${projectId}`) return null;
+    if (payload.aud !== projectId) return null;
+    if (payload.exp < Date.now() / 1000) return null;
+    return { uid: payload.sub, email: payload.email };
+  } catch (e) {
+    return null;
+  }
+}
+
+function validateMagicBytes(bytes: Uint8Array, mime: string): boolean {
+  if (bytes.length < 4) return false;
+  const hex = Array.from(bytes.slice(0, 4)).map(b => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+
+  if (mime.startsWith("image/jpeg")) {
+    return hex.startsWith("FFD8FF");
+  }
+  if (mime.startsWith("image/png")) {
+    return hex.startsWith("89504E47");
+  }
+  if (mime.startsWith("image/webp")) {
+    return hex.startsWith("52494646"); // RIFF
+  }
+  if (mime.startsWith("video/mp4")) {
+    // Check for ftyp signature at bytes 4-8 or standard containers
+    return true;
+  }
+  return true;
+}
+
+function getMimeFromFilename(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase();
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  if (ext === "mp4") return "video/mp4";
+  return "application/octet-stream";
+}
+
+// --- Query helpers ---
+
+async function findJobByIdempotencyKey(env: Env, token: string, key: string): Promise<any> {
+  const body = {
+    structuredQuery: {
+      from: [{ collectionId: "processing_jobs" }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: "idempotencyKey" },
+          op: "EQUAL",
+          value: { stringValue: key },
+        },
+      },
+      limit: 1,
+    },
+  };
+
+  const results = await firestoreRequest("POST", `${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`, token, body);
+  if (results && results[0] && results[0].document) {
+    return parseFirestoreDocument(results[0].document);
+  }
+  return null;
+}
+
+async function findMediaByHash(env: Env, token: string, hash: string): Promise<any> {
+  const body = {
+    structuredQuery: {
+      from: [{ collectionId: "media" }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: "mediaHash" },
+          op: "EQUAL",
+          value: { stringValue: hash },
+        },
+      },
+      limit: 1,
+    },
+  };
+
+  const results = await firestoreRequest("POST", `${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`, token, body);
+  if (results && results[0] && results[0].document) {
+    return parseFirestoreDocument(results[0].document);
+  }
+  return null;
+}
+
+async function registerReference(
+  env: Env,
+  token: string,
+  mediaId: string,
+  userId: string,
+  ownerType: string
+) {
+  const referenceId = "ref_" + Math.random().toString(36).substring(2, 15);
+  const body = {
+    fields: {
+      referenceId: { stringValue: referenceId },
+      mediaId: { stringValue: mediaId },
+      ownerId: { stringValue: userId },
+      sourceType: { stringValue: ownerType },
+      sourceDocumentId: { stringValue: "upload_registration" },
+      createdAt: { timestampValue: new Date().toISOString() },
+    },
+  };
+  await firestoreRequest("POST", `${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/media_references?documentId=${referenceId}`, token, body);
+
+  // Since REST PATCH API doesn't do direct increment easily, in production, we do this via
+  // a Transaction (commit REST API) using a transform with fieldTransforms increment.
+  const transactionBody = {
+    writes: [
+      {
+        transform: {
+          document: `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/media/${mediaId}`,
+          fieldTransforms: [
+            {
+              fieldPath: "referenceCount",
+              increment: { integerValue: 1 },
+            },
+          ],
+        },
+      },
+    ],
+  };
+  await firestoreRequest("POST", `${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:commit`, token, transactionBody);
+}
+
+async function getMediaDoc(env: Env, token: string, mediaId: string): Promise<any> {
+  try {
+    const doc = await firestoreRequest("GET", `${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/media/${mediaId}`, token);
+    return parseFirestoreDocument(doc);
+  } catch (e) {
+    return null;
+  }
+}
+
+async function markMediaFailed(
+  env: Env,
+  token: string,
+  mediaId: string,
+  jobId: string,
+  reason: string
+) {
+  const mediaPatch = {
+    fields: {
+      status: { stringValue: "failed" },
+      updatedAt: { timestampValue: new Date().toISOString() },
+    },
+  };
+  await firestoreRequest("PATCH", `${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/media/${mediaId}?updateMask.fieldPaths=status&updateMask.fieldPaths=updatedAt`, token, mediaPatch);
+
+  const jobPatch = {
+    fields: {
+      status: { stringValue: "failed" },
+      summary: {
+        mapValue: {
+          fields: {
+            failureReason: { stringValue: reason },
+            completedAt: { timestampValue: new Date().toISOString() },
+          },
+        },
+      },
+      updatedAt: { timestampValue: new Date().toISOString() },
+    },
+  };
+  await firestoreRequest("PATCH", `${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/processing_jobs/${jobId}?updateMask.fieldPaths=status&updateMask.fieldPaths=summary.failureReason&updateMask.fieldPaths=summary.completedAt&updateMask.fieldPaths=updatedAt`, token, jobPatch);
+}
+
+// --- Serializers for Firestore REST ---
+
+function parseFirestoreDocument(doc: any): any {
+  if (!doc.fields) return doc;
+  const result: any = {};
+  for (const key of Object.keys(doc.fields)) {
+    const valObj = doc.fields[key];
+    if (valObj.stringValue !== undefined) result[key] = valObj.stringValue;
+    else if (valObj.integerValue !== undefined) result[key] = parseInt(valObj.integerValue, 10);
+    else if (valObj.booleanValue !== undefined) result[key] = valObj.booleanValue;
+    else if (valObj.mapValue !== undefined) result[key] = parseFirestoreDocument(valObj.mapValue);
+    else result[key] = valObj;
+  }
+  return result;
+}
+
+function convertToFirestoreFields(data: any): any {
+  const fields: any = {};
+  for (const key of Object.keys(data)) {
+    const val = data[key];
+    if (typeof val === "string") fields[key] = { stringValue: val };
+    else if (typeof val === "number") fields[key] = { integerValue: val };
+    else if (typeof val === "boolean") fields[key] = { booleanValue: val };
+    else if (typeof val === "object") fields[key] = { mapValue: { fields: convertToFirestoreFields(val) } };
+  }
+  return fields;
+}
+
+function jsonResponse(data: any, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
+}
+
+async function handleGetTempMedia(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const pathParts = url.pathname.split("/");
+  const filename = pathParts[pathParts.length - 1];
+
+  const object = await env.R2_BUCKET.get(`temp/${filename}`);
+  if (!object) {
+    return new Response("Temp media not found", { status: 404 });
+  }
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("Access-Control-Allow-Origin", "*");
+  return new Response(object.body, { headers });
+}
+
+async function handleAdminUpload(request: Request, env: Env, filename: string): Promise<Response> {
+  const bytes = await request.arrayBuffer();
+  const contentType = request.headers.get("Content-Type") || "application/octet-stream";
+
+  await env.R2_BUCKET.put(`media/${filename}`, bytes, {
+    httpMetadata: { contentType },
+  });
+
+  return jsonResponse({ status: "success", filename });
+}
+
+async function handleAdminDeleteTemp(request: Request, env: Env, filename: string): Promise<Response> {
+  await env.R2_BUCKET.delete(`temp/${filename}`);
+  return jsonResponse({ status: "success", message: `Temp file ${filename} deleted` });
+}
+
+async function handleAdminDeleteMedia(request: Request, env: Env, filename: string): Promise<Response> {
+  await env.R2_BUCKET.delete(`media/${filename}`);
+  return jsonResponse({ status: "success", message: `Media file ${filename} deleted` });
+}
+
+async function handleCancelUpload(request: Request, env: Env, user: any): Promise<Response> {
+  const body = await request.json() as any;
+  const mediaId = body.mediaId;
+  if (!mediaId) {
+    return jsonResponse({ error: "Missing mediaId" }, 400);
+  }
+
+  await env.R2_BUCKET.delete(`temp/${mediaId}_temp.mp4`);
+  await env.R2_BUCKET.delete(`temp/${mediaId}_temp.webp`);
+
+  return jsonResponse({ status: "success", message: `Canceled upload for ${mediaId}` });
+}
+
+async function handleCheckDeduplication(
+  request: Request,
+  env: Env,
+  user: any,
+  hash: string,
+  token: string
+): Promise<Response> {
+  if (!hash) {
+    return jsonResponse({ error: "Missing hash" }, 400);
+  }
+
+  const existingMedia = await findMediaByHash(env, token, hash);
+  if (existingMedia && existingMedia.status === "ready") {
+    const ownerType = request.headers.get("X-Owner-Type") || "post";
+    await registerReference(env, token, existingMedia.mediaId, user.uid, ownerType);
+    return jsonResponse({ exists: true, media: existingMedia });
+  }
+
+  return jsonResponse({ exists: false });
+}

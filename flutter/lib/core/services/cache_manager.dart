@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CacheManager {
   static const String _feedKey = 'cached_feed_posts';
@@ -47,7 +48,7 @@ class CacheManager {
 
   Future<void> saveFeed(List<Map<String, dynamic>> posts) async {
     final list = posts.take(100).toList(); // limit to 100 latest
-    await prefs.setString(_feedKey, json.encode(list));
+    await prefs.setString(_feedKey, json.encode(list, toEncodable: _customJsonEncoder));
   }
 
   /// Load feed posts
@@ -65,7 +66,7 @@ class CacheManager {
   /// Save explore posts
   Future<void> saveExplore(List<Map<String, dynamic>> posts) async {
     final list = posts.take(200).toList(); // limit to 200 explore items
-    await prefs.setString(_exploreKey, json.encode(list));
+    await prefs.setString(_exploreKey, json.encode(list, toEncodable: _customJsonEncoder));
   }
 
   /// Load explore posts
@@ -84,7 +85,7 @@ class CacheManager {
   Future<void> saveProfile(
       String userId, Map<String, dynamic> profileData) async {
     await prefs.setString(
-        '$_profilesKeyPrefix$userId', json.encode(profileData));
+        '$_profilesKeyPrefix$userId', json.encode(profileData, toEncodable: _customJsonEncoder));
     // Maintain list of cached profile IDs for LRU / limit eviction if needed
     final List<String> cachedIds =
         prefs.getStringList('cached_profile_ids') ?? [];
@@ -112,7 +113,7 @@ class CacheManager {
   /// Save comments for a specific post
   Future<void> saveComments(
       String postId, List<Map<String, dynamic>> comments) async {
-    await prefs.setString('$_commentsKeyPrefix$postId', json.encode(comments));
+    await prefs.setString('$_commentsKeyPrefix$postId', json.encode(comments, toEncodable: _customJsonEncoder));
   }
 
   /// Load comments for a specific post
@@ -142,7 +143,7 @@ class CacheManager {
 
   /// Save direct message chat list
   Future<void> saveChatList(List<Map<String, dynamic>> rooms) async {
-    await prefs.setString(_chatListKey, json.encode(rooms));
+    await prefs.setString(_chatListKey, json.encode(rooms, toEncodable: _customJsonEncoder));
   }
 
   /// Load direct message chat list
@@ -162,7 +163,7 @@ class CacheManager {
       String roomId, List<Map<String, dynamic>> messages) async {
     // Save up to 50 latest messages to prevent massive storage bloating
     final list = messages.take(50).toList();
-    await prefs.setString('$_chatMessagesKeyPrefix$roomId', json.encode(list));
+    await prefs.setString('$_chatMessagesKeyPrefix$roomId', json.encode(list, toEncodable: _customJsonEncoder));
   }
 
   /// Load direct messages for a specific room
@@ -413,5 +414,15 @@ class CacheManager {
     } catch (e) {
       debugPrint('LRU Video Eviction failed: $e');
     }
+  }
+
+  Object? _customJsonEncoder(dynamic item) {
+    if (item is Timestamp) {
+      return item.toDate().toIso8601String();
+    }
+    if (item is DateTime) {
+      return item.toIso8601String();
+    }
+    return item.toString();
   }
 }

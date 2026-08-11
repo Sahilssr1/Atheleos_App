@@ -5,7 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/services/cloudinary_service.dart';
+import '../../../../core/services/upload_queue_coordinator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 import '../../domain/models/profile_model.dart';
 import '../../domain/models/stat_entry.dart';
 import '../controllers/profile_controller.dart';
@@ -143,13 +145,39 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       final fileName =
           '${widget.profile.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-      // Obtain the active Cloudinary service provider
-      final cloudinaryService = ref.read(cloudinaryServiceProvider);
-      final downloadUrl = await cloudinaryService.uploadImage(
+      final idempotencyKey = const Uuid().v4();
+      final queue = ref.read(uploadQueueProvider.notifier);
+      final taskId = await queue.addTask(
         bytes: bytes,
         filePath: filePath,
         fileName: fileName,
+        ownerType: 'profile',
+        idempotencyKey: idempotencyKey,
       );
+
+      UploadTask? completedTask;
+      await for (final tasks in ref.read(uploadQueueProvider.notifier).stream) {
+        final t = tasks.where((t) => t.id == taskId).firstOrNull;
+        if (t == null) break;
+        if (t.status == UploadStatus.completed) {
+          completedTask = t;
+          break;
+        }
+        if (t.status == UploadStatus.failed || t.status == UploadStatus.cancelled) {
+          throw Exception(t.errorMessage ?? 'Upload failed');
+        }
+      }
+
+      if (completedTask == null || completedTask.mediaId == null) {
+        throw Exception('Profile photo task failed to return media ID');
+      }
+
+      final doc = await FirebaseFirestore.instance.collection('media').doc(completedTask.mediaId).get();
+      final urls = doc.data()?['urls'] as Map?;
+      final downloadUrl = urls?['original'] as String?;
+      if (downloadUrl == null) {
+        throw Exception('Profile image variant URL is missing.');
+      }
 
       setState(() {
         if (isAvatar) {
@@ -163,7 +191,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              '${isAvatar ? "Profile" : "Cover"} image uploaded to Cloudinary successfully!'),
+              '${isAvatar ? "Profile" : "Cover"} image uploaded successfully!'),
           backgroundColor: AppTheme.primaryColor,
         ),
       );
