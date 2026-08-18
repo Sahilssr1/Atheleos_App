@@ -13,21 +13,17 @@ import '../../../profile/presentation/controllers/profile_controller.dart';
 enum AuthStep {
   splash, // 0 – animated splash
   login, // 1 – primary: Continue with Google
-  alterEmailLogin, // 2 – fallback 1: Alternate Email + Password sign-in
-  phoneLogin, // 3 – fallback 2: Mobile number entry for sign-in
-  phoneLoginOtp, // 4 – fallback 2: OTP entry for sign-in
-  phoneInput, // 5 – onboarding: enter phone (after Google/email auth)
-  otpInput, // 6 – onboarding: OTP after phoneInput
-  basicAccount, // 7 – onboarding: Username, Full Name, Alt Email, Password
-  roleSelection, // 8 – onboarding: Athlete / Coach / Brand
-  location, // 9 – onboarding: Country, State, City
-  roleDetails, // 10 – onboarding: sport, position, height, weight
-  complete, // 11 – success, redirect to home
+  phoneLogin, // 2 – fallback 2: Mobile number entry for sign-in
+  phoneLoginOtp, // 3 – fallback 2: OTP entry for sign-in
+  phoneInput, // 4 – onboarding: enter phone (after Google/email auth)
+  otpInput, // 5 – onboarding: OTP after phoneInput
+  basicAccount, // 6 – onboarding: Username, Full Name, Alt Email, Password
+  roleSelection, // 7 – onboarding: Athlete / Coach / Brand
+  location, // 8 – onboarding: Country, State, City
+  roleDetails, // 9 – onboarding: sport, position, height, weight
+  complete, // 10 – success, redirect to home
 }
 
-// ─────────────────────────────────────────────────────────────────
-// AUTH STATE
-// ─────────────────────────────────────────────────────────────────
 class AuthState {
   final AuthStep currentStep;
   final UserModel currentUser;
@@ -35,7 +31,7 @@ class AuthState {
   final String? errorMessage;
   final String verificationId;
   final String tempPhoneNumber;
-  final String tempEmail; // used in alternate-email login flow
+  final String tempEmail; 
 
   AuthState({
     required this.currentStep,
@@ -109,17 +105,33 @@ class AuthController extends StateNotifier<AuthState> {
   // ──────────────────────────────────────────────
   Future<void> _checkExistingSession() async {
     try {
-      final currentUser = await FirebaseAuth.instance.authStateChanges().first;
+      var currentUser = await FirebaseAuth.instance.authStateChanges().first;
+      if (currentUser != null) {
+        // Force reload the user to pull the latest linked providers from the server
+        try {
+          await currentUser.reload();
+          currentUser = FirebaseAuth.instance.currentUser;
+        } catch (e) {
+          debugPrint('Failed to reload current user on startup: $e');
+        }
+      }
+
       if (currentUser != null) {
         final existingProfile =
             await _repository.getCurrentUser(currentUser.uid);
         if (existingProfile != null) {
-          _ref.read(loggedInUserIdProvider.notifier).state = currentUser.uid;
-          _ref.read(currentProfileIdProvider.notifier).state = currentUser.uid;
+          _ref.read(loggedInUserIdProvider.notifier).state = existingProfile.uid;
+          _ref.read(currentProfileIdProvider.notifier).state = existingProfile.uid;
           _ref.read(authStateProvider.notifier).state = true;
           state =
               state.copyWith(currentStep: AuthStep.complete, isLoading: false);
         } else {
+          // Incomplete profile - delete user record from Firebase Auth and sign out on startup
+          try {
+            await currentUser.delete();
+          } catch (e) {
+            debugPrint('Failed to delete incomplete user on startup: $e');
+          }
           await _repository.signOut();
           state = state.copyWith(currentStep: AuthStep.login, isLoading: false);
         }
@@ -138,7 +150,7 @@ class AuthController extends StateNotifier<AuthState> {
         isLoading: false,
         errorMessage: error.toString().contains('deleted')
             ? 'This account has been deleted and cannot be accessed.'
-            : 'Your session expired. Please sign in again.',
+            : 'Your session expired or network error. Please sign in again.',
       );
     }
   }
@@ -148,11 +160,6 @@ class AuthController extends StateNotifier<AuthState> {
   // ──────────────────────────────────────────────
   void setStep(AuthStep step) {
     state = state.copyWith(currentStep: step, errorMessage: null);
-  }
-
-  void goToAlternateEmailLogin() {
-    state = state.copyWith(
-        currentStep: AuthStep.alterEmailLogin, errorMessage: null);
   }
 
   void goToPhoneLogin() {
@@ -167,12 +174,9 @@ class AuthController extends StateNotifier<AuthState> {
   void previousStep() {
     // Custom back logic for the new non-linear recovery steps
     switch (state.currentStep) {
-      case AuthStep.alterEmailLogin:
-        state = state.copyWith(currentStep: AuthStep.login, errorMessage: null);
-        break;
       case AuthStep.phoneLogin:
         state = state.copyWith(
-            currentStep: AuthStep.alterEmailLogin, errorMessage: null);
+            currentStep: AuthStep.login, errorMessage: null);
         break;
       case AuthStep.phoneLoginOtp:
         state = state.copyWith(
@@ -374,9 +378,17 @@ class AuthController extends StateNotifier<AuthState> {
         );
       }
     } catch (e) {
+      String msg = e.toString().replaceAll('Exception: ', '');
+      if (msg.contains('invalid-verification-code')) {
+        msg = 'Invalid OTP code. Please check and try again.';
+      } else if (msg.contains('session-expired')) {
+        msg = 'The verification code has expired. Please request a new one.';
+      } else if (msg.contains('invalid-phone-number')) {
+        msg = 'The phone number entered is invalid.';
+      }
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'OTP Verification Error: $e',
+        errorMessage: msg,
       );
     }
   }
@@ -581,6 +593,27 @@ class AuthController extends StateNotifier<AuthState> {
       await _repository.signOut();
     } catch (e) {
       debugPrint('Sign out error: $e');
+    }
+    _ref.read(authStateProvider.notifier).state = false;
+    _ref.read(loggedInUserIdProvider.notifier).state = '';
+    _ref.read(currentProfileIdProvider.notifier).state = '';
+    state = AuthState.initial().copyWith(currentStep: AuthStep.login);
+  }
+
+  Future<void> exitOnboarding() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await user.delete();
+      }
+    } catch (e) {
+      debugPrint('Failed to delete user during onboarding exit: $e');
+    }
+    try {
+      await _repository.signOut();
+    } catch (e) {
+      debugPrint('Sign out error on onboarding exit: $e');
     }
     _ref.read(authStateProvider.notifier).state = false;
     _ref.read(loggedInUserIdProvider.notifier).state = '';

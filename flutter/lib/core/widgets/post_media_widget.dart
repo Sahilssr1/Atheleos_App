@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -153,8 +154,7 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
   bool get _shouldHoldController {
     if (widget.mediaType != 'video') return false;
     final active = ref.read(activeVideoUrlProvider);
-    final preloaded = ref.read(preloadedVideoUrlProvider);
-    return widget.mediaUrl == active || widget.mediaUrl == preloaded;
+    return widget.mediaUrl == active;
   }
 
   bool get _shouldPlay {
@@ -235,9 +235,9 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
 
       await localController.initialize();
 
-      // Abort if this init has been superseded (widget disposed, URL changed,
-      // or lifecycle policy moved this widget out of the hold window).
-      if (!mounted || generation != _initGeneration) {
+      // Verify mounting, active URL, and generation token before attaching
+      final activeUrl = ref.read(activeVideoUrlProvider);
+      if (!mounted || generation != _initGeneration || widget.mediaUrl != activeUrl) {
         await localController.dispose();
         return;
       }
@@ -246,7 +246,7 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
       final isMuted = ref.read(videosMutedProvider);
       await localController.setVolume(isMuted ? 0.0 : 1.0);
 
-      if (!mounted || generation != _initGeneration) {
+      if (!mounted || generation != _initGeneration || widget.mediaUrl != activeUrl) {
         await localController.dispose();
         return;
       }
@@ -441,13 +441,9 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
   Widget build(BuildContext context) {
     // React to any change that could affect our controller lifecycle:
     //  * active URL changed (some other video became active / no active video)
-    //  * preloaded URL changed (we might newly enter/exit the hold window)
     //  * mute state changed (adjust volume)
     if (widget.mediaType == 'video') {
       ref.listen<String?>(activeVideoUrlProvider, (prev, next) {
-        _reconcileControllerLifecycle();
-      });
-      ref.listen<String?>(preloadedVideoUrlProvider, (prev, next) {
         _reconcileControllerLifecycle();
       });
       ref.listen<bool>(videosMutedProvider, (prev, next) {
@@ -481,47 +477,53 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
                 ),
               )
             else if (widget.mediaType == 'video')
-              _hasError
-                  ? _buildErrorWidget()
-                  : !_isInitialized
-                      ? Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Show thumbnail while initializing video
-                            if (widget.thumbnailUrl != null && widget.thumbnailUrl!.isNotEmpty)
-                              CachedNetworkImage(
-                                imageUrl: widget.thumbnailUrl!,
-                                width: double.infinity,
-                                fit: BoxFit.contain,
-                                placeholder: (context, url) => _buildShimmerPlaceholder(),
-                                errorWidget: (context, url, error) => Container(color: Colors.black),
-                              )
-                            else
-                              AspectRatio(
-                                aspectRatio: widget.knownAspectRatio,
-                                child: Container(
+              AspectRatio(
+                aspectRatio: widget.knownAspectRatio,
+                child: _hasError
+                    ? _buildErrorWidget()
+                    : !_isInitialized
+                        ? Stack(
+                            alignment: Alignment.center,
+                            fit: StackFit.expand,
+                            children: [
+                              // Show thumbnail while initializing video
+                              if (widget.thumbnailUrl != null && widget.thumbnailUrl!.isNotEmpty)
+                                CachedNetworkImage(
+                                  imageUrl: widget.thumbnailUrl!,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => _buildShimmerPlaceholder(),
+                                  errorWidget: (context, url, error) => Container(color: Colors.black),
+                                )
+                              else
+                                Container(
                                   width: double.infinity,
                                   color: Colors.black,
                                 ),
-                              ),
-                            // Only show a spinner if this video is the active
-                            // one — a paused preload should look like a still
-                            // thumbnail, not a loading indicator.
-                            if (_shouldPlay)
-                              const Center(
-                                child: CircularProgressIndicator(
-                                  color: AppTheme.primaryColor,
-                                  strokeWidth: 2,
+                              // Only show a spinner if this video is the active
+                              // one — a paused preload should look like a still
+                              // thumbnail, not a loading indicator.
+                              if (_shouldPlay)
+                                const Center(
+                                  child: CircularProgressIndicator(
+                                    color: AppTheme.primaryColor,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                            ],
+                          )
+                        : Stack(
+                            alignment: Alignment.center,
+                            fit: StackFit.expand,
+                            children: [
+                              FittedBox(
+                                fit: BoxFit.cover,
+                                child: SizedBox(
+                                  width: _videoController!.value.size.width,
+                                  height: _videoController!.value.size.height,
+                                  child: VideoPlayer(_videoController!),
                                 ),
                               ),
-                          ],
-                        )
-                      : AspectRatio(
-                          aspectRatio: _videoController!.value.aspectRatio,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              VideoPlayer(_videoController!),
                               // Buffer Loader spinner
                               if (_videoController!.value.isBuffering)
                                 const Center(
@@ -532,7 +534,7 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
                                 ),
                             ],
                           ),
-                        ),
+              ),
 
             // HEART POP ANIMATION OVERLAY
             if (_showHeart)
@@ -568,6 +570,28 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
                   ),
                 ),
               ),
+
+            // PERSISTENT MUTE/UNMUTE BUTTON OVERLAY (Bottom Right Corner)
+            if (widget.mediaType == 'video')
+              Positioned(
+                bottom: 12,
+                right: 12,
+                child: GestureDetector(
+                  onTap: _toggleMute,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isMuted ? Icons.volume_off : Icons.volume_up,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -578,9 +602,9 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
 // Wrapping class to provide Visibility Detector integration in a feed list.
 //
 // Uses visibility to decide which single video should be the "active" one
-// (playing + audible). Also updates the preloaded URL to the widget just
-// below the currently-visible one so scrolling forward is instant.
-class AutoPlayVideoVisibilityWidget extends ConsumerWidget {
+// (playing + audible) after a 250ms debounce period during which scrolling
+// has settled.
+class AutoPlayVideoVisibilityWidget extends ConsumerStatefulWidget {
   final String mediaUrl;
   final String mediaType;
   final String? thumbnailUrl;
@@ -605,59 +629,77 @@ class AutoPlayVideoVisibilityWidget extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (mediaType != 'video') {
-      return child ?? PostMediaWidget(
-        mediaUrl: mediaUrl,
-        mediaType: mediaType,
-        thumbnailUrl: thumbnailUrl,
-        isLiked: isLiked,
-        onDoubleTapLike: onDoubleTapLike,
-        mediaWidth: mediaWidth,
-        mediaHeight: mediaHeight,
-        onMediaTap: onMediaTap,
+  ConsumerState<AutoPlayVideoVisibilityWidget> createState() => _AutoPlayVideoVisibilityWidgetState();
+}
+
+class _AutoPlayVideoVisibilityWidgetState extends ConsumerState<AutoPlayVideoVisibilityWidget> {
+  Timer? _debounceTimer;
+  double _visibleFraction = 0.0;
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onVisibilityChanged(VisibilityInfo info) {
+    if (!mounted) return;
+    _visibleFraction = info.visibleFraction;
+    final activeUrl = ref.read(activeVideoUrlProvider);
+
+    if (_visibleFraction > 0.6) {
+      if (activeUrl != widget.mediaUrl) {
+        _debounceTimer?.cancel();
+        _debounceTimer = Timer(const Duration(milliseconds: 250), () {
+          if (mounted && _visibleFraction > 0.6) {
+            ref.read(activeVideoUrlProvider.notifier).state = widget.mediaUrl;
+          }
+        });
+      }
+    } else if (_visibleFraction == 0) {
+      _debounceTimer?.cancel();
+      if (activeUrl == widget.mediaUrl) {
+        ref.read(activeVideoUrlProvider.notifier).state = null;
+      }
+      final preloaded = ref.read(preloadedVideoUrlProvider);
+      if (preloaded == widget.mediaUrl) {
+        ref.read(preloadedVideoUrlProvider.notifier).state = null;
+      }
+    } else {
+      _debounceTimer?.cancel();
+      if (activeUrl == widget.mediaUrl) {
+        ref.read(activeVideoUrlProvider.notifier).state = null;
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.mediaType != 'video') {
+      return widget.child ?? PostMediaWidget(
+        mediaUrl: widget.mediaUrl,
+        mediaType: widget.mediaType,
+        thumbnailUrl: widget.thumbnailUrl,
+        isLiked: widget.isLiked,
+        onDoubleTapLike: widget.onDoubleTapLike,
+        mediaWidth: widget.mediaWidth,
+        mediaHeight: widget.mediaHeight,
+        onMediaTap: widget.onMediaTap,
       );
     }
 
     return VisibilityDetector(
-      key: Key('video_vis_${mediaUrl.hashCode}'),
-      onVisibilityChanged: (info) {
-        final activeUrl = ref.read(activeVideoUrlProvider);
-        if (info.visibleFraction > 0.6) {
-          // This video is now dominantly on screen → make it the active one.
-          if (activeUrl != mediaUrl) {
-            ref.read(activeVideoUrlProvider.notifier).state = mediaUrl;
-          }
-        } else if (info.visibleFraction == 0) {
-          // Fully off-screen. If we were the active video, clear it so the
-          // controller can be released. Also clear the preload slot if we
-          // owned it, to avoid keeping a decoder alive for a video that has
-          // scrolled far away.
-          if (activeUrl == mediaUrl) {
-            ref.read(activeVideoUrlProvider.notifier).state = null;
-          }
-          final preloaded = ref.read(preloadedVideoUrlProvider);
-          if (preloaded == mediaUrl) {
-            ref.read(preloadedVideoUrlProvider.notifier).state = null;
-          }
-        } else {
-          // Partially visible but under the play threshold — pause if we
-          // were the one playing. Do NOT touch the preload slot: this
-          // widget is likely about to become active as scrolling continues.
-          if (activeUrl == mediaUrl) {
-            ref.read(activeVideoUrlProvider.notifier).state = null;
-          }
-        }
-      },
-      child: child ?? PostMediaWidget(
-        mediaUrl: mediaUrl,
-        mediaType: mediaType,
-        thumbnailUrl: thumbnailUrl,
-        isLiked: isLiked,
-        onDoubleTapLike: onDoubleTapLike,
-        mediaWidth: mediaWidth,
-        mediaHeight: mediaHeight,
-        onMediaTap: onMediaTap,
+      key: Key('video_vis_${widget.mediaUrl.hashCode}'),
+      onVisibilityChanged: _onVisibilityChanged,
+      child: widget.child ?? PostMediaWidget(
+        mediaUrl: widget.mediaUrl,
+        mediaType: widget.mediaType,
+        thumbnailUrl: widget.thumbnailUrl,
+        isLiked: widget.isLiked,
+        onDoubleTapLike: widget.onDoubleTapLike,
+        mediaWidth: widget.mediaWidth,
+        mediaHeight: widget.mediaHeight,
+        onMediaTap: widget.onMediaTap,
       ),
     );
   }

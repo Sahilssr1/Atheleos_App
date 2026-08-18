@@ -95,16 +95,20 @@ class FirestoreUserRepository implements UserRepository {
         .toList();
   }
 
-  // Convert a ProfileModel to a Firestore document map matching the specifications
+  // Convert a ProfileModel to a Firestore document map matching user-editable security rules
   Map<String, dynamic> _profileToMap(ProfileModel profile) {
     return {
       'uid': profile.id,
       'username': profile.username,
       'displayName': profile.name,
+      'fullName': profile.name,
+      'name': profile.name,
       'role': profile.role,
       'sport': profile.sport,
       'primaryPosition': profile.primaryPosition,
+      'position': profile.primaryPosition,
       'clubOrAcademy': profile.clubOrAcademy,
+      'teamName': profile.clubOrAcademy,
       'city': profile.city,
       'state': profile.state,
       'country': profile.country,
@@ -112,19 +116,13 @@ class FirestoreUserRepository implements UserRepository {
       'email': profile.email,
       'phoneNumber': profile.phoneNumber,
       'dateOfBirth': profile.dateOfBirth,
+      'dob': profile.dateOfBirth,
       'gender': profile.gender,
       'personalNotes': profile.personalNotes,
       'photoUrl': profile.avatarUrl,
+      'avatarUrl': profile.avatarUrl,
       'coverPhoto': profile.coverUrl,
-      'verified': profile.verified,
-      'followersCount': profile.followersCount,
-      'followingCount': profile.followingCount,
-      'postsCount': profile.postsCount,
-      'clipsCount': profile.clipsCount,
-      'profileViews': profile.profileViews,
-      'portfolioViews': profile.portfolioViews,
-      'portfolioShares': profile.portfolioShares,
-      'searchAppearances': profile.searchAppearances,
+      'coverUrl': profile.coverUrl,
       'achievements': profile.achievements,
       'certifications': profile.certifications,
       'experienceYears': profile.experienceYears,
@@ -137,14 +135,7 @@ class FirestoreUserRepository implements UserRepository {
       'industry': profile.industry,
       'organizationName': profile.organizationName,
       'updatedAt': FieldValue.serverTimestamp(),
-      // statistics stored as array of typed objects — no schema changes needed
       'statistics': profile.statistics.map((s) => s.toMap()).toList(),
-      'verificationStatus': profile.verificationStatus,
-      'verificationBadge': profile.verificationBadge,
-      'verificationDate': profile.verificationDate,
-      'verificationLevel': profile.verificationLevel,
-      'verificationRejectedReason': profile.verificationRejectedReason,
-      'verificationRequestDetails': profile.verificationRequestDetails,
     };
   }
 

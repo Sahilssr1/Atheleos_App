@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sport_selector_field.dart';
 import '../controllers/auth_controller.dart';
@@ -35,11 +37,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _syncPage(AuthStep step) {
     if (_pageController.hasClients) {
-      _pageController.animateToPage(
-        step.index,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
+      final currentPage = _pageController.page?.round() ?? _pageController.initialPage;
+      final targetPage = step.index;
+
+      if ((targetPage - currentPage).abs() > 1) {
+        _pageController.jumpToPage(targetPage);
+      } else {
+        _pageController.animateToPage(
+          targetPage,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
     }
   }
 
@@ -54,98 +63,115 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     });
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // Background elegant elements
-          Positioned(
-            top: -100,
-            right: -100,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppTheme.primaryColor.withOpacity(0.04),
+    final step = authState.currentStep;
+    final isOnboarding = step == AuthStep.phoneInput ||
+        step == AuthStep.otpInput ||
+        step == AuthStep.basicAccount ||
+        step == AuthStep.roleSelection ||
+        step == AuthStep.location ||
+        step == AuthStep.roleDetails;
+
+    return PopScope(
+      canPop: !isOnboarding,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        final shouldExit = await _showExitConfirmationDialog();
+        if (shouldExit) {
+          await ref.read(authControllerProvider.notifier).exitOnboarding();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            // Background elegant elements
+            Positioned(
+              top: -100,
+              right: -100,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.primaryColor.withOpacity(0.04),
+                ),
               ),
             ),
-          ),
-          Positioned(
-            bottom: -80,
-            left: -80,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppTheme.primaryColor.withOpacity(0.03),
+            Positioned(
+              bottom: -80,
+              left: -80,
+              child: Container(
+                width: 250,
+                height: 250,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.primaryColor.withOpacity(0.03),
+                ),
               ),
             ),
-          ),
 
-          SafeArea(
-            child: Column(
-              children: [
-                if (authState.currentStep != AuthStep.splash && authState.currentStep != AuthStep.complete)
-                  _buildHeader(context, authState),
+            SafeArea(
+              child: Column(
+                children: [
+                  if (authState.currentStep != AuthStep.splash && authState.currentStep != AuthStep.complete)
+                    _buildHeader(context, authState),
 
-                // Main steps PageView (disabled manual scroll to control flow sequentially)
-                Expanded(
-                  child: PageView(
-                    controller: _pageController,
-                    physics: const NeverScrollableScrollPhysics(),
+                  // Main steps PageView (disabled manual scroll to control flow sequentially)
+                  Expanded(
+                    child: PageView(
+                      controller: _pageController,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        // Index 0: splash
+                        _SplashWidget(onFinished: () {
+                          ref.read(authControllerProvider.notifier).setStep(AuthStep.login);
+                        }),
+                        const _LoginGoogleWidget(),
+                        const _PhoneLoginWidget(),
+                        const _PhoneLoginOtpWidget(),
+                        const _PhoneInputWidget(),
+                        const _OtpInputWidget(),
+                        const _BasicAccountWidget(),
+                        const _RoleSelectionWidget(),
+                        const _LocationWidget(),
+                        const _RoleDetailsWidget(),
+                        const _CompleteSuccessWidget(),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Global loading blocker
+            if (authState.isLoading)
+              Container(
+                color: Colors.black87,
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Index 0: splash
-                      _SplashWidget(onFinished: () {
-                        ref.read(authControllerProvider.notifier).setStep(AuthStep.login);
-                      }),
-                      const _LoginGoogleWidget(),
-                      const _AlternateEmailLoginWidget(),
-                      const _PhoneLoginWidget(),
-                      const _PhoneLoginOtpWidget(),
-                      const _PhoneInputWidget(),
-                      const _OtpInputWidget(),
-                      const _BasicAccountWidget(),
-                      const _RoleSelectionWidget(),
-                      const _LocationWidget(),
-                      const _RoleDetailsWidget(),
-                      const _CompleteSuccessWidget(),
+                      SpinKitSquareCircle(
+                        color: AppTheme.primaryColor,
+                        size: 50.0,
+                      ),
+                      SizedBox(height: 24),
+                      Text(
+                        'SECURELY SYNCING WITH ARENA...',
+                        style: TextStyle(
+                          fontFamily: 'SpaceGrotesk',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: AppTheme.primaryColor,
+                          letterSpacing: 2,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          // Global loading blocker
-          if (authState.isLoading)
-            Container(
-              color: Colors.black87,
-              child: const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SpinKitSquareCircle(
-                      color: AppTheme.primaryColor,
-                      size: 50.0,
-                    ),
-                    SizedBox(height: 24),
-                    Text(
-                      'SECURELY SYNCING WITH ARENA...',
-                      style: TextStyle(
-                        fontFamily: 'SpaceGrotesk',
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: AppTheme.primaryColor,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                  ],
-                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -154,7 +180,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final step = state.currentStep;
     // Recovery/login steps don't show a numbered progress counter
     final isRecoveryStep = step == AuthStep.login ||
-        step == AuthStep.alterEmailLogin ||
         step == AuthStep.phoneLogin ||
         step == AuthStep.phoneLoginOtp;
 
@@ -172,8 +197,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           if (step != AuthStep.login)
             IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
-              onPressed: () {
-                ref.read(authControllerProvider.notifier).previousStep();
+              onPressed: () async {
+                if (step == AuthStep.phoneInput || step == AuthStep.basicAccount) {
+                  final shouldExit = await _showExitConfirmationDialog();
+                  if (shouldExit) {
+                    await ref.read(authControllerProvider.notifier).exitOnboarding();
+                  }
+                } else {
+                  ref.read(authControllerProvider.notifier).previousStep();
+                }
               },
             )
           else
@@ -215,6 +247,57 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ],
       ),
     );
+  }
+
+  Future<bool> _showExitConfirmationDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.grey[900],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Colors.white10),
+          ),
+          title: Text(
+            'Exit Onboarding?',
+            style: GoogleFonts.spaceGrotesk(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            "Your profile hasn't been created yet. Exiting now will delete your progress and registration details. Are you sure you want to exit?",
+            style: GoogleFonts.inter(color: Colors.white70, height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.spaceGrotesk(color: Colors.white38),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(
+                'Exit & Delete',
+                style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    return result ?? false;
   }
 }
 
@@ -481,7 +564,7 @@ class _LoginGoogleWidget extends ConsumerWidget {
           const SizedBox(height: 20),
           GestureDetector(
             onTap: () =>
-                ref.read(authControllerProvider.notifier).goToAlternateEmailLogin(),
+                ref.read(authControllerProvider.notifier).goToPhoneLogin(),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -533,296 +616,6 @@ class _LoginGoogleWidget extends ConsumerWidget {
   }
 }
 
-class _AlternateEmailLoginWidget extends StatefulWidget {
-  const _AlternateEmailLoginWidget();
-
-  @override
-  State<_AlternateEmailLoginWidget> createState() =>
-      _AlternateEmailLoginWidgetState();
-}
-
-class _AlternateEmailLoginWidgetState
-    extends State<_AlternateEmailLoginWidget> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
-  bool _resetSent = false;
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, child) {
-        final authState = ref.watch(authControllerProvider);
-
-        return SingleChildScrollView(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 20),
-                // Header badge
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: AppTheme.primaryColor.withOpacity(0.25)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.lock_reset,
-                          color: AppTheme.primaryColor, size: 14),
-                      const SizedBox(width: 6),
-                      Text(
-                        'RECOVERY PATH 1 OF 2',
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'SIGN IN WITH EMAIL',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Use the alternate recovery email you set during registration to sign in.',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.white70,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                if (authState.errorMessage != null)
-                  _buildErrorBanner(authState.errorMessage!),
-
-                if (_resetSent)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      border:
-                          Border.all(color: Colors.green.withOpacity(0.3)),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.mark_email_read_outlined,
-                            color: Colors.green, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Password reset link sent! Check your inbox.',
-                            style: GoogleFonts.inter(
-                                color: Colors.green, fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // Email
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  style: GoogleFonts.inter(
-                      color: Colors.white, fontSize: 14),
-                  decoration: const InputDecoration(
-                    labelText: 'Alternate Email',
-                    prefixIcon: Icon(Icons.email_outlined,
-                        color: AppTheme.primaryColor, size: 18),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Email is required';
-                    }
-                    if (!RegExp(
-                            r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}\$')
-                        .hasMatch(v.trim())) {
-                      return 'Enter a valid email address';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 14),
-
-                // Password
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  style: GoogleFonts.inter(
-                      color: Colors.white, fontSize: 14),
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline,
-                        color: AppTheme.primaryColor, size: 18),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        size: 18,
-                        color: Colors.white38,
-                      ),
-                      onPressed: () => setState(
-                          () => _obscurePassword = !_obscurePassword),
-                    ),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Password is required';
-                    if (v.length < 6) {
-                      return 'Password must be at least 6 characters';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 8),
-
-                // Forgot password link
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 32)),
-                    onPressed: () async {
-                      if (_emailController.text.trim().isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                'Enter your email above first, then tap Forgot Password.'),
-                          ),
-                        );
-                        return;
-                      }
-                      final error = await ref
-                          .read(authControllerProvider.notifier)
-                          .sendPasswordResetEmail(
-                              _emailController.text.trim());
-                      if (mounted) {
-                        if (error == null) {
-                          setState(() => _resetSent = true);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(error)),
-                          );
-                        }
-                      }
-                    },
-                    child: Text(
-                      'Forgot password?',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Sign In button
-                SizedBox(
-                  height: 56,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        ref
-                            .read(authControllerProvider.notifier)
-                            .signInWithAlternateEmail(
-                              email: _emailController.text.trim(),
-                              password: _passwordController.text,
-                            );
-                      }
-                    },
-                    child: Text(
-                      'SIGN IN',
-                      style: GoogleFonts.spaceGrotesk(
-                          fontWeight: FontWeight.w900, letterSpacing: 1.5),
-                    ),
-                  ),
-                ),
-
-                // ── Forgot this email too? ────────────────────────────
-                const SizedBox(height: 28),
-                const Divider(color: Colors.white10),
-                const SizedBox(height: 20),
-                Center(
-                  child: Text(
-                    'Forgot this email too?',
-                    style: GoogleFonts.inter(
-                        fontSize: 13, color: Colors.white38),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 52,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(
-                          color: AppTheme.primaryColor, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: const Icon(Icons.phone_android,
-                        color: AppTheme.primaryColor, size: 18),
-                    label: Text(
-                      'SIGN IN WITH MOBILE OTP',
-                      style: GoogleFonts.spaceGrotesk(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                        fontSize: 13,
-                        color: AppTheme.primaryColor,
-                      ),
-                    ),
-                    onPressed: () => ref
-                        .read(authControllerProvider.notifier)
-                        .goToPhoneLogin(),
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
 
 // ════════════════════════════════════════════════════════════════════
 // FALLBACK 2: PHONE LOGIN — MOBILE NUMBER ENTRY
@@ -857,34 +650,6 @@ class _PhoneLoginWidgetState extends State<_PhoneLoginWidget> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: AppTheme.primaryColor.withOpacity(0.25)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.lock_reset,
-                          color: AppTheme.primaryColor, size: 14),
-                      const SizedBox(width: 6),
-                      Text(
-                        'RECOVERY PATH 2 OF 2',
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 20),
                 Text(
                   'SIGN IN WITH MOBILE',
@@ -967,7 +732,7 @@ class _PhoneLoginWidgetState extends State<_PhoneLoginWidget> {
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
                         final phone =
-                            '+91\${_phoneController.text.trim()}';
+                            '+91${_phoneController.text.trim()}';
                         ref
                             .read(authControllerProvider.notifier)
                             .sendLoginOTP(phone);
@@ -1539,56 +1304,14 @@ class _BasicAccountWidgetState extends State<_BasicAccountWidget> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _fullNameController = TextEditingController();
-  final _alternateEmailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
-  double _passwordStrength = 0; // 0 to 1
-  String _passwordStrengthLabel = 'Empty';
-  Color _passwordStrengthColor = Colors.white24;
-
   @override
   void dispose() {
     _usernameController.dispose();
     _fullNameController.dispose();
-    _alternateEmailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  void _assessPasswordStrength(String password) {
-    if (password.isEmpty) {
-      setState(() {
-        _passwordStrength = 0;
-        _passwordStrengthLabel = 'Empty';
-        _passwordStrengthColor = Colors.white24;
-      });
-      return;
-    }
-    double score = 0;
-    if (password.length >= 6) score += 0.2;
-    if (password.length >= 10) score += 0.2;
-    if (RegExp(r'[A-Z]').hasMatch(password)) score += 0.2;
-    if (RegExp(r'[0-9]').hasMatch(password)) score += 0.2;
-    if (RegExp(r'[!@#\$&*~]').hasMatch(password)) score += 0.2;
 
-    setState(() {
-      _passwordStrength = score;
-      if (score <= 0.4) {
-        _passwordStrengthLabel = 'Weak';
-        _passwordStrengthColor = Colors.redAccent;
-      } else if (score <= 0.8) {
-        _passwordStrengthLabel = 'Medium';
-        _passwordStrengthColor = Colors.amberAccent;
-      } else {
-        _passwordStrengthLabel = 'Strong Athlete Strength';
-        _passwordStrengthColor = AppTheme.primaryColor;
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1678,115 +1401,9 @@ class _BasicAccountWidgetState extends State<_BasicAccountWidget> {
                 ),
                 const SizedBox(height: 12),
 
-                // Alternate Email
-                TextFormField(
-                  controller: _alternateEmailController,
-                  keyboardType: TextInputType.emailAddress,
-                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-                  decoration: const InputDecoration(
-                    labelText: 'Alternate Recovery Email',
-                    prefixIcon: Icon(Icons.email, color: AppTheme.primaryColor, size: 16),
-                    helperText: 'For safety if you lose your Google account access.',
-                    helperStyle: TextStyle(color: Colors.white38, fontSize: 10),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Alternate recovery email is required';
-                    }
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value.trim())) {
-                      return 'Please enter a valid email address';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
 
-                // Password
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 14),
-                  decoration: InputDecoration(
-                    labelText: 'Recovery Password',
-                    prefixIcon: const Icon(Icons.lock, color: AppTheme.primaryColor, size: 16),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                        size: 18,
-                        color: Colors.white38,
-                      ),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                    ),
-                  ),
-                  onChanged: _assessPasswordStrength,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Password is required';
-                    }
-                    if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 6),
 
-                // Password strength bar
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Password Strength:', style: TextStyle(color: Colors.white38, fontSize: 10)),
-                        Text(
-                          _passwordStrengthLabel,
-                          style: TextStyle(color: _passwordStrengthColor, fontSize: 10, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: _passwordStrength,
-                        backgroundColor: Colors.white10,
-                        valueColor: AlwaysStoppedAnimation<Color>(_passwordStrengthColor),
-                        minHeight: 4,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
 
-                // Confirm Password
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
-                  style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 14),
-                  decoration: InputDecoration(
-                    labelText: 'Confirm Password',
-                    prefixIcon: const Icon(Icons.lock, color: AppTheme.primaryColor, size: 16),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                        size: 18,
-                        color: Colors.white38,
-                      ),
-                      onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please confirm password';
-                    }
-                    if (value != _passwordController.text) {
-                      return 'Passwords do not match';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
 
                 SizedBox(
                   height: 56,
@@ -1801,8 +1418,8 @@ class _BasicAccountWidgetState extends State<_BasicAccountWidget> {
                         ref.read(authControllerProvider.notifier).createBasicAccount(
                           username: _usernameController.text,
                           fullName: _fullNameController.text,
-                          alternateEmail: _alternateEmailController.text,
-                          password: _passwordController.text,
+                          alternateEmail: '',
+                          password: '',
                         );
                       }
                     },
@@ -1998,6 +1615,60 @@ class _LocationWidgetState extends State<_LocationWidget> {
   String _selectedCountry = 'India';
   String _selectedState = '';
   String _selectedCity = '';
+  final _pincodeController = TextEditingController();
+  bool _isPincodeLoading = false;
+  String? _pincodeError;
+
+  @override
+  void dispose() {
+    _pincodeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _lookupPincode(String pincode) async {
+    if (pincode.length != 6) return;
+    setState(() {
+      _isPincodeLoading = true;
+      _pincodeError = null;
+    });
+
+    try {
+      final response = await http.get(Uri.parse('https://api.postalpincode.in/pincode/$pincode'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data is List && data.isNotEmpty) {
+          final status = data[0]['Status'];
+          if (status == 'Success') {
+            final postOffices = data[0]['PostOffice'];
+            if (postOffices is List && postOffices.isNotEmpty) {
+              final office = postOffices[0];
+              final state = office['State'] ?? '';
+              final city = office['District'] ?? office['Block'] ?? '';
+
+              if (state.isNotEmpty && city.isNotEmpty) {
+                setState(() {
+                  _selectedState = state;
+                  _selectedCity = city;
+                  _isPincodeLoading = false;
+                });
+                return;
+              }
+            }
+          }
+        }
+      }
+      setState(() {
+        _isPincodeLoading = false;
+        _pincodeError = 'Invalid Pincode or no data found.';
+      });
+    } catch (e) {
+      debugPrint('Pincode lookup error: $e');
+      setState(() {
+        _isPincodeLoading = false;
+        _pincodeError = 'Failed to lookup pincode. Please try manually.';
+      });
+    }
+  }
 
   // India standard sporting state hubs mapping for searchable lists
   final Map<String, List<String>> _indianStateCityMap = {
@@ -2130,29 +1801,65 @@ class _LocationWidgetState extends State<_LocationWidget> {
               ),
               const SizedBox(height: 32),
 
-              // Country Dropdown (ReadOnly searchable)
+              // Country Dropdown (ReadOnly)
               const Text(
                 'Country',
                 style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
-              GestureDetector(
-                onTap: () {
-                  _showSearchDialog(
-                    title: 'Select Country',
-                    items: ['India', 'United States', 'United Kingdom', 'Australia', 'South Africa'],
-                    onSelected: (val) {
+              _buildSelectorTile(_selectedCountry, isClickable: false),
+              const SizedBox(height: 20),
+
+              if (_selectedCountry == 'India') ...[
+                const Text(
+                  'PIN Code (India)',
+                  style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: _pincodeController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'Enter 6-digit PIN Code',
+                    hintStyle: const TextStyle(color: Colors.white24),
+                    prefixIcon: const Icon(Icons.pin_drop, color: AppTheme.primaryColor, size: 16),
+                    counterText: '',
+                    suffixIcon: _isPincodeLoading
+                        ? const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                              ),
+                            ),
+                          )
+                        : null,
+                  ),
+                  onChanged: (val) {
+                    if (val.trim().length == 6) {
+                      _lookupPincode(val.trim());
+                    } else {
                       setState(() {
-                        _selectedCountry = val;
                         _selectedState = '';
                         _selectedCity = '';
                       });
-                    },
-                  );
-                },
-                child: _buildSelectorTile(_selectedCountry),
-              ),
-              const SizedBox(height: 20),
+                    }
+                  },
+                ),
+                if (_pincodeError != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _pincodeError!,
+                    style: const TextStyle(color: Colors.redAccent, fontSize: 11),
+                  ),
+                ],
+                const SizedBox(height: 20),
+              ],
 
               // State Dropdown
               const Text(
@@ -2160,33 +1867,9 @@ class _LocationWidgetState extends State<_LocationWidget> {
                 style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
-              GestureDetector(
-                onTap: () {
-                  if (_selectedCountry != 'India') {
-                    _showSearchDialog(
-                      title: 'Select Region',
-                      items: ['California', 'Texas', 'New York', 'London Region', 'New South Wales'],
-                      onSelected: (val) {
-                        setState(() {
-                          _selectedState = val;
-                          _selectedCity = '';
-                        });
-                      },
-                    );
-                    return;
-                  }
-                  _showSearchDialog(
-                    title: 'Select Indian State',
-                    items: _indianStateCityMap.keys.toList(),
-                    onSelected: (val) {
-                      setState(() {
-                        _selectedState = val;
-                        _selectedCity = '';
-                      });
-                    },
-                  );
-                },
-                child: _buildSelectorTile(_selectedState.isEmpty ? 'Select State' : _selectedState),
+              _buildSelectorTile(
+                _selectedState.isEmpty ? 'Waiting for PIN Code...' : _selectedState,
+                isClickable: false,
               ),
               const SizedBox(height: 20),
 
@@ -2196,37 +1879,9 @@ class _LocationWidgetState extends State<_LocationWidget> {
                 style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
-              GestureDetector(
-                onTap: () {
-                  if (_selectedState.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please select a State first.')),
-                    );
-                    return;
-                  }
-                  if (_selectedCountry != 'India') {
-                    _showSearchDialog(
-                      title: 'Select City',
-                      items: ['Los Angeles', 'Houston', 'Dallas', 'Austin', 'Brooklyn', 'Manhattan', 'Sydney', 'Cape Town'],
-                      onSelected: (val) {
-                        setState(() {
-                          _selectedCity = val;
-                        });
-                      },
-                    );
-                    return;
-                  }
-                  _showSearchDialog(
-                    title: 'Select City',
-                    items: _indianStateCityMap[_selectedState] ?? [],
-                    onSelected: (val) {
-                      setState(() {
-                        _selectedCity = val;
-                      });
-                    },
-                  );
-                },
-                child: _buildSelectorTile(_selectedCity.isEmpty ? 'Select City' : _selectedCity),
+              _buildSelectorTile(
+                _selectedCity.isEmpty ? 'Waiting for PIN Code...' : _selectedCity,
+                isClickable: false,
               ),
               const SizedBox(height: 48),
 
@@ -2264,12 +1919,12 @@ class _LocationWidgetState extends State<_LocationWidget> {
     );
   }
 
-  Widget _buildSelectorTile(String label) {
+  Widget _buildSelectorTile(String label, {bool isClickable = true}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        border: Border.all(color: const Color(0xFF222222)),
+        color: isClickable ? const Color(0xFF121212) : const Color(0xFF1A1A1A),
+        border: Border.all(color: isClickable ? const Color(0xFF222222) : const Color(0xFF333333)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -2278,12 +1933,15 @@ class _LocationWidgetState extends State<_LocationWidget> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: label.startsWith('Select') ? Colors.white30 : Colors.white,
+              color: (label.startsWith('Select') || label.startsWith('Waiting'))
+                  ? Colors.white30 
+                  : (isClickable ? Colors.white : Colors.white60),
               fontSize: 14,
-              fontWeight: label.startsWith('Select') ? FontWeight.normal : FontWeight.bold,
+              fontWeight: (label.startsWith('Select') || label.startsWith('Waiting')) ? FontWeight.normal : FontWeight.bold,
             ),
           ),
-          const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor, size: 18),
+          if (isClickable)
+            const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor, size: 18),
         ],
       ),
     );
@@ -2344,6 +2002,11 @@ class _RoleDetailsWidgetState extends State<_RoleDetailsWidget> {
                 ),
               ),
               const SizedBox(height: 24),
+
+              if (authState.errorMessage != null) ...[
+                _buildErrorBanner(authState.errorMessage!),
+                const SizedBox(height: 16),
+              ],
 
               if (role == 'Athlete' || role == 'Coach') ...[
                 // Sport

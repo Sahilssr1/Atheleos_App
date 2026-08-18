@@ -8,6 +8,7 @@ class LikeRepositoryImpl implements LikeRepository {
   Future<void> togglePostLike(String postId, String userId) async {
     final postRef = _firestore.collection('posts').doc(postId);
     final likeRef = postRef.collection('likes').doc(userId);
+    final userLikeRef = _firestore.collection('users').doc(userId).collection('likes').doc(postId);
 
     await _firestore.runTransaction((transaction) async {
       final postDoc = await transaction.get(postRef);
@@ -24,6 +25,7 @@ class LikeRepositoryImpl implements LikeRepository {
           'likes': (currentLikes - 1).clamp(0, double.infinity).toInt(),
         });
         transaction.delete(likeRef);
+        transaction.delete(userLikeRef);
       } else {
         likedBy.add(userId);
         transaction.update(postRef, {
@@ -32,6 +34,10 @@ class LikeRepositoryImpl implements LikeRepository {
         });
         transaction.set(likeRef, {
           'userId': userId,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        transaction.set(userLikeRef, {
+          'postId': postId,
           'createdAt': FieldValue.serverTimestamp(),
         });
       }

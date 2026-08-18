@@ -570,10 +570,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
             // ── 2. SECURITY ───────────────────────────────────────────────
             _sectionHeader('Security'),
-            _tile(Icons.lock_outline, 'Change Password',
-                onTap: () => context.push('/settings/password')),
-            _tile(Icons.email_outlined, 'Change Alternate Email',
-                onTap: () => context.push('/settings/alternate-email')),
+
             _tile(Icons.phone_outlined, 'Change Phone Number',
                 subtitle: 'Used for account recovery & 2FA',
                 onTap: () => context.push('/settings/recovery-phone')),
@@ -588,9 +585,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _tile(Icons.manage_accounts_outlined, 'Google Account',
                 subtitle: userProfile?.name ?? 'Not connected',
                 onTap: () => context.push('/settings/connected-account')),
-            _tile(Icons.alternate_email, 'Alternate Email',
-                subtitle: 'Add a backup recovery email',
-                onTap: () => context.push('/settings/alternate-email')),
+
             _tile(Icons.phone_outlined, 'Verified Phone Number',
                 subtitle: 'Add a verified recovery phone',
                 onTap: () => context.push('/settings/recovery-phone')),

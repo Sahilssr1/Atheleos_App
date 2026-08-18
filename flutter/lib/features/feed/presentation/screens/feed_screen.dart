@@ -26,6 +26,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../chat/presentation/controllers/chat_controller.dart';
 import '../../../../core/widgets/post_media_widget.dart'
     show activeVideoUrlProvider, preloadedVideoUrlProvider;
+import '../../../clips/presentation/screens/clips_screen.dart';
 
 class FeedScreen extends ConsumerStatefulWidget {
   const FeedScreen({super.key});
@@ -640,6 +641,23 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           ref.read(feedPostsProvider.notifier).toggleLike(post.id, currentlyLiked),
       onToggleBookmark: (currentlyBookmarked) =>
           ref.read(feedPostsProvider.notifier).toggleBookmark(post.id, currentlyBookmarked),
+      onMediaTap: post.hasVideo ? () {
+        final postsState = ref.read(feedPostsProvider);
+        final postsList = postsState.value ?? [];
+        final reels = postsList.where((p) => p.hasVideo).toList();
+        int initialIndex = reels.indexWhere((p) => p.id == post.id);
+        if (initialIndex == -1) initialIndex = 0;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ReelsViewerScreen(
+              clips: reels,
+              initialIndex: initialIndex,
+            ),
+          ),
+        );
+      } : null,
     );
   }
 }

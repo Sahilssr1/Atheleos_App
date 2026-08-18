@@ -6,7 +6,6 @@ import 'package:visibility_detector/visibility_detector.dart';
 // Screens
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
-import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/feed/presentation/screens/feed_screen.dart';
 import '../../features/feed/presentation/screens/post_detail_screen.dart';
 import '../../features/search/presentation/screens/search_screen.dart';
@@ -36,8 +35,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/login',
     redirect: (context, state) {
       final loggingIn = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/register' ||
-          state.matchedLocation == '/forgot-password';
+          state.matchedLocation == '/register';
 
       if (!isAuthenticated) {
         return loggingIn ? null : '/login';
@@ -57,10 +55,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/register',
         builder: (context, state) => const RegisterScreen(),
-      ),
-      GoRoute(
-        path: '/forgot-password',
-        builder: (context, state) => const ForgotPasswordScreen(),
       ),
 
       // Stateful shell routing preserving tab states
@@ -196,14 +190,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'phone',
             builder: (context, state) => const PhoneVerificationScreen(),
-          ),
-          GoRoute(
-            path: 'password',
-            builder: (context, state) => const ChangePasswordScreen(),
-          ),
-          GoRoute(
-            path: 'alternate-email',
-            builder: (context, state) => const AlternateEmailScreen(),
           ),
           GoRoute(
             path: 'recovery-phone',

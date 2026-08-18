@@ -175,6 +175,7 @@ class EventModel {
     return {
       'eventId': eventId,
       'organizerUid': organizerUid,
+      'createdBy': organizerUid,
       'organizerName': organizerName,
       'organizerAvatar': organizerAvatar,
       'verifiedOrganizer': verifiedOrganizer,
@@ -197,6 +198,7 @@ class EventModel {
       'longitude': longitude,
       'startDate': Timestamp.fromDate(startDate),
       'endDate': Timestamp.fromDate(endDate),
+      'eventDate': startDate.toIso8601String(),
       'registrationDeadline': Timestamp.fromDate(registrationDeadline),
       'startTime': startTime,
       'endTime': endTime,
@@ -216,11 +218,20 @@ class EventModel {
   }
 
   factory EventModel.fromMap(Map<String, dynamic> map, String id) {
+    DateTime parseDate(dynamic val) {
+      if (val is Timestamp) return val.toDate();
+      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+      if (val is String) {
+        return DateTime.tryParse(val) ?? DateTime.now();
+      }
+      return DateTime.now();
+    }
+
     return EventModel(
       eventId: id,
-      organizerUid: map['organizerUid'] as String? ?? '',
+      organizerUid: map['organizerUid'] as String? ?? map['createdBy'] as String? ?? '',
       organizerName: map['organizerName'] as String? ?? '',
-      organizerAvatar: map['organizerAvatar'] as String? ?? '',
+      organizerAvatar: map['organizerAvatar'] as String? ?? map['avatarUrl'] as String? ?? '',
       verifiedOrganizer: map['verifiedOrganizer'] as bool? ?? false,
       title: map['title'] as String? ?? '',
       description: map['description'] as String? ?? '',
@@ -239,15 +250,9 @@ class EventModel {
       country: map['country'] as String? ?? '',
       latitude: (map['latitude'] as num?)?.toDouble(),
       longitude: (map['longitude'] as num?)?.toDouble(),
-      startDate: map['startDate'] is Timestamp
-          ? (map['startDate'] as Timestamp).toDate()
-          : DateTime.fromMillisecondsSinceEpoch(map['startDate'] as int? ?? DateTime.now().millisecondsSinceEpoch),
-      endDate: map['endDate'] is Timestamp
-          ? (map['endDate'] as Timestamp).toDate()
-          : DateTime.fromMillisecondsSinceEpoch(map['endDate'] as int? ?? DateTime.now().millisecondsSinceEpoch),
-      registrationDeadline: map['registrationDeadline'] is Timestamp
-          ? (map['registrationDeadline'] as Timestamp).toDate()
-          : DateTime.fromMillisecondsSinceEpoch(map['registrationDeadline'] as int? ?? DateTime.now().millisecondsSinceEpoch),
+      startDate: parseDate(map['startDate'] ?? map['eventDate']),
+      endDate: parseDate(map['endDate'] ?? map['startDate'] ?? map['eventDate']),
+      registrationDeadline: parseDate(map['registrationDeadline'] ?? map['startDate']),
       startTime: map['startTime'] as String? ?? '',
       endTime: map['endTime'] as String? ?? '',
       maxParticipants: map['maxParticipants'] as int? ?? 100,
@@ -260,12 +265,8 @@ class EventModel {
       ageGroup: map['ageGroup'] as String? ?? 'All Ages',
       gender: map['gender'] as String? ?? 'All',
       skillLevel: map['skillLevel'] as String? ?? 'Open',
-      createdAt: map['createdAt'] is Timestamp
-          ? (map['createdAt'] as Timestamp).toDate()
-          : DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int? ?? DateTime.now().millisecondsSinceEpoch),
-      updatedAt: map['updatedAt'] is Timestamp
-          ? (map['updatedAt'] as Timestamp).toDate()
-          : DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] as int? ?? DateTime.now().millisecondsSinceEpoch),
+      createdAt: parseDate(map['createdAt']),
+      updatedAt: parseDate(map['updatedAt']),
     );
   }
 }

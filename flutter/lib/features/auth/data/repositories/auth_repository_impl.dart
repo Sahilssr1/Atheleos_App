@@ -300,10 +300,10 @@ class AuthRepositoryImpl implements AuthRepository {
           googleVerified: false, phoneVerified: true);
     } on FirebaseAuthException catch (e) {
       debugPrint('Login OTP sign-in failed: [${e.code}] ${e.message}');
-      return null;
+      rethrow;
     } catch (e) {
       debugPrint('Login OTP sign-in error: $e');
-      return null;
+      rethrow;
     }
   }
 
@@ -384,8 +384,8 @@ class AuthRepositoryImpl implements AuthRepository {
       }
       debugPrint('Saved profile successfully to Firestore: ${updatedUser.uid}');
     } catch (e) {
-      debugPrint(
-          'Firestore failed to save user document: $e. Simulating successful disk save.');
+      debugPrint('Firestore failed to save user document: $e');
+      rethrow;
     }
   }
 
@@ -404,12 +404,23 @@ class AuthRepositoryImpl implements AuthRepository {
         }
         return UserModel.fromMap(doc.data()!);
       }
+
+      // Fallback: If document by UID doesn't exist, check if current authenticated user's phone matches any profile
+      final authUser = _auth.currentUser;
+      if (authUser != null && authUser.uid == uid && authUser.phoneNumber != null && authUser.phoneNumber!.isNotEmpty) {
+        final profile = await getUserByPhone(authUser.phoneNumber!);
+        if (profile != null) {
+          return profile;
+        }
+      }
+
+      return null;
     } on StateError {
       rethrow;
     } catch (e) {
       debugPrint('Firestore failed to fetch user document: $e.');
+      rethrow;
     }
-    return null;
   }
 
   // ─────────────────────────────────────────────────

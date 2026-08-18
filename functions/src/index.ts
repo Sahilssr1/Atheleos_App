@@ -424,13 +424,15 @@ function extractMediaIds(data: any, sourceType: string): string[] {
     // Banner mediaId
     if (data.bannerPublicId) ids.push(data.bannerPublicId);
   } else if (sourceType === "profile") {
-    // Avatar and Cover photo URL paths
-    if (data.avatarUrl && data.avatarUrl.includes("/media/")) {
-      const match = data.avatarUrl.match(/\/media\/([a-zA-Z0-9_]+)/);
+    // Avatar and Cover photo URL paths (support photoUrl/avatarUrl and coverPhoto/coverUrl)
+    const avatar = data.photoUrl || data.avatarUrl;
+    if (avatar && typeof avatar === "string" && avatar.includes("/media/")) {
+      const match = avatar.match(/\/media\/([a-zA-Z0-9_]+)/);
       if (match && match[1]) ids.push(match[1].split(".")[0].split("_")[0]);
     }
-    if (data.coverUrl && data.coverUrl.includes("/media/")) {
-      const match = data.coverUrl.match(/\/media\/([a-zA-Z0-9_]+)/);
+    const cover = data.coverPhoto || data.coverUrl;
+    if (cover && typeof cover === "string" && cover.includes("/media/")) {
+      const match = cover.match(/\/media\/([a-zA-Z0-9_]+)/);
       if (match && match[1]) ids.push(match[1].split(".")[0].split("_")[0]);
     }
   }
@@ -530,5 +532,49 @@ async function triggerVideoProcessor(videoProcessorUrl: string, jobId: string, t
     console.error("Failed to trigger video processor:", e);
   }
 }
+
+// --- 4. Scheduled Cleanup of Incomplete Registrations ---
+
+export const cleanupIncompleteAccounts = functions.pubsub
+  .schedule("every 1 hours")
+  .onRun(async (context) => {
+    const gracePeriodHours = 2; // Delete users who registered but didn't finish onboarding in 2 hours
+    const thresholdDate = new Date(Date.now() - gracePeriodHours * 60 * 60 * 1000);
+
+    let nextPageToken: string | undefined;
+    let usersProcessed = 0;
+    let usersDeleted = 0;
+
+    do {
+      const listUsersResult: admin.auth.ListUsersResult = await admin.auth().listUsers(1000, nextPageToken);
+      
+      for (const userRecord of listUsersResult.users) {
+        usersProcessed++;
+        const creationTime = new Date(userRecord.metadata.creationTime);
+
+        // Check if account is older than grace period
+        if (creationTime < thresholdDate) {
+          const userDocRef = db.collection("users").doc(userRecord.uid);
+          const docSnap = await userDocRef.get();
+
+          if (!docSnap.exists) {
+            // Profile document does not exist -> user didn't complete onboarding
+            console.log(`Cleanup: Deleting incomplete Auth user ${userRecord.uid} (${userRecord.email || "no-email"}) created at ${userRecord.metadata.creationTime}`);
+            try {
+              await admin.auth().deleteUser(userRecord.uid);
+              usersDeleted++;
+            } catch (err) {
+              console.error(`Cleanup: Failed to delete user ${userRecord.uid}:`, err);
+            }
+          }
+        }
+      }
+
+      nextPageToken = listUsersResult.pageToken;
+    } while (nextPageToken);
+
+    console.log(`Incomplete accounts cleanup finished. Processed: ${usersProcessed}, Deleted: ${usersDeleted}`);
+  });
+
 
 

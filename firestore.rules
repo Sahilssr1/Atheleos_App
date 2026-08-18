@@ -16,10 +16,21 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == uid;
     }
 
+    /// The authenticated user owns the document via phone number verification.
+    function isPhoneOwner(uid) {
+      return isAuthenticated()
+        && ('phone_number' in request.auth.token)
+        && request.auth.token.phone_number != null
+        && get(/databases/$(database)/documents/users/$(uid)).data.phoneNumber == request.auth.token.phone_number;
+    }
+
     /// The authenticated user exists in Firestore and has not been soft-deleted.
     function isActiveUser() {
       return isAuthenticated()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isDeleted', false) != true;
+        && (
+             !exists(/databases/$(database)/documents/users/$(request.auth.uid))
+             || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isDeleted', false) != true
+           );
     }
 
     /// Write touches ONLY the listed keys — no extra fields allowed.
@@ -59,27 +70,30 @@ service cloud.firestore {
       // Sensitive / server-managed fields are intentionally omitted.
       function userEditableFields() {
         return [
-          'displayName', 'username', 'bio', 'role', 'sport',
-          'primaryPosition', 'clubOrAcademy',
-          'city', 'state', 'country',
+          'uid', 'id', 'displayName', 'fullName', 'name', 'username', 'bio', 'role', 'sport',
+          'primaryPosition', 'position', 'clubOrAcademy', 'teamName', 'school_club',
+          'city', 'state', 'country', 'pinCode',
           'email', 'phoneNumber', 'phoneVerified',
           'alternateEmail', 'alternateEmailVerified',
           'pendingAlternateEmail', 'alternateEmailVerificationSentAt',
           'googleEmail', 'googlePhotoUrl', 'googleVerified',
           'recoveryPhone', 'recoveryPhoneVerified', 'emailVerified',
-          'photoUrl', 'coverPhoto',
-          'dateOfBirth', 'gender', 'height', 'weight',
+          'photoUrl', 'coverPhoto', 'avatarUrl', 'coverUrl',
+          'dateOfBirth', 'dob', 'gender', 'height', 'weight',
           'experienceYears', 'personalNotes', 'website',
           'achievements', 'certifications', 'socialLinks',
-          'resumeFileName', 'mediaGallery',
-          'industry', 'organizationName', 'statistics',
+          'resumeFileName', 'resumeFilename', 'resumeUrl', 'mediaGallery',
+          'industry', 'organizationName', 'organization', 'industryType',
+          'coachingExperience', 'openRosterSpots', 'statistics', 'customStats',
           'postsCount', 'clipsCount', 'followingCount',
+          'recruitmentStatus', 'recruitingStatus', 'profileCompletion',
+          'publicKey', 'topSpeed', 'verticalLeap',
           'createdAt', 'updatedAt'
         ];
       }
 
       // Public read: hide soft-deleted profiles except to the owner.
-      allow read: if resource.data.get('isDeleted', false) != true || isOwner(uid);
+      allow read: if resource.data.get('isDeleted', false) != true || isOwner(uid) || isPhoneOwner(uid);
 
       // Create: only the authenticated user can create their own profile doc.
       // Block any attempt to pre-set server-managed fields at creation time.
@@ -90,7 +104,7 @@ service cloud.firestore {
 
       // Update — Class A: owner edits their own profile (safe fields only)
       allow update: if resource.data.get('isDeleted', false) != true
-        && isOwner(uid)
+        && (isOwner(uid) || isPhoneOwner(uid))
         && subsetOfFields(userEditableFields());
 
       // Update — Class B: follow/unfollow transaction updates followersCount only.
@@ -108,7 +122,7 @@ service cloud.firestore {
 
       // Update — Class D: owner soft-deletes their own account
       // (AccountSettingsActions.deleteAccount in settings_controller.dart).
-      allow update: if isOwner(uid)
+      allow update: if (isOwner(uid) || isPhoneOwner(uid))
         && onlyFields(['isDeleted', 'deletedAt', 'deletionVersion', 'updatedAt']);
 
       // Hard delete is permanently disabled to preserve platform history.
@@ -120,12 +134,12 @@ service cloud.firestore {
       // read-receipt toggles in messaging_access_service and chat_repository_impl).
       match /settings/{settingsId} {
         allow read: if isActiveUser();
-        allow write: if isOwner(uid) && isActiveUser();
+        allow write: if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser();
       }
 
       // ── Hidden keywords (content filter) ─────────────────────────────────────
       match /hidden_keywords/{keywordId} {
-        allow read, write: if isOwner(uid) && isActiveUser();
+        allow read, write: if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser();
       }
 
       // ── Blocked users ─────────────────────────────────────────────────────────
@@ -133,13 +147,13 @@ service cloud.firestore {
       // blocked (messaging_access_service.dart uses this before allowing DMs).
       match /blocked_users/{blockedUid} {
         allow get:                    if isActiveUser();
-        allow list:                   if isOwner(uid) && isActiveUser();
-        allow create, update, delete: if isOwner(uid) && isActiveUser();
+        allow list:                   if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser();
+        allow create, update, delete: if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser();
       }
 
       // ── Muted users ───────────────────────────────────────────────────────────
       match /muted_users/{mutedUid} {
-        allow read, write: if isOwner(uid) && isActiveUser();
+        allow read, write: if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser();
       }
 
       // ── Followers  /users/{uid}/followers/{followerUid} ───────────────────────
@@ -153,16 +167,16 @@ service cloud.firestore {
       // ── Following  /users/{uid}/following/{targetUid} ─────────────────────────
       match /following/{targetUid} {
         allow read:  if isActiveUser();
-        allow write: if isOwner(uid) && isActiveUser();
+        allow write: if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser();
       }
 
       // ── Notifications ──────────────────────────────────────────────────────────
       match /notifications/{notificationId} {
         // Inbox owner: read and delete their own notifications.
-        allow read, delete: if isOwner(uid) && isActiveUser();
+        allow read, delete: if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser();
 
         // Owner may update only the 'read' flag (markAsRead / markAllAsRead).
-        allow update: if isOwner(uid) && isActiveUser()
+        allow update: if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser()
           && onlyFields(['read']);
 
         // A notification may be created by:
@@ -173,7 +187,7 @@ service cloud.firestore {
         allow create: if isActiveUser()
           && (
                request.resource.data.senderId == request.auth.uid
-               || isOwner(uid)
+               || isOwner(uid) || isPhoneOwner(uid)
              )
           // Required fields must exist.
           && 'senderId'  in request.resource.data
@@ -191,42 +205,42 @@ service cloud.firestore {
 
       // ── FCM tokens (push notification device registry) ────────────────────────
       match /fcm_tokens/{token} {
-        allow read, write: if isOwner(uid) && isActiveUser();
+        allow read, write: if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser();
       }
 
       // ── Sessions (device management dashboard) ────────────────────────────────
       match /sessions/{sessionId} {
-        allow read, write: if isOwner(uid) && isActiveUser();
+        allow read, write: if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser();
       }
 
       // ── Verification applications ──────────────────────────────────────────────
       // Users submit an application; admin SDK handles approval/rejection.
       match /verification_applications/{applicationId} {
-        allow read, create: if isOwner(uid) && isActiveUser();
+        allow read, create: if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser();
         allow update, delete: if false;
       }
 
       // ── Bookmarked posts ───────────────────────────────────────────────────────
       match /bookmarks/{postId} {
-        allow read, write: if isOwner(uid) && isActiveUser();
+        allow read, write: if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser();
       }
 
       // ── Bookmarked clips ───────────────────────────────────────────────────────
       match /bookmarks_clips/{clipId} {
-        allow read, write: if isOwner(uid) && isActiveUser();
+        allow read, write: if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser();
       }
 
       // ── Bookmarked events ──────────────────────────────────────────────────────
       match /bookmarked_events/{eventId} {
-        allow read, write: if isOwner(uid) && isActiveUser();
+        allow read, write: if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser();
       }
 
       // ── User likes index  /users/{uid}/likes/{postId} ──────────────────────────
       // Written atomically with /posts/{postId}/likes/{userId} in a transaction.
       // Read by userLikesIdsProvider to drive the heart-icon state.
       match /likes/{postId} {
-        allow read:  if isOwner(uid) && isActiveUser();
-        allow write: if isActiveUser() && request.auth.uid == uid;
+        allow read:  if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser();
+        allow write: if isActiveUser() && (request.auth.uid == uid || isPhoneOwner(uid));
       }
     }
 
@@ -236,7 +250,7 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════════════════════════════════
     match /usernames/{username} {
       allow read: if isAuthenticated();
-      allow create: if isActiveUser()
+      allow create: if isAuthenticated()
         && request.resource.data.uid == request.auth.uid;
       allow update: if isActiveUser()
         && resource.data.uid == request.auth.uid
@@ -250,8 +264,8 @@ service cloud.firestore {
     // REPORTS  /reports/{reportId}   (written via .add() — auto-generated ID)
     // ═══════════════════════════════════════════════════════════════════════════
     match /reports/{reportId} {
-      allow read:           if isActiveUser() && resource.data.uid == request.auth.uid;
-      allow create:         if isActiveUser() && request.resource.data.uid == request.auth.uid;
+      allow read:           if isActiveUser() && (resource.data.uid == request.auth.uid || isPhoneOwner(resource.data.uid));
+      allow create:         if isActiveUser() && (request.resource.data.uid == request.auth.uid || isPhoneOwner(request.resource.data.uid));
       allow update, delete: if false;   // immutable once filed; admin SDK resolves
     }
 
@@ -277,14 +291,22 @@ service cloud.firestore {
 
       function isParticipant() {
         return isActiveUser()
-          && request.auth.uid in resource.data.participantIds;
+          && (
+               request.auth.uid in resource.data.participantIds
+               || isPhoneOwner(resource.data.participantIds[0])
+               || isPhoneOwner(resource.data.participantIds[1])
+             );
       }
 
       allow read, update: if isParticipant();
 
       // Create: caller must be one of exactly two participants.
       allow create: if isActiveUser()
-        && request.auth.uid in request.resource.data.participantIds
+        && (
+             request.auth.uid in request.resource.data.participantIds
+             || isPhoneOwner(request.resource.data.participantIds[0])
+             || isPhoneOwner(request.resource.data.participantIds[1])
+           )
         && request.resource.data.participantIds.size() == 2;
 
       // Delete: a participant may clear/leave their own chat room.
@@ -305,15 +327,27 @@ service cloud.firestore {
         }
 
         allow read: if isActiveUser()
-          && request.auth.uid in parentChatNow().data.participantIds;
+          && (
+               request.auth.uid in parentChatNow().data.participantIds
+               || isPhoneOwner(parentChatNow().data.participantIds[0])
+               || isPhoneOwner(parentChatNow().data.participantIds[1])
+             );
 
         allow create: if isActiveUser()
-          && request.resource.data.senderId == request.auth.uid
-          && request.resource.data.receiverId in parentChatAfter().data.participantIds;
+          && (request.resource.data.senderId == request.auth.uid || isPhoneOwner(request.resource.data.senderId))
+          && (
+               request.resource.data.receiverId in parentChatAfter().data.participantIds
+               || isPhoneOwner(parentChatAfter().data.participantIds[0])
+               || isPhoneOwner(parentChatAfter().data.participantIds[1])
+             );
 
         // Update covers reaction toggles; delete covers message removal.
         allow update, delete: if isActiveUser()
-          && request.auth.uid in parentChatNow().data.participantIds;
+          && (
+               request.auth.uid in parentChatNow().data.participantIds
+               || isPhoneOwner(parentChatNow().data.participantIds[0])
+               || isPhoneOwner(parentChatNow().data.participantIds[1])
+             );
       }
     }
 
@@ -333,7 +367,7 @@ service cloud.firestore {
     match /posts/{postId} {
 
       function isPostOwner() {
-        return isAuthenticated() && resource.data.userId == request.auth.uid;
+        return isAuthenticated() && (resource.data.userId == request.auth.uid || isPhoneOwner(resource.data.userId));
       }
 
       // Publicly readable — unauthenticated users can browse the feed.
@@ -341,7 +375,7 @@ service cloud.firestore {
 
       // Create: userId in the new document must match the caller.
       allow create: if isActiveUser()
-        && request.resource.data.userId == request.auth.uid;
+        && (request.resource.data.userId == request.auth.uid || isPhoneOwner(request.resource.data.userId));
 
       // Update — Case 1: post owner edits content (caption, category, sport, mentions)
       allow update: if isActiveUser() && isPostOwner()
@@ -373,7 +407,7 @@ service cloud.firestore {
         // Owner controls their own like entry.
         // Post owner may also delete any like during cascade cleanup on deletion.
         allow write: if isActiveUser()
-          && (request.auth.uid == userId || isPostOwner());
+          && (request.auth.uid == userId || isPhoneOwner(userId) || isPostOwner());
       }
 
 
@@ -387,21 +421,23 @@ service cloud.firestore {
       match /comments/{commentId} {
 
         function isCommentAuthor() {
-          return isAuthenticated() && resource.data.userId == request.auth.uid;
+          return isAuthenticated() && (resource.data.userId == request.auth.uid || isPhoneOwner(resource.data.userId));
         }
 
         // Look up the parent post's owner without a second get() on every rule.
         function isParentPostOwner() {
           return isAuthenticated()
-            && get(/databases/$(database)/documents/posts/$(postId)).data.userId
-               == request.auth.uid;
+            && (
+                 get(/databases/$(database)/documents/posts/$(postId)).data.userId == request.auth.uid
+                 || isPhoneOwner(get(/databases/$(database)/documents/posts/$(postId)).data.userId)
+               );
         }
 
         allow read: if true;
 
         // Create: userId in the new comment must equal the caller.
         allow create: if isActiveUser()
-          && request.resource.data.userId == request.auth.uid;
+          && (request.resource.data.userId == request.auth.uid || isPhoneOwner(request.resource.data.userId));
 
         // Update — author edits comment text only
         allow update: if isActiveUser() && isCommentAuthor()
@@ -433,7 +469,7 @@ service cloud.firestore {
     match /stories/{storyId} {
 
       function isStoryOwner() {
-        return isAuthenticated() && resource.data.userId == request.auth.uid;
+        return isAuthenticated() && (resource.data.userId == request.auth.uid || isPhoneOwner(resource.data.userId));
       }
 
       // Any signed-in user may view stories.
@@ -441,7 +477,7 @@ service cloud.firestore {
 
       // Create: userId in the new story must equal the caller.
       allow create: if isActiveUser()
-        && request.resource.data.userId == request.auth.uid;
+        && (request.resource.data.userId == request.auth.uid || isPhoneOwner(request.resource.data.userId));
 
       // Update — Case 1: story owner edits caption / visibility
       allow update: if isActiveUser() && isStoryOwner()
@@ -466,7 +502,7 @@ service cloud.firestore {
     match /events/{eventId} {
 
       function isEventOwner() {
-        return isAuthenticated() && resource.data.createdBy == request.auth.uid;
+        return isAuthenticated() && (resource.data.createdBy == request.auth.uid || isPhoneOwner(resource.data.createdBy));
       }
 
       // Any signed-in user may browse events.
@@ -474,7 +510,7 @@ service cloud.firestore {
 
       // Create: createdBy must equal the caller.
       allow create: if isActiveUser()
-        && request.resource.data.createdBy == request.auth.uid;
+        && (request.resource.data.createdBy == request.auth.uid || isPhoneOwner(request.resource.data.createdBy));
 
       // Update: event owner can change anything; any active user may update
       // only the participant counter during join/leave transactions.
@@ -491,7 +527,7 @@ service cloud.firestore {
         // Any signed-in user may view the participant list / avatars.
         allow read: if isAuthenticated();
         // Only the user themselves may join (create) or leave (delete).
-        allow create, delete: if isActiveUser() && request.auth.uid == userId;
+        allow create, delete: if isActiveUser() && (request.auth.uid == userId || isPhoneOwner(userId));
         allow update: if false;
       }
     }
