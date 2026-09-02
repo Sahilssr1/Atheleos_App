@@ -200,7 +200,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     setState(() {
       _replyingToMessage = null;
     });
-    _chatFocusNode.unfocus();
   }
 
   @override
@@ -316,7 +315,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                     ],
                                   ),
                                 ),
-                                const Icon(Icons.info_outline_rounded, color: Colors.white54, size: 20),
                               ],
                             ),
                           );
@@ -374,7 +372,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                     ],
                                   ),
                                 ),
-                                const Icon(Icons.info_outline_rounded, color: Colors.white54, size: 20),
                               ],
                             ),
                           );
@@ -915,7 +912,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 child: TextField(
                                   controller: _messageController,
                                   focusNode: _chatFocusNode,
-                                  onSubmitted: (_) => _sendMessage(),
+                                  keyboardType: TextInputType.multiline,
+                                  textInputAction: TextInputAction.newline,
+                                  minLines: 1,
+                                  maxLines: 5,
                                   style: const TextStyle(color: Colors.white),
                                   decoration: InputDecoration(
                                     hintText: 'Type your message...',
