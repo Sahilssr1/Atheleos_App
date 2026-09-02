@@ -983,6 +983,23 @@ class DummyUserRepository implements UserRepository {
   }
 
   @override
+  Future<void> toggleFollow(String currentUserId, String targetUserId) async {
+    final targetIndex = _users.indexWhere((u) => u.id == targetUserId);
+    if (targetIndex != -1) {
+      final user = _users[targetIndex];
+      _users[targetIndex] = user.copyWith(
+        followersCount: user.followersCount + 1,
+      );
+    }
+  }
+
+  @override
+  Future<void> incrementProfileViews(String uid) async {}
+
+  @override
+  Future<void> incrementPortfolioShares(String uid) async {}
+
+  @override
   Future<List<ProfileModel>> searchUsers({
     required String query,
     required String sport,

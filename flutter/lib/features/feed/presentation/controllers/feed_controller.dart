@@ -1,5 +1,7 @@
+import '../../../../core/services/sports_service.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
@@ -26,6 +28,7 @@ import '../../data/repositories/story_repository_impl.dart';
 import '../../../../core/services/upload_queue_coordinator.dart';
 import '../../../notifications/data/notification_service.dart';
 import '../../../notifications/presentation/controllers/notifications_controller.dart';
+import 'like_controller.dart';
 
 // Provide instances of modular repositories
 final postRepositoryProvider = Provider<PostRepository>((ref) {
@@ -44,7 +47,31 @@ final bookmarkRepositoryProvider = Provider<BookmarkRepository>((ref) {
   return BookmarkRepositoryImpl();
 });
 
-// Category & Sport & Sort filters state
+// Dynamic sports hierarchy streamed from Firestore system_data/sports_hierarchy
+final sportsHierarchyProvider = StreamProvider<Map<String, List<String>>>((ref) {
+  return FirebaseFirestore.instance
+      .collection('system_data')
+      .doc('sports_hierarchy')
+      .snapshots()
+      .map((doc) {
+        if (!doc.exists || doc.data() == null) return SportsService.defaultHierarchy;
+        final data = doc.data()!;
+        final result = <String, List<String>>{};
+        data.forEach((k, v) {
+          if (v is List) {
+            result[k.toLowerCase()] = v.map((e) => e.toString()).toList();
+          }
+        });
+        if (result.isNotEmpty) {
+          SportsService.updateHierarchy(result);
+          return result;
+        }
+        return SportsService.defaultHierarchy;
+      })
+      .handleError((_) => SportsService.defaultHierarchy);
+});
+
+// Category & Sport Category & Sort filters state
 final selectedCategoryProvider = StateProvider<String>((ref) => 'All');
 final selectedSportProvider = StateProvider<String>((ref) => 'All');
 final feedSortProvider = StateProvider<String>((ref) => 'Latest'); // Latest | Trending
@@ -58,7 +85,12 @@ final userLikesIdsProvider = StreamProvider<Set<String>>((ref) {
       .doc(userId)
       .collection('likes')
       .snapshots()
-      .map((snapshot) => snapshot.docs.map((doc) => doc.id).toSet());
+      .map((snapshot) {
+        final ids = snapshot.docs.map((doc) => doc.id).toSet();
+        CacheManager().saveLikedPostIds(userId, ids);
+        return ids;
+      })
+      .handleError((_) => <String>{});
 });
 
 final userBookmarksIdsProvider = StreamProvider<Set<String>>((ref) {
@@ -69,7 +101,12 @@ final userBookmarksIdsProvider = StreamProvider<Set<String>>((ref) {
       .doc(userId)
       .collection('bookmarks')
       .snapshots()
-      .map((snapshot) => snapshot.docs.map((doc) => doc.id).toSet());
+      .map((snapshot) {
+        final ids = snapshot.docs.map((doc) => doc.id).toSet();
+        CacheManager().saveBookmarkedPostIds(userId, ids);
+        return ids;
+      })
+      .handleError((_) => <String>{});
 });
 
 // Feed posts provider that listens to Firestore streams in real-time
@@ -80,9 +117,11 @@ final feedPostsProvider = StateNotifierProvider<FeedNotifier, AsyncValue<List<Po
   final sortBy = ref.watch(feedSortProvider);
   final userId = ref.watch(loggedInUserIdProvider);
 
-  // Read initial values instead of watching, to prevent full reload on changes
-  final likedIds = ref.read(userLikesIdsProvider).valueOrNull ?? {};
-  final bookmarkedIds = ref.read(userBookmarksIdsProvider).valueOrNull ?? {};
+  // Read initial cached values synchronously to avoid cold-start flicker
+  final cachedLiked = CacheManager().loadLikedPostIds(userId);
+  final cachedBookmarked = CacheManager().loadBookmarkedPostIds(userId);
+  final likedIds = ref.read(userLikesIdsProvider).valueOrNull ?? cachedLiked;
+  final bookmarkedIds = ref.read(userBookmarksIdsProvider).valueOrNull ?? cachedBookmarked;
 
   final notifier = FeedNotifier(repository, category, sport, sortBy, userId, likedIds, bookmarkedIds, ref);
 
@@ -104,8 +143,8 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
   final String _sport;
   final String _sortBy;
   final String _userId;
-  final Set<String> _likedIds;
-  final Set<String> _bookmarkedIds;
+  Set<String> _likedIds;
+  Set<String> _bookmarkedIds;
   final Ref _ref;
 
   bool _isLoadingMore = false;
@@ -138,20 +177,27 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
     _loadFirstPage();
   }
 
-  /// Load cached feed immediately before hitting network
+  /// Load cached feed immediately before hitting network ONLY for default 'All' feed
   void _loadFromCache() {
+    // If a filter is selected (e.g. 'Training', 'Match', 'Combat'), do NOT populate with generic All posts!
+    // This allows the UI to immediately show the sleek shimmer loading skeleton!
+    if (_category.toLowerCase() != 'all' || _sport.toLowerCase() != 'all') {
+      return;
+    }
+
     try {
       final cacheManager = CacheManager();
       final cachedJson = cacheManager.loadFeed();
       if (cachedJson.isNotEmpty) {
         final List<PostModel> cachedPosts = cachedJson.map((map) {
-          final mapped = PostModel.fromMap(map);
+          final mapped = PostModel.fromMap(map, currentUserId: _userId);
           return mapped.copyWith(
-            hasLiked: _likedIds.contains(mapped.id),
-            hasBookmarked: _bookmarkedIds.contains(mapped.id),
+            hasLiked: mapped.hasLiked || _likedIds.contains(mapped.id),
+            hasBookmarked: mapped.hasBookmarked || _bookmarkedIds.contains(mapped.id),
           );
         }).toList();
         state = AsyncValue.data(cachedPosts);
+        _ref.read(sharedLikeStateProvider.notifier).registerPosts(cachedPosts);
       }
     } catch (_) {}
   }
@@ -168,8 +214,8 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
 
       final mapped = posts.map((post) {
         return post.copyWith(
-          hasLiked: _likedIds.contains(post.id),
-          hasBookmarked: _bookmarkedIds.contains(post.id),
+          hasLiked: post.hasLiked || _likedIds.contains(post.id),
+          hasBookmarked: post.hasBookmarked || _bookmarkedIds.contains(post.id),
         );
       }).toList();
 
@@ -179,6 +225,7 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
       await _warmInitialBatch(mapped);
 
       state = AsyncValue.data(mapped);
+      _ref.read(sharedLikeStateProvider.notifier).registerPosts(mapped);
       _hasMore = posts.length >= 8;
       _lastPrefetchedIndex = -1;
 
@@ -303,11 +350,10 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
         _isLoadingMore = false;
         return;
       }
-
       final mapped = posts.map((post) {
         return post.copyWith(
-          hasLiked: _likedIds.contains(post.id),
-          hasBookmarked: _bookmarkedIds.contains(post.id),
+          hasLiked: post.hasLiked || _likedIds.contains(post.id),
+          hasBookmarked: post.hasBookmarked || _bookmarkedIds.contains(post.id),
         );
       }).toList();
 
@@ -316,6 +362,7 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
       final newPosts = mapped.where((p) => !existingIds.contains(p.id)).toList();
 
       state = AsyncValue.data([...currentPosts, ...newPosts]);
+      _ref.read(sharedLikeStateProvider.notifier).registerPosts(newPosts);
       _hasMore = posts.length >= 8;
     } catch (err) {
       debugPrint('Error loading more posts: $err');
@@ -420,6 +467,7 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
   }
 
   void updateLikedIds(Set<String> likedIds) {
+    _likedIds = {...likedIds};
     if (state is AsyncData<List<PostModel>>) {
       final posts = state.asData!.value;
       final updated = posts.map((p) => p.copyWith(hasLiked: likedIds.contains(p.id))).toList();
@@ -428,6 +476,7 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
   }
 
   void updateBookmarkedIds(Set<String> bookmarkedIds) {
+    _bookmarkedIds = {...bookmarkedIds};
     if (state is AsyncData<List<PostModel>>) {
       final posts = state.asData!.value;
       final updated = posts.map((p) => p.copyWith(hasBookmarked: bookmarkedIds.contains(p.id))).toList();
@@ -436,44 +485,18 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
   }
 
   Future<void> toggleLike(String postId, bool currentlyLiked) async {
-    // Optimistic UI updates
-    PostModel? likedPost;
+    PostModel? targetPost;
     if (state is AsyncData<List<PostModel>>) {
       final posts = state.asData!.value;
-      final updated = posts.map((p) {
+      for (final p in posts) {
         if (p.id == postId) {
-          likedPost = p;
-          final newLikes = currentlyLiked ? p.likes - 1 : p.likes + 1;
-          return p.copyWith(hasLiked: !currentlyLiked, likes: newLikes);
+          targetPost = p;
+          break;
         }
-        return p;
-      }).toList();
-      state = AsyncValue.data(updated);
-    }
-
-    final isOnline = _ref.read(networkServiceProvider).isOnline;
-    if (!isOnline) {
-      await _ref.read(offlineSyncProvider.notifier).queueAction(
-        actionType: 'like',
-        targetId: postId,
-        data: {'userId': _userId, 'isLiked': !currentlyLiked},
-      );
-      return;
-    }
-
-    try {
-      await _ref.read(likeRepositoryProvider).togglePostLike(postId, _userId);
-      // Only emit a notification when adding a like (not on unlike).
-      if (!currentlyLiked && likedPost != null) {
-        _notifyLike(likedPost!);
       }
-    } catch (_) {
-      // Catch network exception and queue it
-      await _ref.read(offlineSyncProvider.notifier).queueAction(
-        actionType: 'like',
-        targetId: postId,
-        data: {'userId': _userId, 'isLiked': !currentlyLiked},
-      );
+    }
+    if (targetPost != null) {
+      await _ref.read(sharedLikeStateProvider.notifier).toggleLike(targetPost);
     }
   }
 
@@ -489,25 +512,39 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
   }
 
   Future<void> toggleBookmark(String postId, bool currentlyBookmarked) async {
+    if (currentlyBookmarked) {
+      _bookmarkedIds.remove(postId);
+    } else {
+      _bookmarkedIds.add(postId);
+    }
+
     // Optimistic UI update
     if (state is AsyncData<List<PostModel>>) {
       final posts = state.asData!.value;
       final updated = posts.map((p) {
         if (p.id == postId) {
-          final newBookmarks = currentlyBookmarked ? p.bookmarks - 1 : p.bookmarks + 1;
+          final newBookmarks = currentlyBookmarked ? (p.bookmarks - 1).clamp(0, 9999999) : p.bookmarks + 1;
           return p.copyWith(hasBookmarked: !currentlyBookmarked, bookmarks: newBookmarks);
         }
         return p;
       }).toList();
       state = AsyncValue.data(updated);
+      try {
+        CacheManager().saveFeed(updated.map((p) => p.toMap()).toList());
+      } catch (_) {}
     }
+
+    final authUid = FirebaseAuth.instance.currentUser?.uid;
+    final effectiveUserId = (authUid != null && authUid.isNotEmpty)
+        ? authUid
+        : (_userId.isNotEmpty ? _userId : 'user_1');
 
     final isOnline = _ref.read(networkServiceProvider).isOnline;
     if (!isOnline) {
       await _ref.read(offlineSyncProvider.notifier).queueAction(
         actionType: 'bookmark',
         targetId: postId,
-        data: {'userId': _userId, 'isBookmarked': !currentlyBookmarked},
+        data: {'userId': effectiveUserId, 'isBookmarked': !currentlyBookmarked},
       );
       return;
     }
@@ -516,13 +553,13 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
       if (state is AsyncData<List<PostModel>>) {
         final posts = state.asData!.value;
         final post = posts.firstWhere((p) => p.id == postId);
-        await _ref.read(bookmarkRepositoryProvider).toggleBookmark(_userId, post);
+        await _ref.read(bookmarkRepositoryProvider).toggleBookmark(effectiveUserId, post);
       }
     } catch (_) {
       await _ref.read(offlineSyncProvider.notifier).queueAction(
         actionType: 'bookmark',
         targetId: postId,
-        data: {'userId': _userId, 'isBookmarked': !currentlyBookmarked},
+        data: {'userId': effectiveUserId, 'isBookmarked': !currentlyBookmarked},
       );
     }
   }
@@ -595,18 +632,18 @@ class UserPostsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
         .where('userId', isEqualTo: userId)
         .snapshots()
         .listen((snapshot) {
-          final fallbackLikedIds = ref.read(userLikesIdsProvider).valueOrNull ?? {};
-          final bookmarkedIds = ref.read(userBookmarksIdsProvider).valueOrNull ?? {};
+          final cachedLiked = CacheManager().loadLikedPostIds(loggedInUserId);
+          final cachedBookmarked = CacheManager().loadBookmarkedPostIds(loggedInUserId);
+          final fallbackLikedIds = ref.read(userLikesIdsProvider).valueOrNull ?? cachedLiked;
+          final bookmarkedIds = ref.read(userBookmarksIdsProvider).valueOrNull ?? cachedBookmarked;
 
-          final list = snapshot.docs.map((doc) => PostModel.fromMap({...doc.data(), 'id': doc.id})).toList();
+          final list = snapshot.docs.map((doc) => PostModel.fromMap({...doc.data(), 'id': doc.id}, currentUserId: loggedInUserId)).toList();
           list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           
           final mapped = list.map((post) {
-            final rawData = snapshot.docs.firstWhere((d) => d.id == post.id).data();
-            final likedBy = List<String>.from(rawData['likedBy'] ?? []);
             return post.copyWith(
-              hasLiked: likedBy.contains(loggedInUserId) || fallbackLikedIds.contains(post.id),
-              hasBookmarked: bookmarkedIds.contains(post.id),
+              hasLiked: fallbackLikedIds.contains(post.id) || post.hasLiked,
+              hasBookmarked: bookmarkedIds.contains(post.id) || post.hasBookmarked,
             );
           }).toList();
           
@@ -620,10 +657,7 @@ class UserPostsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
     if (state is AsyncData<List<PostModel>>) {
       final posts = state.asData!.value;
       final updated = posts.map((p) {
-        // Only override if it wasn't already natively liked by this user
-        bool nativelyLiked = false;
-        if (p.hasLiked) nativelyLiked = true; // Best effort guess without raw data
-        return p.copyWith(hasLiked: nativelyLiked || likedIds.contains(p.id));
+        return p.copyWith(hasLiked: likedIds.contains(p.id));
       }).toList();
       state = AsyncValue.data(updated);
     }
@@ -674,7 +708,10 @@ class StoriesNotifier extends StateNotifier<AsyncValue<List<StoryModel>>> {
     _subscription = _repository.watchActiveStories().listen((stories) {
       state = AsyncValue.data(stories);
     }, onError: (err, stack) {
-      state = AsyncValue.error(err, stack);
+      debugPrint('Story stream notification: $err');
+      if (state is! AsyncData<List<StoryModel>>) {
+        state = const AsyncValue.data([]);
+      }
     });
   }
 

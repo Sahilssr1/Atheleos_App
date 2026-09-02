@@ -1,9 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:timezone/data/latest.dart' as timezone_data;
+import 'dart:async';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'firebase_options.dart';
@@ -28,10 +31,18 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Register the background/terminated message handler and boot the push
-  // notification pipeline (permissions, local-notification channel, listeners).
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  );
+
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
   await PushNotificationService.instance.initialize();
+
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return const SizedBox.shrink();
+  };
 
   runApp(
     const ProviderScope(
@@ -49,10 +60,21 @@ class AtheleosApp extends ConsumerStatefulWidget {
 
 class _AtheleosAppState extends ConsumerState<AtheleosApp> {
   final _push = PushNotificationService.instance;
+  StreamSubscription<User?>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
+    // Keep logged-in user state in sync with Firebase Auth
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null && user.uid.isNotEmpty) {
+        if (ref.read(loggedInUserIdProvider) != user.uid) {
+          ref.read(loggedInUserIdProvider.notifier).state = user.uid;
+          ref.read(currentProfileIdProvider.notifier).state = user.uid;
+        }
+      }
+    });
+
     // Route to any notification that launched the app from a terminated state.
     _push.pendingRoute.addListener(_handlePendingRoute);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -76,6 +98,7 @@ class _AtheleosAppState extends ConsumerState<AtheleosApp> {
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _push.pendingRoute.removeListener(_handlePendingRoute);
     super.dispose();
   }

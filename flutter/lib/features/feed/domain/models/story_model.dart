@@ -72,20 +72,52 @@ class StoryModel {
   }
 
   factory StoryModel.fromMap(Map<String, dynamic> map, String id) {
+    // Parse likes safely
+    List<String> likesList = [];
+    final rawLikes = map['likes'];
+    if (rawLikes is List) {
+      likesList = rawLikes.map((e) => e.toString()).toList();
+    }
+
+    // Parse viewedBy safely
+    List<String> viewedByList = [];
+    final rawViewedBy = map['viewedBy'];
+    if (rawViewedBy is List) {
+      viewedByList = rawViewedBy.map((e) => e.toString()).toList();
+    }
+
+    // Parse createdAt safely (Timestamp, int, String, etc.)
+    DateTime parsedDate = DateTime.now();
+    final rawCreated = map['createdAt'];
+    if (rawCreated != null) {
+      if (rawCreated is DateTime) {
+        parsedDate = rawCreated;
+      } else if (rawCreated.runtimeType.toString().contains('Timestamp')) {
+        try {
+          parsedDate = (rawCreated as dynamic).toDate();
+        } catch (_) {}
+      } else if (rawCreated is int) {
+        parsedDate = DateTime.fromMillisecondsSinceEpoch(rawCreated);
+      } else if (rawCreated is String) {
+        parsedDate = DateTime.tryParse(rawCreated) ?? DateTime.now();
+      }
+    }
+
+    final rawName = map['userName'] ?? map['username'] ?? map['fullName'] ?? map['name'] ?? map['displayName'] ?? map['userFullName'];
+    final rawAvatar = map['userAvatar'] ?? map['avatarUrl'] ?? map['photoUrl'] ?? map['avatar_url'] ?? map['userPhotoUrl'] ?? '';
+
     return StoryModel(
       id: id,
-      userId: map['userId'] ?? '',
-      userName: map['userName'] ?? '',
-      userAvatar: map['userAvatar'] ?? '',
-      verified: map['verified'] ?? false,
-      mediaUrl: map['mediaUrl'] ?? '',
-      likes: List<String>.from(map['likes'] ?? []),
-      viewedBy: List<String>.from(map['viewedBy'] ?? []),
-      createdAt: map['createdAt'] != null
-          ? DateTime.tryParse(map['createdAt'].toString()) ?? DateTime.now()
-          : DateTime.now(),
-      caption: map['caption'],
-      visibility: map['visibility'] ?? 'public',
+      userId: (map['userId'] ?? map['uid'] ?? map['authorId'] ?? '').toString(),
+      userName: (rawName != null && rawName.toString().trim().isNotEmpty) ? rawName.toString().trim() : 'Athlete',
+      userAvatar: rawAvatar.toString(),
+      verified: map['verified'] == true || map['isVerified'] == true,
+      mediaUrl: (map['mediaUrl'] ?? map['url'] ?? map['imageUrl'] ?? map['videoUrl'] ?? '').toString(),
+      likes: likesList,
+      viewedBy: viewedByList,
+      createdAt: parsedDate,
+      caption: map['caption']?.toString() ?? map['content']?.toString(),
+      visibility: (map['visibility'] ?? 'public').toString(),
     );
   }
 }

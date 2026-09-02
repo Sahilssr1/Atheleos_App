@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,9 @@ import '../controllers/post_delete_controller.dart';
 import '../screens/feed_screen.dart'
     show AnimatedLikeButton, AnimatedBookmarkButton, CommentBottomSheet, ShareBottomSheet;
 import '../../../profile/presentation/controllers/profile_controller.dart';
+import '../../../../core/services/cache_manager.dart';
+import '../controllers/like_controller.dart';
+import '../../../chat/presentation/widgets/share_content_bottom_sheet.dart';
 
 /// Reusable feed-style post card.
 ///
@@ -24,8 +28,6 @@ class PostCard extends ConsumerWidget {
   final PostModel post;
 
   /// Called with the current liked state when the like button is tapped.
-  final void Function(bool currentlyLiked)? onToggleLike;
-
   /// Called with the current bookmarked state when the bookmark is tapped.
   final void Function(bool currentlyBookmarked)? onToggleBookmark;
 
@@ -36,20 +38,13 @@ class PostCard extends ConsumerWidget {
   const PostCard({
     super.key,
     required this.post,
-    this.onToggleLike,
     this.onToggleBookmark,
     this.onDeleted,
     this.onMediaTap,
   });
 
   void _handleLike(WidgetRef ref) {
-    if (onToggleLike != null) {
-      onToggleLike!(post.hasLiked);
-      return;
-    }
-    final userId = ref.read(loggedInUserIdProvider);
-    if (userId.isEmpty) return;
-    ref.read(likeRepositoryProvider).togglePostLike(post.id, userId);
+    ref.read(sharedLikeStateProvider.notifier).toggleLike(post);
   }
 
   void _handleBookmark(WidgetRef ref) {
@@ -59,6 +54,11 @@ class PostCard extends ConsumerWidget {
     }
     final userId = ref.read(loggedInUserIdProvider);
     if (userId.isEmpty) return;
+    if (post.hasBookmarked) {
+      CacheManager().removeBookmarkedPostId(userId, post.id);
+    } else {
+      CacheManager().addBookmarkedPostId(userId, post.id);
+    }
     ref.read(bookmarkRepositoryProvider).toggleBookmark(userId, post);
   }
 
@@ -177,6 +177,7 @@ class PostCard extends ConsumerWidget {
     final postTime = d.inDays >= 1 ? '${d.inDays}d' : d.inHours >= 1 ? '${d.inHours}h' : '${d.inMinutes}m';
     final loggedInId = ref.watch(loggedInUserIdProvider);
     final isOwner = loggedInId.isNotEmpty && loggedInId == post.userId;
+    final likeState = ref.watch(postLikeProvider(post));
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -191,70 +192,87 @@ class PostCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header: Profile Avatar, Details and Category Chip
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    context.go('/profile/${post.userId}');
-                  },
-                  child: CircleAvatar(
-                    backgroundImage: NetworkImage(post.userAvatar),
-                    radius: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          context.go('/profile/${post.userId}');
-                        },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              post.userName,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                            ),
-                            if (post.verified) ...[
-                              const SizedBox(width: 4),
-                              const Icon(Icons.verified, size: 14, color: AppTheme.primaryColor),
-                            ],
-                          ],
-                        ),
-                      ),
-                      Text(
-                        '${post.sport} • ${post.position} • $postTime',
-                        style: const TextStyle(color: Colors.white38, fontSize: 10.5),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
-                    border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    post.category.name.toUpperCase(),
-                    style: const TextStyle(color: AppTheme.primaryColor, fontSize: 8.5, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                // Owner-only options menu (Edit / Delete)
-                if (isOwner)
+            Builder(builder: (context) {
+              final displayName = post.userName.trim().isNotEmpty ? post.userName.trim() : 'Athlete';
+              final hasValidAvatar = post.userAvatar.isNotEmpty &&
+                  (post.userAvatar.startsWith('http://') || post.userAvatar.startsWith('https://'));
+
+              return Row(
+                children: [
                   GestureDetector(
-                    onTap: () => _showOwnerMenu(context, ref),
-                    child: const Padding(
-                      padding: EdgeInsets.only(left: 6.0),
-                      child: Icon(Icons.more_vert, color: Colors.white54, size: 20),
+                    onTap: () {
+                      context.go('/profile/${post.userId}');
+                    },
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundColor: AppTheme.primaryColor.withOpacity(0.15),
+                      backgroundImage: hasValidAvatar ? CachedNetworkImageProvider(post.userAvatar) : null,
+                      child: !hasValidAvatar
+                          ? Text(
+                              displayName.isNotEmpty ? displayName[0].toUpperCase() : 'A',
+                              style: const TextStyle(
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            )
+                          : null,
                     ),
                   ),
-              ],
-            ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            context.go('/profile/${post.userId}');
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                displayName,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                              ),
+                              if (post.verified) ...[
+                                const SizedBox(width: 4),
+                                const Icon(Icons.verified, size: 14, color: AppTheme.primaryColor),
+                              ],
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${post.sport} • ${post.position} • $postTime',
+                          style: const TextStyle(color: Colors.white38, fontSize: 10.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      post.category.name.toUpperCase(),
+                      style: const TextStyle(color: AppTheme.primaryColor, fontSize: 8.5, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  // Owner-only options menu (Edit / Delete)
+                  if (isOwner)
+                    GestureDetector(
+                      onTap: () => _showOwnerMenu(context, ref),
+                      child: Container(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: const Icon(Icons.more_vert, color: Colors.white60, size: 20),
+                      ),
+                    ),
+                ],
+              );
+            }),
             const SizedBox(height: 12),
 
             // Content Caption Text
@@ -273,11 +291,9 @@ class PostCard extends ConsumerWidget {
                 thumbnailUrl: post.media.first.thumbnailUrl,
                 mediaWidth: post.media.first.width,
                 mediaHeight: post.media.first.height,
-                isLiked: post.hasLiked,
+                isLiked: likeState.isLiked,
                 onDoubleTapLike: () {
-                  if (!post.hasLiked) {
-                    _handleLike(ref);
-                  }
+                  ref.read(sharedLikeStateProvider.notifier).toggleLike(post, forceLike: true);
                 },
                 onMediaTap: onMediaTap,
               ),
@@ -289,7 +305,7 @@ class PostCard extends ConsumerWidget {
               child: Row(
                 children: [
                   Text(
-                    '${post.likes} likes',
+                    '${likeState.likesCount} likes',
                     style: const TextStyle(fontSize: 11, color: Colors.white38, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(width: 8),
@@ -321,7 +337,7 @@ class PostCard extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     AnimatedLikeButton(
-                      isLiked: post.hasLiked,
+                      isLiked: likeState.isLiked,
                       onTap: () => _handleLike(ref),
                     ),
                     const Text('Like', style: TextStyle(fontSize: 11.5, color: Colors.white60)),
@@ -362,7 +378,12 @@ class PostCard extends ConsumerWidget {
                         showModalBottomSheet(
                           context: context,
                           backgroundColor: Colors.transparent,
-                          builder: (context) => ShareBottomSheet(post: post),
+                          isScrollControlled: true,
+                          builder: (context) => ShareContentBottomSheet(
+                            postId: post.id,
+                            reelId: post.hasVideo ? post.id : null,
+                            shareType: post.hasVideo ? 'reel' : 'post',
+                          ),
                         );
                       },
                     ),

@@ -229,6 +229,192 @@ async function handleUpload(
 
   // 5. Create new Media Document in Firestore
   const mediaId = "med_" + Math.random().toString(36).substring(2, 15);
+
+  const isGif = mime === "image/gif";
+  if (isGif) {
+    const r2Key = `media/${mediaId}.gif`;
+    await env.R2_BUCKET.put(r2Key, bytes, {
+      httpMetadata: { contentType: "image/gif" },
+    });
+
+    const urlObj = new URL(request.url);
+    const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
+    const gifUrl = `${baseUrl}/media/${mediaId}.gif`;
+
+    const mediaDoc = {
+      fields: {
+        mediaId: { stringValue: mediaId },
+        mediaHash: { stringValue: mediaHash },
+        mediaType: { stringValue: "image" },
+        ownerType: { stringValue: ownerType },
+        status: { stringValue: "ready" },
+        storageClass: { stringValue: "hot" },
+        isLocked: { booleanValue: false },
+        version: { integerValue: "1" },
+        isActive: { booleanValue: true },
+        referenceCount: { integerValue: "0" },
+        createdBy: { stringValue: user.uid },
+        urls: {
+          mapValue: {
+            fields: {
+              original: { stringValue: gifUrl },
+              thumbnail: { stringValue: gifUrl },
+              feed: { stringValue: gifUrl },
+            },
+          },
+        },
+        sizes: {
+          mapValue: {
+            fields: {
+              original: { integerValue: String(bytes.length) },
+            },
+          },
+        },
+        createdAt: { timestampValue: new Date().toISOString() },
+        updatedAt: { timestampValue: new Date().toISOString() },
+      },
+    };
+
+    // Create Media Document
+    await firestoreRequest("POST", `${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/media?documentId=${mediaId}`, token, mediaDoc);
+
+    // Create Processing Job
+    const jobId = "job_" + Math.random().toString(36).substring(2, 15);
+    const jobDoc = {
+      fields: {
+        jobId: { stringValue: jobId },
+        mediaId: { stringValue: mediaId },
+        idempotencyKey: { stringValue: idempotencyKey },
+        status: { stringValue: "completed" },
+        retryCount: { integerValue: "0" },
+        tempFilePath: { stringValue: "" },
+        limits: {
+          mapValue: {
+            fields: {
+              maxDurationSeconds: { integerValue: "0" },
+              maxFileSize: { integerValue: String(maxLimit) },
+            },
+          },
+        },
+        summary: {
+          mapValue: {
+            fields: {
+              startedAt: { timestampValue: new Date().toISOString() },
+              completedAt: { timestampValue: new Date().toISOString() },
+            },
+          },
+        },
+        createdBy: { stringValue: user.uid },
+        workerVersion: { stringValue: env.WORKER_VERSION },
+        pipelineVersion: { stringValue: env.PIPELINE_VERSION },
+        createdAt: { timestampValue: new Date().toISOString() },
+        updatedAt: { timestampValue: new Date().toISOString() },
+      },
+    };
+
+    await firestoreRequest("POST", `${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/processing_jobs?documentId=${jobId}`, token, jobDoc);
+
+    // Register reference link
+    await registerReference(env, token, mediaId, user.uid, ownerType);
+
+    const finalMedia = await getMediaDoc(env, token, mediaId);
+    return jsonResponse({ status: "success", media: finalMedia });
+  }
+
+  if (!isVideo) {
+    // 1. Immediately write original bytes to R2 to make it available
+    const r2Key = `media/${mediaId}.webp`;
+    await env.R2_BUCKET.put(r2Key, bytes, {
+      httpMetadata: { contentType: "image/webp" },
+    });
+
+    const urlObj = new URL(request.url);
+    const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
+    const imageUrl = `${baseUrl}/media/${mediaId}.webp`;
+
+    const mediaDoc = {
+      fields: {
+        mediaId: { stringValue: mediaId },
+        mediaHash: { stringValue: mediaHash },
+        mediaType: { stringValue: "image" },
+        ownerType: { stringValue: ownerType },
+        status: { stringValue: "ready" },
+        storageClass: { stringValue: "hot" },
+        isLocked: { booleanValue: false },
+        version: { integerValue: "1" },
+        isActive: { booleanValue: true },
+        referenceCount: { integerValue: "0" },
+        createdBy: { stringValue: user.uid },
+        urls: {
+          mapValue: {
+            fields: {
+              original: { stringValue: imageUrl },
+              thumbnail: { stringValue: imageUrl },
+              feed: { stringValue: imageUrl },
+            },
+          },
+        },
+        sizes: {
+          mapValue: {
+            fields: {
+              original: { integerValue: String(bytes.length) },
+            },
+          },
+        },
+        createdAt: { timestampValue: new Date().toISOString() },
+        updatedAt: { timestampValue: new Date().toISOString() },
+      },
+    };
+
+    // Create Media Document
+    await firestoreRequest("POST", `${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/media?documentId=${mediaId}`, token, mediaDoc);
+
+    // Create Processing Job
+    const jobId = "job_" + Math.random().toString(36).substring(2, 15);
+    const jobDoc = {
+      fields: {
+        jobId: { stringValue: jobId },
+        mediaId: { stringValue: mediaId },
+        idempotencyKey: { stringValue: idempotencyKey },
+        status: { stringValue: "completed" },
+        retryCount: { integerValue: "0" },
+        tempFilePath: { stringValue: "" },
+        limits: {
+          mapValue: {
+            fields: {
+              maxDurationSeconds: { integerValue: "0" },
+              maxFileSize: { integerValue: String(maxLimit) },
+            },
+          },
+        },
+        summary: {
+          mapValue: {
+            fields: {
+              startedAt: { timestampValue: new Date().toISOString() },
+              completedAt: { timestampValue: new Date().toISOString() },
+            },
+          },
+        },
+        createdBy: { stringValue: user.uid },
+        workerVersion: { stringValue: env.WORKER_VERSION },
+        pipelineVersion: { stringValue: env.PIPELINE_VERSION },
+        createdAt: { timestampValue: new Date().toISOString() },
+        updatedAt: { timestampValue: new Date().toISOString() },
+      },
+    };
+
+    await firestoreRequest("POST", `${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/processing_jobs?documentId=${jobId}`, token, jobDoc);
+
+    // Register reference link
+    await registerReference(env, token, mediaId, user.uid, ownerType);
+
+    // Trigger background image resizing optimization (runs asynchronously)
+    ctx.waitUntil(optimizeImageInBackground(env, bytes, mediaId, user.uid, token, request));
+
+    const finalMedia = await getMediaDoc(env, token, mediaId);
+    return jsonResponse({ status: "success", media: finalMedia });
+  }
+
   const tempPath = `temp/${mediaId}_temp${isVideo ? ".mp4" : ".webp"}`;
 
   // Stage in R2 bucket
@@ -248,9 +434,9 @@ async function handleUpload(
       status: { stringValue: "processing" },
       storageClass: { stringValue: "hot" },
       isLocked: { booleanValue: false },
-      version: { integerValue: 1 },
+      version: { integerValue: "1" },
       isActive: { booleanValue: true },
-      referenceCount: { integerValue: 0 },
+      referenceCount: { integerValue: "0" },
       createdBy: { stringValue: user.uid },
       createdAt: { timestampValue: new Date().toISOString() },
       updatedAt: { timestampValue: new Date().toISOString() },
@@ -268,13 +454,13 @@ async function handleUpload(
       mediaId: { stringValue: mediaId },
       idempotencyKey: { stringValue: idempotencyKey },
       status: { stringValue: isVideo ? "pending" : "completed" },
-      retryCount: { integerValue: 0 },
+      retryCount: { integerValue: "0" },
       tempFilePath: { stringValue: tempPath },
       limits: {
         mapValue: {
           fields: {
-            maxDurationSeconds: { integerValue: isVideo ? 180 : 0 },
-            maxFileSize: { integerValue: maxLimit },
+            maxDurationSeconds: { integerValue: isVideo ? "180" : "0" },
+            maxFileSize: { integerValue: String(maxLimit) },
           },
         },
       },
@@ -348,6 +534,25 @@ async function handleDeleteMedia(
 }
 
 // --- Image Optimization Implementation (WebP conversion + resizing) ---
+
+async function optimizeImageInBackground(
+  env: Env,
+  bytes: Uint8Array,
+  mediaId: string,
+  uid: string,
+  token: string,
+  request: Request
+) {
+  try {
+    const tempPath = `temp/${mediaId}_temp.webp`;
+    await env.R2_BUCKET.put(tempPath, bytes, {
+      httpMetadata: { contentType: "image/webp" },
+    });
+    await optimizeImageInWorker(env, bytes, mediaId, uid, token, request);
+  } catch (e) {
+    console.error("Background image optimization failed:", e);
+  }
+}
 
 async function optimizeImageInWorker(
   env: Env,
@@ -428,13 +633,13 @@ async function optimizeImageInWorker(
       sizes: {
         mapValue: {
           fields: {
-            original: { integerValue: bytes.length },
+            original: { integerValue: String(bytes.length) },
             optimized: {
               mapValue: {
                 fields: {
-                  originalVariant: { integerValue: fullBytes.length },
-                  thumbnail: { integerValue: thumbBytes.length },
-                  feed: { integerValue: feedBytes.length },
+                  originalVariant: { integerValue: String(fullBytes.length) },
+                  thumbnail: { integerValue: String(thumbBytes.length) },
+                  feed: { integerValue: String(feedBytes.length) },
                 },
               },
             },
@@ -599,7 +804,7 @@ async function registerReference(
           fieldTransforms: [
             {
               fieldPath: "referenceCount",
-              increment: { integerValue: 1 },
+              increment: { integerValue: "1" },
             },
           ],
         },
@@ -671,7 +876,7 @@ function convertToFirestoreFields(data: any): any {
   for (const key of Object.keys(data)) {
     const val = data[key];
     if (typeof val === "string") fields[key] = { stringValue: val };
-    else if (typeof val === "number") fields[key] = { integerValue: val };
+    else if (typeof val === "number") fields[key] = { integerValue: String(val) };
     else if (typeof val === "boolean") fields[key] = { booleanValue: val };
     else if (typeof val === "object") fields[key] = { mapValue: { fields: convertToFirestoreFields(val) } };
   }

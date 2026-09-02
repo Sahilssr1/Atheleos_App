@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -23,6 +24,8 @@ import 'dart:io';
 import '../../../../core/services/cache_manager.dart';
 import '../../../../core/services/network_service.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+import '../../../feed/presentation/controllers/like_controller.dart';
+import '../../../chat/presentation/widgets/share_content_bottom_sheet.dart';
 
 String formatNumber(int number) {
   if (number >= 1000000) {
@@ -197,6 +200,18 @@ class _ClipsScreenState extends ConsumerState<ClipsScreen> {
                     key: ValueKey('clip_${clip.id}'),
                     clip: clip,
                     isActive: index == _currentIndex,
+                    onShare: () {
+                      ref.read(clipsProvider.notifier).incrementShare(clip.id);
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        isScrollControlled: true,
+                        builder: (context) => ShareContentBottomSheet(
+                          reelId: clip.id,
+                          shareType: 'reel',
+                        ),
+                      );
+                    },
                   );
                 },
               ),
@@ -222,13 +237,11 @@ class ClipPlayerItem extends ConsumerStatefulWidget {
     super.key,
     required this.clip,
     required this.isActive,
-    this.onLike,
     this.onBookmark,
     this.onShare,
     this.onDelete,
   });
 
-  final VoidCallback? onLike;
   final VoidCallback? onBookmark;
   final VoidCallback? onShare;
 
@@ -410,13 +423,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
       _showHeartAnimation = true;
     });
 
-    if (!widget.clip.hasLiked) {
-      if (widget.onLike != null) {
-        widget.onLike!();
-      } else {
-        ref.read(clipsProvider.notifier).toggleLike(widget.clip.id, widget.clip.hasLiked);
-      }
-    }
+    ref.read(sharedLikeStateProvider.notifier).toggleLike(widget.clip, forceLike: true);
 
     Future.delayed(const Duration(milliseconds: 700), () {
       if (mounted) {
@@ -445,6 +452,8 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
 
   @override
   Widget build(BuildContext context) {
+    final likeState = ref.watch(postLikeProvider(widget.clip));
+
     // Reactively adjust volume ONLY when the mute state actually flips —
     // never inside build itself (that used to fire on every rebuild and
     // caused a native round-trip per frame).
@@ -663,15 +672,11 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
             children: [
               // Like Button
               _buildInteractionButton(
-                icon: widget.clip.hasLiked ? Icons.favorite : Icons.favorite_border,
-                iconColor: widget.clip.hasLiked ? AppTheme.primaryColor : Colors.white,
-                label: '${widget.clip.likes}',
+                icon: likeState.isLiked ? Icons.favorite : Icons.favorite_border,
+                iconColor: likeState.isLiked ? AppTheme.primaryColor : Colors.white,
+                label: '${likeState.likesCount}',
                 onTap: () {
-                  if (widget.onLike != null) {
-                    widget.onLike!();
-                  } else {
-                    ref.read(clipsProvider.notifier).toggleLike(widget.clip.id, widget.clip.hasLiked);
-                  }
+                  ref.read(sharedLikeStateProvider.notifier).toggleLike(widget.clip);
                 },
               ),
               const SizedBox(height: 18),
@@ -715,20 +720,20 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
                 iconColor: Colors.white,
                 label: '${widget.clip.shares}',
                 onTap: () {
+                  ref.read(clipsProvider.notifier).incrementShare(widget.clip.id);
                   if (widget.onShare != null) {
                     widget.onShare!();
                   } else {
-                    ref.read(clipsProvider.notifier).incrementShare(widget.clip.id);
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      builder: (context) => ShareContentBottomSheet(
+                        reelId: widget.clip.id,
+                        shareType: 'reel',
+                      ),
+                    );
                   }
-                  final link = 'https://atheleos.com/posts/${widget.clip.id}';
-                  Clipboard.setData(ClipboardData(text: link));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Clip link copied to clipboard!'),
-                      backgroundColor: AppTheme.primaryColor,
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
                 },
               ),
               const SizedBox(height: 18),
@@ -1540,18 +1545,7 @@ class _ReelsViewerScreenState extends ConsumerState<ReelsViewerScreen> {
 
   void _onLike(int index) {
     final clip = _clips[index];
-    final bool newLikedState = !clip.hasLiked;
-    final int newLikesCount = clip.likes + (newLikedState ? 1 : -1);
-
-    setState(() {
-      _clips[index] = clip.copyWith(
-        hasLiked: newLikedState,
-        likes: newLikesCount,
-      );
-    });
-
-    final userId = ref.read(loggedInUserIdProvider);
-    ref.read(likeRepositoryProvider).togglePostLike(clip.id, userId);
+    ref.read(sharedLikeStateProvider.notifier).toggleLike(clip);
   }
 
   void _onBookmark(int index) {
@@ -1564,7 +1558,17 @@ class _ReelsViewerScreenState extends ConsumerState<ReelsViewerScreen> {
       );
     });
 
-    final userId = ref.read(loggedInUserIdProvider);
+    final authUid = FirebaseAuth.instance.currentUser?.uid;
+    final userId = (authUid != null && authUid.isNotEmpty)
+        ? authUid
+        : ref.read(loggedInUserIdProvider);
+
+    if (newBookmarkState) {
+      CacheManager().addBookmarkedPostId(userId, clip.id);
+    } else {
+      CacheManager().removeBookmarkedPostId(userId, clip.id);
+    }
+
     ref.read(bookmarkRepositoryProvider).toggleBookmark(userId, clip);
   }
 
@@ -1574,6 +1578,16 @@ class _ReelsViewerScreenState extends ConsumerState<ReelsViewerScreen> {
       _clips[index] = clip.copyWith(shares: clip.shares + 1);
     });
     ref.read(postRepositoryProvider).incrementShareCount(clip.id);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => ShareContentBottomSheet(
+        reelId: clip.id,
+        shareType: 'reel',
+      ),
+    );
   }
 
   void _onDeleted(int index) {
@@ -1611,7 +1625,6 @@ class _ReelsViewerScreenState extends ConsumerState<ReelsViewerScreen> {
                 key: ValueKey('reels_viewer_${clip.id}'),
                 clip: clip,
                 isActive: index == _currentIndex,
-                onLike: () => _onLike(index),
                 onBookmark: () => _onBookmark(index),
                 onShare: () => _onShare(index),
                 onDelete: () => _onDeleted(index),

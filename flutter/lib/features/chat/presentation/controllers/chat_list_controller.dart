@@ -11,6 +11,8 @@ class ChatListNotifier extends StateNotifier<List<ChatRoom>> {
   final ChatRepository _repository;
   final String _userId;
   StreamSubscription? _subscription;
+  bool _isLoading = true;
+  bool get isLoading => _isLoading;
 
   ChatListNotifier(this._repository, this._userId) : super([]) {
     _loadCache();
@@ -22,16 +24,23 @@ class ChatListNotifier extends StateNotifier<List<ChatRoom>> {
       final cached = CacheManager().loadChatList();
       if (cached.isNotEmpty) {
         state = cached.map((e) => ChatRoom.fromMap(e, e['id'] ?? '')).toList();
+        _isLoading = false;
       }
     } catch (_) {}
   }
 
   void _subscribe() {
     _subscription?.cancel();
-    _subscription = _repository.watchChats(_userId).listen((rooms) {
-      state = rooms;
-      CacheManager().saveChatList(rooms.map((r) => r.toMap()).toList());
-    });
+    _subscription = _repository.watchChats(_userId).listen(
+      (rooms) {
+        _isLoading = false;
+        state = rooms;
+        CacheManager().saveChatList(rooms.map((r) => r.toMap()).toList());
+      },
+      onError: (_) {
+        _isLoading = false;
+      },
+    );
   }
 
   Future<void> deleteChatRoom(String roomId) async {
@@ -53,4 +62,10 @@ final chatListProvider = StateNotifierProvider<ChatListNotifier, List<ChatRoom>>
   final repo = ref.watch(chatRepositoryProvider);
   final userId = ref.watch(loggedInUserIdProvider);
   return ChatListNotifier(repo, userId);
+});
+
+final chatListLoadingProvider = Provider<bool>((ref) {
+  final rooms = ref.watch(chatListProvider);
+  if (rooms.isNotEmpty) return false;
+  return ref.watch(chatListProvider.notifier).isLoading;
 });

@@ -12,6 +12,7 @@ import 'profile_posts_grid.dart';
 import 'verification_dialog.dart';
 import '../../../../core/widgets/mention_text.dart';
 import '../../../../core/services/messaging_access_service.dart';
+import 'profile_share_helper.dart';
 
 class AthleteProfileWidget extends ConsumerWidget {
   final ProfileModel profile;
@@ -588,81 +589,7 @@ class AthleteProfileWidget extends ConsumerWidget {
 
   void _shareProfileDialog(
       BuildContext context, ProfileModel profile, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final profileLink =
-            'https://atheleos.social/profile/${profile.username}';
-        return AlertDialog(
-          backgroundColor: const Color(0xFF121212),
-          title: Text(
-            'SHARE SPORTS PROFILE',
-            style: GoogleFonts.spaceGrotesk(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: AppTheme.primaryColor),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Copy and send the link to recruiters, coaches, or teammates.',
-                style: TextStyle(fontSize: 12, color: Colors.white60),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        profileLink,
-                        style: const TextStyle(
-                            fontSize: 11,
-                            fontFamily: 'monospace',
-                            color: Colors.white70),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.copy,
-                          size: 16, color: AppTheme.primaryColor),
-                      onPressed: () {
-                        ref
-                            .read(userRepositoryProvider)
-                            .incrementPortfolioShares(profile.id);
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Profile link copied to clipboard!'),
-                            backgroundColor: AppTheme.primaryColor,
-                            duration: Duration(seconds: 1),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child:
-                  const Text('CLOSE', style: TextStyle(color: Colors.white60)),
-            ),
-          ],
-        );
-      },
-    );
+    showProfileShareDialog(context, profile, ref);
   }
 
   Widget _buildSectionLabel(String title) {

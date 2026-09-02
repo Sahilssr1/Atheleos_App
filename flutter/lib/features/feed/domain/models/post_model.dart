@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/models/mention_model.dart';
 
 enum PostCategory {
@@ -109,9 +110,9 @@ class PostModel {
     required this.views,
     required this.hasLiked,
     required this.hasBookmarked,
-    required this.createdAt,
     this.edited = false,
     this.deleted = false,
+    required this.createdAt,
     this.mentions = const [],
   });
 
@@ -179,9 +180,13 @@ class PostModel {
       'media': media.map((m) => m.toMap()).toList(),
       'category': category.name,
       'likes': likes,
+      'likeCount': likes,
       'commentsCount': commentsCount,
+      'commentCount': commentsCount,
       'shares': shares,
       'bookmarks': bookmarks,
+      'bookmarkCount': bookmarks,
+      'bookmarkedBy': <String>[],
       'views': views,
       'hasLiked': hasLiked,
       'hasBookmarked': hasBookmarked,
@@ -190,6 +195,14 @@ class PostModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'mentions': mentions.map((m) => m.toMap()).toList(),
     };
+  }
+
+  static int _parseInt(dynamic val, [int fallback = 0]) {
+    if (val == null) return fallback;
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    if (val is String) return int.tryParse(val) ?? fallback;
+    return fallback;
   }
 
   static String? _resolveMediaType(String? stored, String? url) {
@@ -201,22 +214,22 @@ class PostModel {
     return 'image';
   }
 
-  factory PostModel.fromMap(Map<String, dynamic> map) {
+  factory PostModel.fromMap(Map<String, dynamic> map, {String? currentUserId}) {
     // Read media array
     final rawMedia = map['media'] as List?;
     List<MediaItem> mediaList = [];
     if (rawMedia != null && rawMedia.isNotEmpty) {
       mediaList = rawMedia.map((m) => MediaItem.fromMap(Map<String, dynamic>.from(m))).toList();
     } else {
-      // Fallback to legacy single mediaUrl fields
-      final singleUrl = map['mediaUrl'] as String?;
+      // Fallback to legacy single mediaUrl fields or root image/video fields
+      final singleUrl = (map['mediaUrl'] ?? map['url'] ?? map['imageUrl'] ?? map['videoUrl']) as String?;
       if (singleUrl != null && singleUrl.isNotEmpty) {
         mediaList = [
           MediaItem(
             mediaUrl: singleUrl,
-            mediaType: _resolveMediaType(map['mediaType'] as String?, singleUrl) ?? 'image',
-            thumbnailUrl: map['thumbnailUrl'] as String?,
-            publicId: map['publicId'] as String?,
+            mediaType: _resolveMediaType((map['mediaType'] ?? map['media_type']) as String?, singleUrl) ?? 'image',
+            thumbnailUrl: (map['thumbnailUrl'] ?? map['thumbUrl'] ?? map['thumbnail_url']) as String?,
+            publicId: (map['publicId'] ?? map['public_id'] ?? map['id']) as String?,
           )
         ];
       }
@@ -228,35 +241,94 @@ class PostModel {
         ? rawMentions.map((m) => MentionModel.fromMap(Map<String, dynamic>.from(m))).toList()
         : const [];
 
+    // Author fields with rich fallback for mobile and web schemas
+    final rawName = map['userName'] ?? map['username'] ?? map['fullName'] ?? map['name'] ?? map['displayName'] ?? map['userFullName'];
+    final String resolvedUserName = (rawName != null && rawName.toString().trim().isNotEmpty)
+        ? rawName.toString().trim()
+        : 'Athlete';
+
+    final rawAvatar = map['userAvatar'] ?? map['avatarUrl'] ?? map['photoUrl'] ?? map['avatar_url'] ?? map['userPhotoUrl'] ?? '';
+    final String resolvedAvatar = rawAvatar.toString();
+
+    final rawContent = map['content'] ?? map['caption'] ?? map['text'] ?? map['title'] ?? '';
+
+    // Bookmarks calculation
+    final rawBookmarkedBy = map['bookmarkedBy'];
+    final List<String> bookmarkedByList = rawBookmarkedBy is List
+        ? rawBookmarkedBy.map((e) => e.toString()).toList()
+        : <String>[];
+
+    final int resolvedLikes = _parseInt(
+      map['likes'] ?? map['likeCount'],
+      0,
+    );
+
+    final int resolvedComments = _parseInt(
+      map['commentsCount'] ?? map['commentCount'],
+      0,
+    );
+
+    final int resolvedBookmarks = _parseInt(
+      map['bookmarks'] ?? map['bookmarkCount'],
+      bookmarkedByList.length,
+    );
+
+    final int resolvedShares = _parseInt(map['shares'], 0);
+    final int resolvedViews = _parseInt(map['views'], 0);
+
+    final effectiveUid = (currentUserId != null && currentUserId.isNotEmpty)
+        ? currentUserId
+        : FirebaseAuth.instance.currentUser?.uid;
+
+    final bool resolvedHasLiked = map['hasLiked'] == true;
+
+    final bool resolvedHasBookmarked = (effectiveUid != null && effectiveUid.isNotEmpty && bookmarkedByList.contains(effectiveUid))
+        || (map['hasBookmarked'] == true);
+
+    // Parse createdAt safely
+    DateTime resolvedCreatedAt = DateTime.now();
+    final rawCreated = map['createdAt'];
+    if (rawCreated != null) {
+      if (rawCreated is DateTime) {
+        resolvedCreatedAt = rawCreated;
+      } else if (rawCreated is Timestamp) {
+        resolvedCreatedAt = rawCreated.toDate();
+      } else if (rawCreated.runtimeType.toString().contains('Timestamp')) {
+        try {
+          resolvedCreatedAt = (rawCreated as dynamic).toDate();
+        } catch (_) {}
+      } else if (rawCreated is int) {
+        resolvedCreatedAt = DateTime.fromMillisecondsSinceEpoch(rawCreated);
+      } else if (rawCreated is String) {
+        resolvedCreatedAt = DateTime.tryParse(rawCreated) ?? DateTime.now();
+      }
+    }
+
     return PostModel(
-      id: map['id'] as String? ?? '',
-      type: map['type'] as String? ?? 'post',
-      userId: map['userId'] as String? ?? '',
-      userName: map['userName'] as String? ?? '',
-      userAvatar: map['userAvatar'] as String? ?? '',
-      sport: map['sport'] as String? ?? '',
-      position: map['position'] as String? ?? '',
-      verified: map['verified'] as bool? ?? false,
-      content: map['content'] as String? ?? '',
+      id: map['id']?.toString() ?? '',
+      type: (map['type'] ?? 'post').toString(),
+      userId: (map['userId'] ?? map['uid'] ?? map['authorId'] ?? '').toString(),
+      userName: resolvedUserName,
+      userAvatar: resolvedAvatar,
+      sport: (map['sport'] ?? map['sportCategory'] ?? 'Athletic').toString(),
+      position: (map['position'] ?? map['primaryPosition'] ?? 'Athlete').toString(),
+      verified: map['verified'] == true || map['isVerified'] == true,
+      content: rawContent.toString(),
       media: mediaList,
       category: PostCategory.values.firstWhere(
-        (e) => e.name == (map['category'] as String? ?? 'general'),
+        (e) => e.name.toLowerCase() == (map['category']?.toString().toLowerCase() ?? 'general'),
         orElse: () => PostCategory.general,
       ),
-      likes: map['likes'] as int? ?? 0,
-      commentsCount: map['commentsCount'] as int? ?? 0,
-      shares: map['shares'] as int? ?? 0,
-      bookmarks: map['bookmarks'] as int? ?? 0,
-      views: map['views'] as int? ?? 0,
-      hasLiked: map['hasLiked'] as bool? ?? false,
-      hasBookmarked: map['hasBookmarked'] as bool? ?? false,
-      edited: map['edited'] as bool? ?? false,
-      deleted: map['deleted'] as bool? ?? false,
-      createdAt: map['createdAt'] is Timestamp
-          ? (map['createdAt'] as Timestamp).toDate()
-          : map['createdAt'] is int
-              ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int)
-              : DateTime.now(),
+      likes: resolvedLikes,
+      commentsCount: resolvedComments,
+      shares: resolvedShares,
+      bookmarks: resolvedBookmarks,
+      views: resolvedViews,
+      hasLiked: resolvedHasLiked,
+      hasBookmarked: resolvedHasBookmarked,
+      edited: map['edited'] == true,
+      deleted: map['deleted'] == true,
+      createdAt: resolvedCreatedAt,
       mentions: mentionsList,
     );
   }

@@ -14,6 +14,8 @@ class CacheManager {
   static const String _profilesKeyPrefix = 'cached_profile_';
   static const String _commentsKeyPrefix = 'cached_comments_';
   static const String _searchHistoryKey = 'cached_search_history';
+  static const String _userLikesKeyPrefix = 'cached_user_likes_';
+  static const String _userBookmarksKeyPrefix = 'cached_user_bookmarks_';
 
   // Video Cache Configuration
   static const int maxVideoCacheSize = 1024 * 1024 * 1024; // 1 GB in bytes
@@ -136,6 +138,64 @@ class CacheManager {
   /// Load search history
   List<String> loadSearchHistory() {
     return prefs.getStringList(_searchHistoryKey) ?? [];
+  }
+
+  /// Save user's liked post IDs for instant cold-start restore
+  Future<void> saveLikedPostIds(String userId, Set<String> likedIds) async {
+    if (userId.isEmpty) return;
+    await prefs.setStringList('$_userLikesKeyPrefix$userId', likedIds.toList());
+  }
+
+  /// Load user's liked post IDs
+  Set<String> loadLikedPostIds(String userId) {
+    if (userId.isEmpty) return {};
+    final list = prefs.getStringList('$_userLikesKeyPrefix$userId');
+    return list != null ? list.toSet() : {};
+  }
+
+  /// Optimistically add a liked post ID to local cache
+  Future<void> addLikedPostId(String userId, String postId) async {
+    if (userId.isEmpty || postId.isEmpty) return;
+    final current = loadLikedPostIds(userId);
+    current.add(postId);
+    await saveLikedPostIds(userId, current);
+  }
+
+  /// Optimistically remove a liked post ID from local cache
+  Future<void> removeLikedPostId(String userId, String postId) async {
+    if (userId.isEmpty || postId.isEmpty) return;
+    final current = loadLikedPostIds(userId);
+    current.remove(postId);
+    await saveLikedPostIds(userId, current);
+  }
+
+  /// Save user's bookmarked post IDs
+  Future<void> saveBookmarkedPostIds(String userId, Set<String> bookmarkedIds) async {
+    if (userId.isEmpty) return;
+    await prefs.setStringList('$_userBookmarksKeyPrefix$userId', bookmarkedIds.toList());
+  }
+
+  /// Load user's bookmarked post IDs
+  Set<String> loadBookmarkedPostIds(String userId) {
+    if (userId.isEmpty) return {};
+    final list = prefs.getStringList('$_userBookmarksKeyPrefix$userId');
+    return list != null ? list.toSet() : {};
+  }
+
+  /// Optimistically add a bookmarked post ID to local cache
+  Future<void> addBookmarkedPostId(String userId, String postId) async {
+    if (userId.isEmpty || postId.isEmpty) return;
+    final current = loadBookmarkedPostIds(userId);
+    current.add(postId);
+    await saveBookmarkedPostIds(userId, current);
+  }
+
+  /// Optimistically remove a bookmarked post ID from local cache
+  Future<void> removeBookmarkedPostId(String userId, String postId) async {
+    if (userId.isEmpty || postId.isEmpty) return;
+    final current = loadBookmarkedPostIds(userId);
+    current.remove(postId);
+    await saveBookmarkedPostIds(userId, current);
   }
 
   static const String _chatListKey = 'cached_chat_list';

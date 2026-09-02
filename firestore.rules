@@ -21,6 +21,7 @@ service cloud.firestore {
       return isAuthenticated()
         && ('phone_number' in request.auth.token)
         && request.auth.token.phone_number != null
+        && exists(/databases/$(database)/documents/users/$(uid))
         && get(/databases/$(database)/documents/users/$(uid)).data.phoneNumber == request.auth.token.phone_number;
     }
 
@@ -292,22 +293,27 @@ service cloud.firestore {
       function isParticipant() {
         return isActiveUser()
           && (
-               request.auth.uid in resource.data.participantIds
-               || isPhoneOwner(resource.data.participantIds[0])
-               || isPhoneOwner(resource.data.participantIds[1])
+               resource == null
+               || !('participantIds' in resource.data)
+               || request.auth.uid in resource.data.participantIds
+               || isPhoneOwner(request.auth.uid)
              );
       }
 
-      allow read, update: if isParticipant();
+      allow read: if isParticipant();
+      allow update: if isActiveUser()
+        && (
+             (resource != null && 'participantIds' in resource.data && request.auth.uid in resource.data.participantIds)
+             || isPhoneOwner(request.auth.uid)
+           );
 
-      // Create: caller must be one of exactly two participants.
+      // Create: caller must be in participantIds (supporting 1-on-1 and Group chats)
       allow create: if isActiveUser()
         && (
              request.auth.uid in request.resource.data.participantIds
-             || isPhoneOwner(request.resource.data.participantIds[0])
-             || isPhoneOwner(request.resource.data.participantIds[1])
+             || isPhoneOwner(request.auth.uid)
            )
-        && request.resource.data.participantIds.size() == 2;
+        && request.resource.data.participantIds.size() >= 2;
 
       // Delete: a participant may clear/leave their own chat room.
       // (ChatListNotifier.deleteChatRoom in chat_list_controller.dart)
@@ -316,38 +322,43 @@ service cloud.firestore {
       // ── Messages  /chats/{chatId}/messages/{messageId} ─────────────────────
       match /messages/{messageId} {
 
-        // getAfter() for create: parent chat is part of the same write batch.
-        function parentChatAfter() {
-          return getAfter(/databases/$(database)/documents/chats/$(chatId));
+        function isChatParticipant() {
+          return isActiveUser()
+            && (
+                 chatId.matches('.*' + request.auth.uid + '.*')
+                 || (
+                      exists(/databases/$(database)/documents/chats/$(chatId))
+                      && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds
+                    )
+                 || isPhoneOwner(request.auth.uid)
+               );
         }
 
-        // get() for read/update/delete: parent already exists.
-        function parentChatNow() {
-          return get(/databases/$(database)/documents/chats/$(chatId));
-        }
-
-        allow read: if isActiveUser()
-          && (
-               request.auth.uid in parentChatNow().data.participantIds
-               || isPhoneOwner(parentChatNow().data.participantIds[0])
-               || isPhoneOwner(parentChatNow().data.participantIds[1])
-             );
+        allow read, update, delete: if isChatParticipant();
 
         allow create: if isActiveUser()
           && (request.resource.data.senderId == request.auth.uid || isPhoneOwner(request.resource.data.senderId))
           && (
-               request.resource.data.receiverId in parentChatAfter().data.participantIds
-               || isPhoneOwner(parentChatAfter().data.participantIds[0])
-               || isPhoneOwner(parentChatAfter().data.participantIds[1])
-             );
-
-        // Update covers reaction toggles; delete covers message removal.
-        allow update, delete: if isActiveUser()
-          && (
-               request.auth.uid in parentChatNow().data.participantIds
-               || isPhoneOwner(parentChatNow().data.participantIds[0])
-               || isPhoneOwner(parentChatNow().data.participantIds[1])
-             );
+               chatId == request.resource.data.senderId + '_' + request.resource.data.receiverId
+               || chatId == request.resource.data.receiverId + '_' + request.resource.data.senderId
+               || (
+                    exists(/databases/$(database)/documents/chats/$(chatId))
+                    && (
+                         request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds
+                         || isPhoneOwner(request.resource.data.senderId)
+                       )
+                  )
+               || isPhoneOwner(request.resource.data.senderId)
+             )
+          && (!('referencedPostId' in request.resource.data) 
+              || request.resource.data.referencedPostId == null 
+              || exists(/databases/$(database)/documents/posts/$(request.resource.data.referencedPostId)))
+          && (!('referencedReelId' in request.resource.data) 
+              || request.resource.data.referencedReelId == null 
+              || exists(/databases/$(database)/documents/posts/$(request.resource.data.referencedReelId)))
+          && (!('referencedUserId' in request.resource.data) 
+              || request.resource.data.referencedUserId == null 
+              || exists(/databases/$(database)/documents/users/$(request.resource.data.referencedUserId)));
       }
     }
 
@@ -379,19 +390,19 @@ service cloud.firestore {
 
       // Update — Case 1: post owner edits content (caption, category, sport, mentions)
       allow update: if isActiveUser() && isPostOwner()
-        && subsetOfFields(['content', 'category', 'sport', 'mentions', 'updatedAt']);
+        && subsetOfFields(['content', 'category', 'sport', 'mentions', 'updatedAt', 'caption', 'location']);
 
-      // Update — Case 2: like/unlike transaction (likedBy array + likes counter)
+      // Update — Case 2: like/unlike transaction (likes counter)
       allow update: if isActiveUser()
-        && onlyFields(['likedBy', 'likes']);
+        && onlyFields(['likes', 'likeCount']);
 
       // Update — Case 3: bookmark transaction (bookmarkedBy array + bookmarks counter)
       allow update: if isActiveUser()
-        && onlyFields(['bookmarkedBy', 'bookmarks']);
+        && onlyFields(['bookmarkedBy', 'bookmarks', 'bookmarkCount']);
 
       // Update — Case 4: comment count change (commentsCount ±1 via transaction)
       allow update: if isActiveUser()
-        && onlyFields(['commentsCount']);
+        && onlyFields(['commentsCount', 'commentCount']);
 
       // Update — Case 5: share or view count increments
       allow update: if isActiveUser()
@@ -407,7 +418,11 @@ service cloud.firestore {
         // Owner controls their own like entry.
         // Post owner may also delete any like during cascade cleanup on deletion.
         allow write: if isActiveUser()
-          && (request.auth.uid == userId || isPhoneOwner(userId) || isPostOwner());
+          && (
+            request.auth.uid == userId 
+            || isPhoneOwner(userId) 
+            || (isAuthenticated() && (get(/databases/$(database)/documents/posts/$(postId)).data.userId == request.auth.uid || isPhoneOwner(get(/databases/$(database)/documents/posts/$(postId)).data.userId)))
+          );
       }
 
 
@@ -472,8 +487,8 @@ service cloud.firestore {
         return isAuthenticated() && (resource.data.userId == request.auth.uid || isPhoneOwner(resource.data.userId));
       }
 
-      // Any signed-in user may view stories.
-      allow read: if isAuthenticated();
+      // Publicly readable — users and guests can view active stories on feed.
+      allow read: if true;
 
       // Create: userId in the new story must equal the caller.
       allow create: if isActiveUser()
@@ -485,7 +500,7 @@ service cloud.firestore {
 
       // Update — Case 2: any user likes the story (likes array mutation)
       allow update: if isActiveUser()
-        && onlyFields(['likes']);
+        && onlyFields(['likes', 'likeCount']);
 
       // Update — Case 3: any user marks the story viewed (viewedBy array)
       allow update: if isActiveUser()
@@ -544,6 +559,12 @@ service cloud.firestore {
 
     match /media_references/{refId} {
       allow read, write: if isAuthenticated();
+    }
+
+    // ── System Metadata & Sports Hierarchy ──────────────────────────────────
+    match /system_data/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
     }
 
   }

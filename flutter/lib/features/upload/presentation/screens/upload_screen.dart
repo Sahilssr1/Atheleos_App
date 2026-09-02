@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ import '../../../../core/services/mention_service.dart';
 import '../../../../core/widgets/mention_autocomplete_overlay.dart';
 import '../../../../core/widgets/sport_selector_field.dart';
 import '../../../feed/domain/models/post_model.dart';
+import '../../../profile/domain/models/profile_model.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../feed/presentation/controllers/feed_controller.dart';
 
@@ -113,8 +115,6 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     );
   }
 
-
-
   Future<void> _handlePublish() async {
     if (_contentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -123,13 +123,29 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       return;
     }
 
-    final userProfile = ref.read(activeProfileProvider).value;
-    if (userProfile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile not loaded. Please try again.')),
-      );
-      return;
+    final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? ref.read(loggedInUserIdProvider);
+    ProfileModel? userProfile = ref.read(currentUserProvider).valueOrNull;
+    if (userProfile == null || userProfile.id != currentUid) {
+      if (currentUid.isNotEmpty && currentUid != 'user_1') {
+        userProfile = await ref.read(userRepositoryProvider).getUserById(currentUid);
+      }
     }
+    userProfile ??= ref.read(activeProfileProvider).valueOrNull;
+
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final String resolvedId = (userProfile != null && userProfile.id.isNotEmpty)
+        ? userProfile.id
+        : (currentUid.isNotEmpty ? currentUid : 'user_1');
+    final String resolvedName = (userProfile != null && userProfile.name.isNotEmpty)
+        ? userProfile.name
+        : (firebaseUser?.displayName != null && firebaseUser!.displayName!.isNotEmpty ? firebaseUser.displayName! : 'Athlete');
+    final String resolvedAvatar = (userProfile != null && userProfile.avatarUrl.isNotEmpty)
+        ? userProfile.avatarUrl
+        : (firebaseUser?.photoURL ?? '');
+    final String resolvedPosition = (userProfile != null && userProfile.primaryPosition.isNotEmpty)
+        ? (userProfile.primaryPosition.split(' ').firstOrNull ?? 'Athlete')
+        : 'Athlete';
+    final bool resolvedVerified = userProfile?.verified ?? false;
 
     setState(() { _isUploading = true; _uploadProgress = 0.0; });
 
@@ -161,7 +177,6 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
         UploadTask? completedTask;
         
-        // Await the queue coordinator task execution
         await for (final tasks in ref.read(uploadQueueProvider.notifier).stream) {
           final matchingTasks = tasks.where((t) => t.id == taskId);
           final t = matchingTasks.isNotEmpty ? matchingTasks.first : null;
@@ -185,22 +200,14 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
         final mediaId = completedTask.mediaId!;
         
-        debugPrint('AtheleosDebug: Step 0 - Subscribing to media document snapshots...');
-        DocumentSnapshot<Map<String, dynamic>> docSnap;
-        try {
-          docSnap = await FirebaseFirestore.instance
-              .collection('media')
-              .doc(mediaId)
-              .snapshots()
-              .firstWhere((snap) => snap.exists && snap.data()?['status'] == 'ready')
-              .timeout(const Duration(minutes: 1), onTimeout: () {
-                throw TimeoutException('Media processing timed out.');
-              });
-          debugPrint('AtheleosDebug: Step 0 - Success!');
-        } catch (err) {
-          debugPrint('AtheleosDebug: Step 0 - Failed: $err');
-          rethrow;
-        }
+        DocumentSnapshot<Map<String, dynamic>> docSnap = await FirebaseFirestore.instance
+            .collection('media')
+            .doc(mediaId)
+            .snapshots()
+            .firstWhere((snap) => snap.exists && snap.data()?['status'] == 'ready')
+            .timeout(const Duration(minutes: 1), onTimeout: () {
+              throw TimeoutException('Media processing timed out.');
+            });
 
         final mediaData = docSnap.data()!;
         final urls = mediaData['urls'] as Map;
@@ -211,14 +218,12 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       setState(() { _uploadProgress = 1.0; });
       await Future.delayed(const Duration(milliseconds: 300));
 
-      // Resolve actual media dimensions from the picked file
       int actualWidth = _isVideo ? 1080 : 1080;
       int actualHeight = _isVideo ? 1920 : 1080;
 
       try {
         if (_pickedFile != null) {
           if (_isVideo) {
-            // For videos, use a temporary VideoPlayerController to get actual resolution
             VideoPlayerController? tempController;
             try {
               if (kIsWeb) {
@@ -229,13 +234,10 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
               await tempController.initialize();
               actualWidth = tempController.value.size.width.toInt();
               actualHeight = tempController.value.size.height.toInt();
-            } catch (_) {
-              // Keep defaults if we can't read video dimensions
-            } finally {
+            } catch (_) {} finally {
               tempController?.dispose();
             }
           } else {
-            // For images, decode the file to get actual pixel dimensions
             final bytes = await _pickedFile!.readAsBytes();
             final codec = await ui.instantiateImageCodec(bytes);
             final frame = await codec.getNextFrame();
@@ -244,9 +246,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
             frame.image.dispose();
           }
         }
-      } catch (_) {
-        // Keep defaults if dimension resolution fails
-      }
+      } catch (_) {}
 
       final mediaList = mediaUrl != null ? [
         MediaItem(
@@ -260,19 +260,18 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         )
       ] : <MediaItem>[];
 
-      // Retrieve all active profiles to map username -> UID
       final allProfiles = ref.read(profileListProvider).valueOrNull ?? [];
       final mentions = MentionService.parseAndMapMentions(_contentController.text.trim(), allProfiles);
 
       final post = PostModel(
         id: postId,
         type: 'post',
-        userId: userProfile.id,
-        userName: userProfile.name,
-        userAvatar: userProfile.avatarUrl,
+        userId: resolvedId,
+        userName: resolvedName,
+        userAvatar: resolvedAvatar,
         sport: _selectedSport,
-        position: userProfile.primaryPosition.split(' ').firstOrNull ?? 'Athlete',
-        verified: userProfile.verified,
+        position: resolvedPosition,
+        verified: resolvedVerified,
         content: _contentController.text.trim(),
         media: mediaList,
         category: _selectedCategory,
@@ -289,44 +288,35 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
       final Map<String, dynamic> data = post.toMap();
       data['createdAt'] = FieldValue.serverTimestamp();
+      data['likeCount'] = 0;
+      data['bookmarkedBy'] = <String>[];
+      data['bookmarkCount'] = 0;
 
-      debugPrint('AtheleosDebug: Step 1 - Writing post document to Firestore...');
-      try {
-        await FirebaseFirestore.instance.collection('posts').doc(postId).set(data);
-        debugPrint('AtheleosDebug: Step 1 - Success!');
-      } catch (err) {
-        debugPrint('AtheleosDebug: Step 1 - Failed: $err');
-        rethrow;
-      }
+      await FirebaseFirestore.instance.collection('posts').doc(postId).set(data);
 
-      // Trigger mention notifications
-      debugPrint('AtheleosDebug: Step 2 - Sending mention notifications...');
       try {
         await MentionService.sendMentionNotifications(
-          senderId: userProfile.id,
-          senderName: userProfile.name,
-          senderAvatar: userProfile.avatarUrl,
+          senderId: resolvedId,
+          senderName: resolvedName,
+          senderAvatar: resolvedAvatar,
           textContent: _contentController.text.trim(),
           targetType: 'post',
           targetId: postId,
           mentions: mentions,
         );
-        debugPrint('AtheleosDebug: Step 2 - Success!');
       } catch (err) {
         debugPrint('AtheleosDebug: Step 2 - Failed: $err');
-        rethrow;
       }
 
-      debugPrint('AtheleosDebug: Step 3 - Incrementing user postsCount...');
-      try {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userProfile.id)
-            .update({'postsCount': FieldValue.increment(1)});
-        debugPrint('AtheleosDebug: Step 3 - Success!');
-      } catch (err) {
-        debugPrint('AtheleosDebug: Step 3 - Failed: $err');
-        rethrow;
+      if (resolvedId.isNotEmpty && resolvedId != 'user_1') {
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(resolvedId)
+              .update({'postsCount': FieldValue.increment(1)});
+        } catch (err) {
+          debugPrint('AtheleosDebug: Step 3 - Failed: $err');
+        }
       }
       
       ref.invalidate(feedPostsProvider);

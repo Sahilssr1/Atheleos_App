@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,6 +22,7 @@ import '../../../notifications/data/notification_service.dart';
 import '../../../../core/services/cache_manager.dart';
 import '../../../../core/services/network_service.dart';
 import '../../../../core/services/offline_sync_service.dart';
+import '../../../chat/presentation/widgets/share_content_bottom_sheet.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../chat/presentation/controllers/chat_controller.dart';
 import '../../../../core/widgets/post_media_widget.dart'
@@ -118,12 +119,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       ...postsAsync.when(
                         loading: () => [
                           const SliverToBoxAdapter(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 60),
-                              child: Center(
-                                child: CircularProgressIndicator(color: AppTheme.primaryColor),
-                              ),
-                            ),
+                            child: _FeedScreenShimmerLoading(),
                           ),
                         ],
                         error: (err, stack) => [
@@ -222,9 +218,16 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppTheme.primaryColor),
         ),
-        error: (err, stack) => Center(
-          child: Text('Error loading stories', style: TextStyle(color: Colors.red[300], fontSize: 11)),
-        ),
+        error: (err, stack) {
+          // If error occurs, render own story upload button rather than breaking UI
+          return ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            children: [
+              _buildMyStoryButton(context, ref, null),
+            ],
+          );
+        },
         data: (stories) {
           // Group stories by userId and preserve the order of the first appearance
           final Map<String, List<StoryModel>> groupedStories = {};
@@ -264,6 +267,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               
               // Use the first story's avatar and name
               final representativeStory = userStories.first;
+              final hasValidAvatar = representativeStory.userAvatar.isNotEmpty &&
+                  (representativeStory.userAvatar.startsWith('http://') || representativeStory.userAvatar.startsWith('https://'));
+              final displayName = representativeStory.userName.trim().isNotEmpty
+                  ? representativeStory.userName.trim()
+                  : 'Athlete';
 
               return Padding(
                 padding: const EdgeInsets.only(right: 14.0),
@@ -310,8 +318,19 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                             color: Colors.black,
                           ),
                           child: CircleAvatar(
-                            backgroundImage: NetworkImage(representativeStory.userAvatar),
                             radius: 25,
+                            backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+                            backgroundImage: hasValidAvatar ? CachedNetworkImageProvider(representativeStory.userAvatar) : null,
+                            child: !hasValidAvatar
+                                ? Text(
+                                    displayName.isNotEmpty ? displayName[0].toUpperCase() : 'A',
+                                    style: const TextStyle(
+                                      color: AppTheme.primaryColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  )
+                                : null,
                           ),
                         ),
                       ),
@@ -325,7 +344,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                           children: [
                             Expanded(
                               child: Text(
-                                representativeStory.userName.split(' ').first,
+                                displayName.split(' ').first,
                                 style: const TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
@@ -410,8 +429,14 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       color: Colors.black,
                     ),
                     child: CircleAvatar(
-                      backgroundImage: NetworkImage(avatarUrl),
                       radius: 25,
+                      backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+                      backgroundImage: (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))
+                          ? CachedNetworkImageProvider(avatarUrl)
+                          : null,
+                      child: !(avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))
+                          ? const Icon(Icons.person, color: AppTheme.primaryColor, size: 20)
+                          : null,
                     ),
                   ),
                 ),
@@ -524,6 +549,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
               label: Text(category),
               selected: isSelected,
               onSelected: (selected) {
+                HapticFeedback.selectionClick();
                 ref.read(selectedCategoryProvider.notifier).state = category;
               },
               backgroundColor: const Color(0xFF0F172A),
@@ -554,7 +580,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'FILTER BY SPORT',
+            'FILTER BY CATEGORY',
             style: GoogleFonts.spaceGrotesk(
               fontSize: 10,
               fontWeight: FontWeight.bold,
@@ -595,24 +621,27 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   Widget _buildSportsRow(BuildContext context, WidgetRef ref, String selectedSport) {
-    final sports = ['All', ...SportsService.supportedSports];
+    ref.watch(sportsHierarchyProvider); // Reactively rebuild if Firestore hierarchy changes
+    final categories = ['All', ...SportsService.getCategories()];
+
     return SizedBox(
       height: 44,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        itemCount: sports.length,
+        itemCount: categories.length,
         itemBuilder: (context, index) {
-          final sport = sports[index];
-          final isSelected = selectedSport == sport;
+          final cat = categories[index];
+          final isSelected = selectedSport == cat;
           return Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: ChoiceChip(
               showCheckmark: false,
-              label: Text(sport),
+              label: Text(cat),
               selected: isSelected,
               onSelected: (selected) {
-                ref.read(selectedSportProvider.notifier).state = sport;
+                HapticFeedback.selectionClick();
+                ref.read(selectedSportProvider.notifier).state = cat;
               },
               backgroundColor: const Color(0xFF0F172A),
               selectedColor: AppTheme.primaryColor,
@@ -637,8 +666,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   Widget _buildPostCard(BuildContext context, WidgetRef ref, PostModel post, ThemeData theme) {
     return PostCard(
       post: post,
-      onToggleLike: (currentlyLiked) =>
-          ref.read(feedPostsProvider.notifier).toggleLike(post.id, currentlyLiked),
       onToggleBookmark: (currentlyBookmarked) =>
           ref.read(feedPostsProvider.notifier).toggleBookmark(post.id, currentlyBookmarked),
       onMediaTap: post.hasVideo ? () {
@@ -1926,6 +1953,20 @@ class ShareBottomSheet extends ConsumerWidget {
               final channel = channels[index];
               return InkWell(
                 onTap: () {
+                  if (channel['name'] == 'Direct Message') {
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      builder: (context) => ShareContentBottomSheet(
+                        postId: post.id,
+                        reelId: post.hasVideo ? post.id : null,
+                        shareType: post.hasVideo ? 'reel' : 'post',
+                      ),
+                    );
+                    return;
+                  }
+
                   Navigator.pop(context);
                   
                   if (channel['name'] == 'Copy Link') {
@@ -2107,6 +2148,184 @@ class _StoryUploadDialogState extends ConsumerState<StoryUploadDialog> {
                   ),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeedScreenShimmerLoading extends StatefulWidget {
+  const _FeedScreenShimmerLoading({super.key});
+
+  @override
+  State<_FeedScreenShimmerLoading> createState() => _FeedScreenShimmerLoadingState();
+}
+
+class _FeedScreenShimmerLoadingState extends State<_FeedScreenShimmerLoading>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 850),
+    )..repeat(reverse: true);
+    _anim = Tween<double>(begin: 0.35, end: 0.75).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _anim.value,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              children: List.generate(2, (i) => _buildShimmerCard()),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildShimmerCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E293B),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 120,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    width: 80,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Container(
+                width: 24,
+                height: 24,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E293B),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          AspectRatio(
+            aspectRatio: 16 / 10,
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E293B),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E293B),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E293B),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E293B),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            height: 12,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            width: 200,
+            height: 12,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(4),
             ),
           ),
         ],

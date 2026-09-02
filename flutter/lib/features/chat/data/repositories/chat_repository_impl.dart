@@ -15,18 +15,76 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
-  Stream<List<ChatMessage>> watchMessages(String user1, String user2) {
+  Stream<List<ChatMessage>> watchMessages(String user1, String user2, {int? limit}) {
     final roomId = _getRoomId(user1, user2);
-    return _firestore
+    return watchRoomMessages(roomId, limit: limit);
+  }
+
+  @override
+  Future<List<ChatMessage>> getCachedRoomMessages(String roomId, {int? limit}) async {
+    try {
+      var query = _firestore
+          .collection('chats')
+          .doc(roomId)
+          .collection('messages')
+          .orderBy('timestamp', descending: true);
+
+      if (limit != null) {
+        query = query.limit(limit);
+      }
+
+      final snapshot = await query.get(const GetOptions(source: Source.cache));
+      final messages = snapshot.docs
+          .map((doc) => ChatMessage.fromMap(doc.data(), doc.id))
+          .toList();
+      return messages.reversed.toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  @override
+  Stream<List<ChatMessage>> watchRoomMessages(String roomId, {int? limit}) {
+    var query = _firestore
         .collection('chats')
         .doc(roomId)
         .collection('messages')
-        .orderBy('timestamp', descending: false)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs
+        .orderBy('timestamp', descending: true);
+
+    if (limit != null) {
+      query = query.limit(limit);
+    }
+
+    return query.snapshots(includeMetadataChanges: true).map((snapshot) {
+      final messages = snapshot.docs
           .map((doc) => ChatMessage.fromMap(doc.data(), doc.id))
           .toList();
+      return messages.reversed.toList();
+    });
+  }
+
+  @override
+  Future<List<ChatMessage>> getOlderRoomMessages(String roomId, DateTime beforeTimestamp, int limit) async {
+    final snapshot = await _firestore
+        .collection('chats')
+        .doc(roomId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .startAfter([beforeTimestamp.toIso8601String()])
+        .limit(limit)
+        .get();
+
+    final messages = snapshot.docs
+        .map((doc) => ChatMessage.fromMap(doc.data(), doc.id))
+        .toList();
+    return messages.reversed.toList();
+  }
+
+  @override
+  Stream<ChatRoom?> watchRoom(String roomId) {
+    return _firestore.collection('chats').doc(roomId).snapshots().map((snap) {
+      if (!snap.exists || snap.data() == null) return null;
+      return ChatRoom.fromMap(snap.data()!, snap.id);
     });
   }
 
@@ -59,8 +117,6 @@ class ChatRepositoryImpl implements ChatRepository {
     batch.set(messageRef, message.toMap());
     await batch.commit();
 
-    // Emit a message notification through the central pipeline (handles the
-    // receiver's directMessages preference, de-duplication and deep-linking).
     try {
       final senderSnap =
           await _firestore.collection('users').doc(message.senderId).get();
@@ -82,9 +138,120 @@ class ChatRepositoryImpl implements ChatRepository {
         preview: preview.isEmpty ? null : preview,
         isRequest: access.isRequest,
       );
-    } catch (_) {
-      // Never let notification failures block message delivery.
+    } catch (_) {}
+  }
+
+  @override
+  Future<void> sendRoomMessage(String roomId, ChatMessage message) async {
+    final roomRef = _firestore.collection('chats').doc(roomId);
+    final roomSnap = await roomRef.get();
+    final roomData = roomSnap.data() ?? {};
+    final participantIds = List<String>.from(roomData['participantIds'] ?? [message.senderId, message.receiverId]);
+    final otherParticipants = participantIds.where((id) => id != message.senderId).toList();
+
+    final messageRef = roomRef.collection('messages').doc(message.id);
+    final batch = _firestore.batch();
+    batch.set(
+      roomRef,
+      {
+        'id': roomId,
+        'participantIds': participantIds,
+        'lastMessage': message.content.isNotEmpty ? message.content : 'Shared content',
+        'lastMessageTimestamp': message.timestamp.toIso8601String(),
+        'unreadBy': FieldValue.arrayUnion(otherParticipants),
+      },
+      SetOptions(merge: true),
+    );
+    batch.set(messageRef, message.toMap());
+    await batch.commit();
+  }
+
+  @override
+  Future<String> createGroupRoom({
+    required String name,
+    required String adminId,
+    required List<String> memberIds,
+    String? iconUrl,
+    String? themeId,
+  }) async {
+    final uniqueMembers = {adminId, ...memberIds}.toList();
+    final roomId = 'group_${DateTime.now().millisecondsSinceEpoch}_$adminId';
+    final now = DateTime.now();
+
+    final groupRoom = ChatRoom(
+      id: roomId,
+      participantIds: uniqueMembers,
+      lastMessage: 'Group created',
+      lastMessageTimestamp: now,
+      unreadBy: uniqueMembers.where((id) => id != adminId).toList(),
+      type: 'group',
+      name: name,
+      iconUrl: iconUrl,
+      adminId: adminId,
+      adminIds: [adminId],
+      themeId: themeId ?? 'gold',
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await _firestore.collection('chats').doc(roomId).set(groupRoom.toMap());
+    return roomId;
+  }
+
+  @override
+  Future<void> updateGroupTheme(String roomId, String themeId) async {
+    await _firestore.collection('chats').doc(roomId).set({
+      'themeId': themeId,
+      'updatedAt': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> addGroupMembers(String roomId, List<String> newMemberIds) async {
+    await _firestore.collection('chats').doc(roomId).update({
+      'participantIds': FieldValue.arrayUnion(newMemberIds),
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+  }
+
+  @override
+  Future<void> leaveGroup(String roomId, String userId) async {
+    final docRef = _firestore.collection('chats').doc(roomId);
+    final snap = await docRef.get();
+    if (!snap.exists) return;
+    final data = snap.data() ?? {};
+    final participants = List<String>.from(data['participantIds'] ?? []);
+    participants.remove(userId);
+
+    if (participants.isEmpty) {
+      await docRef.delete();
+    } else {
+      final admins = List<String>.from(data['adminIds'] ?? []);
+      admins.remove(userId);
+      String? newAdminId = data['adminId'];
+      if (newAdminId == userId) {
+        newAdminId = admins.isNotEmpty ? admins.first : participants.first;
+        if (!admins.contains(newAdminId)) {
+          admins.add(newAdminId);
+        }
+      }
+      await docRef.update({
+        'participantIds': participants,
+        'adminIds': admins,
+        'adminId': newAdminId,
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
     }
+  }
+
+  @override
+  Future<void> updateGroupDetails(String roomId, {String? name, String? iconUrl}) async {
+    final updates = <String, dynamic>{
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+    if (name != null && name.trim().isNotEmpty) updates['name'] = name.trim();
+    if (iconUrl != null) updates['iconUrl'] = iconUrl;
+    await _firestore.collection('chats').doc(roomId).update(updates);
   }
 
   @override
@@ -97,7 +264,6 @@ class ChatRepositoryImpl implements ChatRepository {
       final rooms = snapshot.docs
           .map((doc) => ChatRoom.fromMap(doc.data(), doc.id))
           .toList();
-      // Sort client-side to ensure newest are first without needing compound index
       rooms.sort(
           (a, b) => b.lastMessageTimestamp.compareTo(a.lastMessageTimestamp));
       return rooms;
@@ -112,10 +278,8 @@ class ChatRepositoryImpl implements ChatRepository {
         .collection('messages')
         .doc(messageId);
 
-    // Delete the message
     await messageRef.delete();
 
-    // Query for the new last message
     final messagesSnapshot = await _firestore
         .collection('chats')
         .doc(roomId)
@@ -127,8 +291,9 @@ class ChatRepositoryImpl implements ChatRepository {
     if (messagesSnapshot.docs.isNotEmpty) {
       final lastDoc = messagesSnapshot.docs.first;
       final data = lastDoc.data();
+      final isUnsent = data['deletedAt'] != null;
       await _firestore.collection('chats').doc(roomId).update({
-        'lastMessage': data['content'] ?? '',
+        'lastMessage': isUnsent ? 'Message unsent' : (data['content'] ?? ''),
         'lastMessageTimestamp':
             data['timestamp'] ?? DateTime.now().toIso8601String(),
       });

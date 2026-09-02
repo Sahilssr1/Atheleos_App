@@ -469,13 +469,17 @@ class DummyPostRepository implements PostRepository {
   }
 
   @override
-  Future<void> togglePostLike(String postId, String userId) async {
+  Future<void> togglePostLike(String postId, String userId, {bool? targetLiked}) async {
     final index = _postsCache.indexWhere((p) => p.id == postId);
     if (index != -1) {
       final post = _postsCache[index];
+      final bool newLiked = targetLiked ?? !post.hasLiked;
+      final int newLikes = newLiked
+          ? (post.hasLiked ? post.likes : post.likes + 1)
+          : (post.hasLiked ? (post.likes - 1).clamp(0, 9999999) : post.likes);
       _postsCache[index] = post.copyWith(
-        hasLiked: !post.hasLiked,
-        likes: post.likes + (post.hasLiked ? -1 : 1),
+        hasLiked: newLiked,
+        likes: newLikes,
       );
     }
   }

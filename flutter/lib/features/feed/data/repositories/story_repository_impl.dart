@@ -16,7 +16,14 @@ class StoryRepositoryImpl implements StoryRepository {
         .map((snapshot) {
           final cutoff = DateTime.now().subtract(const Duration(hours: 24));
           final list = snapshot.docs
-              .map((doc) => StoryModel.fromMap(doc.data(), doc.id))
+              .map((doc) {
+                try {
+                  return StoryModel.fromMap(doc.data(), doc.id);
+                } catch (e) {
+                  return null;
+                }
+              })
+              .whereType<StoryModel>()
               .where((story) => story.createdAt.isAfter(cutoff))
               .toList();
           // Sort newest first

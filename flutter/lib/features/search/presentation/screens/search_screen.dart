@@ -6,7 +6,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/sports_service.dart';
 import '../../../../core/data/dummy/sports_dummy.dart';
-import '../../../../core/widgets/fullscreen_media_viewer.dart';
 import '../../../feed/domain/models/post_model.dart';
 import '../../../profile/domain/models/profile_model.dart';
 import '../../../clips/presentation/controllers/clips_controller.dart';

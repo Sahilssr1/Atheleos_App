@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/profile_model.dart';
@@ -9,6 +10,8 @@ import '../screens/edit_profile_screen.dart';
 import 'profile_posts_grid.dart';
 import 'verification_dialog.dart';
 import '../../../../core/widgets/mention_text.dart';
+import '../../../../core/services/messaging_access_service.dart';
+import 'profile_share_helper.dart';
 class CoachProfileWidget extends ConsumerWidget {
   final ProfileModel profile;
 
@@ -383,7 +386,7 @@ class CoachProfileWidget extends ConsumerWidget {
             ),
             child: IconButton(
               icon: const Icon(Icons.share_outlined, color: AppTheme.primaryColor, size: 18),
-              onPressed: () => _shareProfileDialog(context, profile),
+              onPressed: () => _shareProfileDialog(context, profile, ref),
             ),
           ),
         ],
@@ -425,14 +428,21 @@ class CoachProfileWidget extends ConsumerWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Opening chat with ${profile.name}...'),
-                    backgroundColor: Colors.grey[800],
-                    duration: const Duration(seconds: 1),
-                  ),
+              onPressed: () async {
+                final access = await MessagingAccessService().check(
+                  senderId: ref.read(loggedInUserIdProvider),
+                  receiverId: profile.id,
                 );
+                if (!access.allowed) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(access.reason ?? '${profile.name} is not accepting messages.'),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                  return;
+                }
+                context.push('/chat/room?receiverId=${Uri.encodeQueryComponent(profile.id)}');
               },
             ),
           ),
@@ -445,7 +455,7 @@ class CoachProfileWidget extends ConsumerWidget {
             ),
             child: IconButton(
               icon: const Icon(Icons.share_outlined, color: Colors.white70),
-              onPressed: () => _shareProfileDialog(context, profile),
+              onPressed: () => _shareProfileDialog(context, profile, ref),
             ),
           ),
         ],
@@ -453,70 +463,8 @@ class CoachProfileWidget extends ConsumerWidget {
     }
   }
 
-  void _shareProfileDialog(BuildContext context, ProfileModel profile) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final profileLink = 'https://atheleos.social/profile/${profile.username}';
-        return AlertDialog(
-          backgroundColor: const Color(0xFF121212),
-          title: Text(
-            'SHARE COACH PROFILE',
-            style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w600, fontSize: 14, color: AppTheme.primaryColor),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Copy and send the link to prospective recruiters or athletic programs.',
-                style: TextStyle(fontSize: 12, color: Colors.white60),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        profileLink,
-                        style: const TextStyle(fontSize: 11, fontFamily: 'monospace', color: Colors.white70),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.copy, size: 16, color: AppTheme.primaryColor),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Profile link copied to clipboard!'),
-                            backgroundColor: AppTheme.primaryColor,
-                            duration: Duration(seconds: 1),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('CLOSE', style: TextStyle(color: Colors.white60)),
-            ),
-          ],
-        );
-      },
-    );
+  void _shareProfileDialog(BuildContext context, ProfileModel profile, WidgetRef ref) {
+    showProfileShareDialog(context, profile, ref);
   }
 
   Widget _buildSectionLabel(String title) {

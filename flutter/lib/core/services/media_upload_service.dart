@@ -115,18 +115,16 @@ class MediaUploadServiceImpl implements MediaUploadService {
 
     int length = 0;
     final mediaType = _getMediaType(fileName);
-    if (kIsWeb) {
-      if (bytes == null) throw Exception('Web uploads require complete byte buffers.');
+    if (bytes != null) {
       length = bytes.length;
       final multipartFile = http.MultipartFile.fromBytes(
         'file',
         bytes,
-        filename: fileName,
+        filename: safeFileName,
         contentType: mediaType,
       );
       request.files.add(multipartFile);
-    } else {
-      if (filePath == null) throw Exception('Native uploads require file path.');
+    } else if (filePath != null) {
       final file = io.File(filePath);
       if (!await file.exists()) {
         throw Exception('Source file not found at path: $filePath');
@@ -135,10 +133,12 @@ class MediaUploadServiceImpl implements MediaUploadService {
       final multipartFile = await http.MultipartFile.fromPath(
         'file',
         filePath,
-        filename: fileName,
+        filename: safeFileName,
         contentType: mediaType,
       );
       request.files.add(multipartFile);
+    } else {
+      throw Exception('Either bytes or filePath must be provided for media upload.');
     }
 
     request.headers['X-File-Size'] = length.toString();

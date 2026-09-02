@@ -72,13 +72,16 @@ class NetworkService extends StateNotifier<NetworkStatus> {
     try {
       final results = await _connectivity.checkConnectivity();
       final hasConnection = _interpretResults(results);
+      if (!mounted) return;
       if (!hasConnection) {
         state = const NetworkStatus(isOnline: false, speed: ConnectionSpeed.none);
       } else {
         await _measureSpeed();
       }
     } catch (_) {
-      state = const NetworkStatus(isOnline: false, speed: ConnectionSpeed.none);
+      if (mounted) {
+        state = const NetworkStatus(isOnline: false, speed: ConnectionSpeed.none);
+      }
     }
   }
 
@@ -92,6 +95,11 @@ class NetworkService extends StateNotifier<NetworkStatus> {
       ).timeout(const Duration(seconds: 3));
       stopwatch.stop();
 
+      if (!mounted) {
+        client.close();
+        return;
+      }
+
       if (response.statusCode == 204) {
         final latency = stopwatch.elapsedMilliseconds;
         // If latency < 600ms, classify as FAST, otherwise SLOW
@@ -102,8 +110,10 @@ class NetworkService extends StateNotifier<NetworkStatus> {
       }
       client.close();
     } catch (_) {
-      // Offline or extremely poor connection
-      state = const NetworkStatus(isOnline: false, speed: ConnectionSpeed.none);
+      if (mounted) {
+        // Offline or extremely poor connection
+        state = const NetworkStatus(isOnline: false, speed: ConnectionSpeed.none);
+      }
     }
   }
 

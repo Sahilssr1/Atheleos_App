@@ -19,6 +19,7 @@ import '../../features/events/presentation/screens/create_event_screen.dart';
 import '../../features/events/presentation/screens/event_details_screen.dart';
 import '../../features/chat/presentation/screens/chat_screen.dart';
 import '../../features/chat/presentation/screens/chat_list_screen.dart';
+import '../../features/chat/presentation/screens/shared_content_screen.dart';
 import '../../features/profile/presentation/screens/settings_screen.dart';
 import '../../features/profile/presentation/screens/verification_dashboard_screen.dart';
 import '../../features/profile/presentation/screens/portfolio_analytics_screen.dart';
@@ -100,15 +101,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/profile',
                 builder: (context, state) => const ProfileScreen(),
-                routes: [
-                  GoRoute(
-                    path: ':userId',
-                    builder: (context, state) {
-                      final userId = state.pathParameters['userId'];
-                      return ProfileScreen(userId: userId);
-                    },
-                  ),
-                ],
               ),
             ],
           ),
@@ -116,6 +108,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // Stack navigation routes pushed over the bottom tab view
+      GoRoute(
+        path: '/profile/:userId',
+        builder: (context, state) {
+          final userId = state.pathParameters['userId'];
+          return ProfileScreen(userId: userId);
+        },
+      ),
       GoRoute(
         path: '/notifications',
         builder: (context, state) => const NotificationsScreen(),
@@ -152,9 +151,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'room',
             builder: (context, state) {
-              final receiverId =
-                  state.uri.queryParameters['receiverId'] ?? 'coach_1';
-              return ChatScreen(receiverId: receiverId);
+              final receiverId = state.uri.queryParameters['receiverId'];
+              final roomId = state.uri.queryParameters['roomId'];
+              return ChatScreen(receiverId: receiverId, roomId: roomId);
+            },
+          ),
+          GoRoute(
+            path: 'shared',
+            builder: (context, state) {
+              final roomId = state.uri.queryParameters['roomId'] ?? '';
+              final receiverId = state.uri.queryParameters['receiverId'] ?? '';
+              return SharedContentScreen(roomId: roomId, receiverId: receiverId);
             },
           ),
         ],

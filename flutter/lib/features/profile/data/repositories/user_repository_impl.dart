@@ -30,6 +30,18 @@ class UserRepositoryImpl implements UserRepository {
   Future<void> updateUser(ProfileModel user) => _delegate.updateUser(user);
 
   @override
+  Future<void> toggleFollow(String currentUserId, String targetUserId) =>
+      _delegate.toggleFollow(currentUserId, targetUserId);
+
+  @override
+  Future<void> incrementProfileViews(String uid) =>
+      _delegate.incrementProfileViews(uid);
+
+  @override
+  Future<void> incrementPortfolioShares(String uid) =>
+      _delegate.incrementPortfolioShares(uid);
+
+  @override
   Future<List<ProfileModel>> searchUsers({
     required String query,
     required String sport,

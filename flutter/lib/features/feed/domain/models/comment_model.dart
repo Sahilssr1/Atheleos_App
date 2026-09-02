@@ -91,29 +91,48 @@ class CommentModel {
     final rawLikedBy = map['likedBy'];
     List<String> likedList = [];
     if (rawLikedBy is List) {
-      likedList = List<String>.from(rawLikedBy);
+      likedList = rawLikedBy.map((e) => e.toString()).toList();
     }
 
     final rawMentions = map['mentions'] as List?;
     final List<MentionModel> mentionsList = rawMentions != null
         ? rawMentions.map((m) => MentionModel.fromMap(Map<String, dynamic>.from(m))).toList()
         : const [];
-    
+
+    DateTime resolvedDate = DateTime.now();
+    final rawCreated = map['createdAt'];
+    if (rawCreated != null) {
+      if (rawCreated is DateTime) {
+        resolvedDate = rawCreated;
+      } else if (rawCreated is Timestamp) {
+        resolvedDate = rawCreated.toDate();
+      } else if (rawCreated.runtimeType.toString().contains('Timestamp')) {
+        try {
+          resolvedDate = (rawCreated as dynamic).toDate();
+        } catch (_) {}
+      } else if (rawCreated is int) {
+        resolvedDate = DateTime.fromMillisecondsSinceEpoch(rawCreated);
+      } else if (rawCreated is String) {
+        resolvedDate = DateTime.tryParse(rawCreated) ?? DateTime.now();
+      }
+    }
+
+    final rawName = map['username'] ?? map['userName'] ?? map['fullName'] ?? map['name'] ?? map['displayName'] ?? map['userFullName'];
+    final rawAvatar = map['profileImage'] ?? map['userAvatar'] ?? map['avatarUrl'] ?? map['photoUrl'] ?? map['avatar_url'] ?? '';
+
     return CommentModel(
       commentId: id,
-      postId: map['postId'] as String? ?? '',
-      userId: map['userId'] as String? ?? '',
-      username: map['username'] as String? ?? '',
-      profileImage: map['profileImage'] as String? ?? '',
-      verified: map['verified'] as bool? ?? false,
-      text: map['text'] as String? ?? '',
-      createdAt: map['createdAt'] is Timestamp
-          ? (map['createdAt'] as Timestamp).toDate()
-          : DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int? ?? DateTime.now().millisecondsSinceEpoch),
-      likesCount: map['likesCount'] as int? ?? 0,
-      replyCount: map['replyCount'] as int? ?? 0,
-      edited: map['edited'] as bool? ?? false,
-      parentId: map['parentId'] as String?,
+      postId: (map['postId'] ?? '').toString(),
+      userId: (map['userId'] ?? map['uid'] ?? '').toString(),
+      username: (rawName != null && rawName.toString().trim().isNotEmpty) ? rawName.toString().trim() : 'Athlete',
+      profileImage: rawAvatar.toString(),
+      verified: map['verified'] == true || map['isVerified'] == true,
+      text: (map['text'] ?? map['content'] ?? '').toString(),
+      createdAt: resolvedDate,
+      likesCount: (map['likesCount'] as int?) ?? (map['likes'] as int?) ?? likedList.length,
+      replyCount: (map['replyCount'] as int?) ?? 0,
+      edited: map['edited'] == true,
+      parentId: map['parentId']?.toString(),
       likedBy: likedList,
       mentions: mentionsList,
     );

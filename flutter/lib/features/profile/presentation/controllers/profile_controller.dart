@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
@@ -26,23 +27,13 @@ final firestoreUserRepositoryProvider = Provider<UserRepository>((ref) {
   return FirestoreUserRepository();
 });
 
-// For backwards compatibility, default to firestore
-final userRepositoryTypeProvider =
-    StateProvider<UserRepositoryType>((ref) => UserRepositoryType.firestore);
-
-// Provide the active UserRepository (Always return FirestoreUserRepository to completely deprecate the dummy repository)
+// Selector for UserRepository based on active type
 final userRepositoryProvider = Provider<UserRepository>((ref) {
   return ref.watch(firestoreUserRepositoryProvider);
 });
 
-// For backwards compatibility, map profileRepositoryProvider to the active repository
-final profileRepositoryProvider = Provider<UserRepository>((ref) {
-  return ref.watch(userRepositoryProvider);
-});
-
-// A StateNotifier to manage all profiles and propagate edits reactively (for Edit Profile compatibility)
-class ProfileListNotifier
-    extends StateNotifier<AsyncValue<List<ProfileModel>>> {
+// Profile list state notifier
+class ProfileListNotifier extends StateNotifier<AsyncValue<List<ProfileModel>>> {
   final UserRepository _repository;
 
   ProfileListNotifier(this._repository) : super(const AsyncValue.loading()) {
@@ -50,7 +41,6 @@ class ProfileListNotifier
   }
 
   Future<void> loadAllProfiles() async {
-    state = const AsyncValue.loading();
     try {
       final profiles = await _repository.getAllUsers();
       state = AsyncValue.data(profiles);
@@ -70,13 +60,16 @@ class ProfileListNotifier
     try {
       await _repository.updateUser(updated);
     } catch (err) {
-      // Revert/reload list in case of repository save error
       loadAllProfiles();
     }
   }
+
+  Future<void> refresh() async {
+    state = const AsyncValue.loading();
+    await loadAllProfiles();
+  }
 }
 
-// Global provider for all profiles (compatible with edit_profile_screen.dart)
 final profileListProvider =
     StateNotifierProvider<ProfileListNotifier, AsyncValue<List<ProfileModel>>>(
         (ref) {
@@ -84,11 +77,23 @@ final profileListProvider =
   return ProfileListNotifier(repo);
 });
 
-// State provider for the ID of the profile currently being viewed (defaults to 'user_1', who is our active user)
-final currentProfileIdProvider = StateProvider<String>((ref) => 'user_1');
+// State provider for the ID of the profile currently being viewed (defaults to authenticated user UID)
+final currentProfileIdProvider = StateProvider<String>((ref) {
+  try {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null && uid.isNotEmpty) return uid;
+  } catch (_) {}
+  return 'user_1';
+});
 
 // Provider for the currently logged-in user ID (to distinguish own profile vs others)
-final loggedInUserIdProvider = StateProvider<String>((ref) => 'user_1');
+final loggedInUserIdProvider = StateProvider<String>((ref) {
+  try {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null && uid.isNotEmpty) return uid;
+  } catch (_) {}
+  return '';
+});
 
 // Provider for the active logged-in user's profile model
 final currentUserProvider = Provider<AsyncValue<ProfileModel?>>((ref) {
@@ -130,25 +135,54 @@ final activeProfileProvider = Provider<AsyncValue<ProfileModel?>>((ref) {
 
 // === NEW REQUESTED PROVIDERS & CONTROLLERS ===
 
-// UserProvider: Exposes any user profile by ID as a FutureProvider
-final userProvider =
-    FutureProvider.family<ProfileModel?, String>((ref, id) async {
-  final repository = ref.watch(userRepositoryProvider);
-  final isOnline =
-      ref.watch(networkServiceProvider.select((net) => net.isOnline));
+// UserProvider: Exposes any user profile by ID as a StreamProvider with instant cache loading
+final userProvider = StreamProvider.family<ProfileModel?, String>((ref, id) async* {
+  if (id.isEmpty) {
+    yield null;
+    return;
+  }
 
-  if (!isOnline) {
+  // 1. Instant in-memory resolution from profileListProvider (0ms)
+  final allProfiles = ref.watch(profileListProvider).valueOrNull ?? [];
+  try {
+    final memoryMatch = allProfiles.firstWhere((p) => p.id == id || p.username == id);
+    yield memoryMatch;
+  } catch (_) {}
+
+  final repository = ref.watch(userRepositoryProvider);
+  final isOnline = ref.watch(networkServiceProvider.select((net) => net.isOnline));
+
+  ProfileModel? cachedProfile;
+  try {
     final cachedMap = CacheManager().loadProfile(id);
     if (cachedMap != null) {
-      return ProfileModel.fromMap(cachedMap);
+      cachedProfile = ProfileModel.fromMap(cachedMap);
+      yield cachedProfile;
+    }
+  } catch (_) {}
+
+  if (isOnline) {
+    try {
+      final profile = await repository.getUserById(id);
+      if (profile != null) {
+        CacheManager().saveProfile(id, profile.toMap());
+        if (cachedProfile == null ||
+            cachedProfile.avatarUrl != profile.avatarUrl ||
+            cachedProfile.name != profile.name ||
+            cachedProfile.username != profile.username) {
+          yield profile;
+        }
+      }
+    } catch (_) {
+      if (cachedProfile == null) {
+        yield null;
+      }
+    }
+  } else {
+    if (cachedProfile == null) {
+      yield null;
     }
   }
-
-  final profile = await repository.getUserById(id);
-  if (profile != null) {
-    CacheManager().saveProfile(id, profile.toMap());
-  }
-  return profile;
 });
 
 // UniversalProfileController: StateNotifier that manages follow/unfollow and loads any profile

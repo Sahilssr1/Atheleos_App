@@ -23,7 +23,7 @@ abstract class PostRepository {
   });
 
   Future<void> likePost(String postId, bool like);
-  Future<void> togglePostLike(String postId, String userId);
+  Future<void> togglePostLike(String postId, String userId, {bool? targetLiked});
   Future<void> toggleBookmark(String postId, bool bookmark);
   Future<void> togglePostBookmark(String postId, String userId);
   Future<void> createPost(PostModel post);

@@ -110,18 +110,15 @@ class ProfileLoader extends ConsumerWidget {
     // Watch the requested user's privacy settings
     final settingsAsync = ref.watch(publicUserSettingsProvider(userId));
     final blockedByUser = ref.watch(blockedByUserProvider(userId));
+    final blockedList = ref.watch(blockedUsersStreamProvider).valueOrNull ?? [];
+    final hasBlocked = blockedList.contains(userId);
+    final isBlocked = (blockedByUser.valueOrNull == true) || hasBlocked;
 
-    // Logged in user ID for owner check
     final loggedInId = ref.watch(loggedInUserIdProvider);
     final isOwner = userId == loggedInId;
 
-    if (blockedByUser.valueOrNull == true) {
-      return const Center(
-        child: Text(
-          'Profile unavailable',
-          style: TextStyle(color: Colors.white54, fontSize: 14),
-        ),
-      );
+    if (isBlocked) {
+      return _buildBlockedProfileView(context, ref, hasBlocked: hasBlocked, profile: profileAsync.valueOrNull);
     }
 
     return profileAsync.when(
@@ -216,6 +213,145 @@ class ProfileLoader extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBlockedProfileView(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool hasBlocked,
+    ProfileModel? profile,
+  }) {
+    final name = profile?.name.isNotEmpty == true ? profile!.name : 'Atheleos User';
+    final username = profile?.username.isNotEmpty == true ? '@${profile!.username}' : '';
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0F172A),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+        title: Text(
+          username.isNotEmpty ? username : name,
+          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 30),
+            // Avatar Placeholder
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF1E293B),
+                border: Border.all(color: Colors.white12, width: 2),
+              ),
+              child: const Icon(Icons.person, size: 48, color: Colors.white30),
+            ),
+            const SizedBox(height: 14),
+
+            // Name
+            Text(
+              name,
+              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+
+            if (username.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                username,
+                style: const TextStyle(color: Colors.white54, fontSize: 13),
+              ),
+            ],
+
+            const SizedBox(height: 20),
+
+            // 0 Posts • 0 Followers • 0 Following Stats Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildBlockedStat('0', 'Posts'),
+                _buildBlockedStat('0', 'Followers'),
+                _buildBlockedStat('0', 'Following'),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            if (hasBlocked) ...[
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+                onPressed: () async {
+                  await ref.read(settingsActionsProvider).unblockUser(userId);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('$name has been unblocked.'),
+                        backgroundColor: AppTheme.primaryColor,
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Unblock', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              ),
+              const SizedBox(height: 30),
+            ],
+
+            const Divider(color: Colors.white10),
+            const SizedBox(height: 40),
+
+            // Instagram-Style Restriction Card
+            Icon(
+              hasBlocked ? Icons.block_flipped : Icons.lock_outline_rounded,
+              color: Colors.white30,
+              size: 48,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              hasBlocked ? 'You blocked this account' : 'User not found',
+              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Text(
+                hasBlocked
+                    ? 'You won\'t see their posts, reels, or profile updates until you unblock them.'
+                    : 'This account is unavailable or has restricted access.',
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBlockedStat(String count, String label) {
+    return Column(
+      children: [
+        Text(
+          count,
+          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white54, fontSize: 12),
+        ),
+      ],
     );
   }
 }

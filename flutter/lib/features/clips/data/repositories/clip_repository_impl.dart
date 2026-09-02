@@ -10,9 +10,9 @@ class ClipRepositoryImpl implements ClipRepository {
     return PostModel.fromMap({
       ...map,
       'id': doc.id,
-    });
+    }, currentUserId: currentUserId);
   }
-
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
   /// Filters posts to only include those with video media (Instagram Reels behavior)
   List<PostModel> _filterVideoOnly(List<PostModel> posts) {
     return posts.where((post) => post.hasVideo).toList();
@@ -79,6 +79,9 @@ class ClipRepositoryImpl implements ClipRepository {
   Future<void> createClip(PostModel clip) async {
     final Map<String, dynamic> data = clip.toMap();
     data['createdAt'] = FieldValue.serverTimestamp();
+    data['likeCount'] = 0;
+    data['bookmarkedBy'] = <String>[];
+    data['bookmarkCount'] = 0;
     await _firestore.collection('posts').doc(clip.id).set(data);
   }
 }

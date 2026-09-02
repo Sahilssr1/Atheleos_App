@@ -1,4 +1,6 @@
+import '../../../../core/services/sports_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../../domain/models/post_model.dart';
 import '../../domain/repositories/post_repository.dart';
@@ -11,7 +13,7 @@ class PostRepositoryImpl implements PostRepository {
     return PostModel.fromMap({
       ...map,
       'id': doc.id,
-    });
+    }, currentUserId: currentUserId);
   }
 
   @override
@@ -75,8 +77,19 @@ class PostRepositoryImpl implements PostRepository {
     if (category.toLowerCase() != 'all') {
       query = query.where('category', isEqualTo: category.toLowerCase());
     }
-    if (sport != 'All') {
-      query = query.where('sport', isEqualTo: sport);
+    if (sport.toLowerCase() != 'all') {
+      final sportsList = SportsService.getSportsForCategory(sport);
+      if (sportsList.isNotEmpty) {
+        final matchTerms = <String>{
+          sport.toLowerCase(),
+          sport,
+          ...sportsList,
+          ...sportsList.map((s) => s.toLowerCase()),
+        }.take(30).toList();
+        query = query.where('sport', whereIn: matchTerms);
+      } else {
+        query = query.where('sport', isEqualTo: sport);
+      }
     }
 
     final sortField = sortBy == 'Trending' ? 'likes' : 'createdAt';
@@ -101,8 +114,19 @@ class PostRepositoryImpl implements PostRepository {
     if (category.toLowerCase() != 'all') {
       query = query.where('category', isEqualTo: category.toLowerCase());
     }
-    if (sport != 'All') {
-      query = query.where('sport', isEqualTo: sport);
+    if (sport.toLowerCase() != 'all') {
+      final sportsList = SportsService.getSportsForCategory(sport);
+      if (sportsList.isNotEmpty) {
+        final matchTerms = <String>{
+          sport.toLowerCase(),
+          sport,
+          ...sportsList,
+          ...sportsList.map((s) => s.toLowerCase()),
+        }.take(30).toList();
+        query = query.where('sport', whereIn: matchTerms);
+      } else {
+        query = query.where('sport', isEqualTo: sport);
+      }
     }
 
     final sortField = sortBy == 'Trending' ? 'likes' : 'createdAt';
@@ -117,8 +141,27 @@ class PostRepositoryImpl implements PostRepository {
 
     query = query.limit(limit);
 
-    final snapshot = await query.get();
-    return snapshot.docs.map((doc) => _mapDocToPost(doc, currentUserId)).toList();
+    try {
+      final snapshot = await query.get();
+      return snapshot.docs.map((doc) => _mapDocToPost(doc, currentUserId)).toList();
+    } catch (e) {
+      debugPrint('[POST QUERY FALLBACK] $e');
+      Query fallback = _firestore.collection('posts');
+      if (category.toLowerCase() != 'all') {
+        fallback = fallback.where('category', isEqualTo: category.toLowerCase());
+      }
+      final snap = await fallback.limit(limit * 3).get();
+      final allPosts = snap.docs.map((doc) => _mapDocToPost(doc, currentUserId)).toList();
+      final filtered = allPosts.where((p) {
+        if (sport.toLowerCase() == 'all') return true;
+        final matchTerms = SportsService.getSportsForCategory(sport);
+        return matchTerms.contains(p.sport) ||
+               p.sport.toLowerCase() == sport.toLowerCase() ||
+               matchTerms.map((m) => m.toLowerCase()).contains(p.sport.toLowerCase());
+      }).toList();
+      filtered.sort((a, b) => sortBy == 'Trending' ? b.likes.compareTo(a.likes) : b.createdAt.compareTo(a.createdAt));
+      return filtered.take(limit).toList();
+    }
   }
 
   @override
@@ -127,42 +170,82 @@ class PostRepositoryImpl implements PostRepository {
   }
 
   @override
-  Future<void> togglePostLike(String postId, String userId) async {
+  Future<void> togglePostLike(String postId, String userId, {bool? targetLiked}) async {
+    final authUid = FirebaseAuth.instance.currentUser?.uid;
+    final effectiveUserId = (authUid != null && authUid.isNotEmpty)
+        ? authUid
+        : (userId.isNotEmpty ? userId : 'user_1');
+
+    if (effectiveUserId.isEmpty || postId.isEmpty) return;
+
     final postRef = _firestore.collection('posts').doc(postId);
-    final likeRef = postRef.collection('likes').doc(userId);
-    final userLikeRef = _firestore.collection('users').doc(userId).collection('likes').doc(postId);
+    final postLikeRef = postRef.collection('likes').doc(effectiveUserId);
+    final userLikeRef = _firestore.collection('users').doc(effectiveUserId).collection('likes').doc(postId);
 
     try {
       await _firestore.runTransaction((transaction) async {
         final postDoc = await transaction.get(postRef);
-        if (!postDoc.exists) return;
+        final postLikeDoc = await transaction.get(postLikeRef);
+        final userLikeDoc = await transaction.get(userLikeRef);
 
-        final currentLikes = postDoc.get('likes') as int? ?? 0;
-        final likeSnapshot = await transaction.get(likeRef);
+        final postExists = postDoc.exists;
+        final map = postExists ? (postDoc.data() ?? {}) : <String, dynamic>{};
 
-        if (likeSnapshot.exists) {
-          transaction.delete(likeRef);
+        final rawLikes = map['likes'] ?? map['likeCount'];
+        int currentLikes = 0;
+        if (rawLikes is int) {
+          currentLikes = rawLikes;
+        } else if (rawLikes is num) {
+          currentLikes = rawLikes.toInt();
+        } else if (rawLikes is String) {
+          currentLikes = int.tryParse(rawLikes) ?? 0;
+        }
+
+        final bool isAlreadyLiked = postLikeDoc.exists || userLikeDoc.exists;
+        final bool shouldLike = targetLiked ?? !isAlreadyLiked;
+
+        if (!shouldLike) {
+          // If already unliked, nothing to do
+          if (!isAlreadyLiked && !postLikeDoc.exists && !userLikeDoc.exists) return;
+
+          // UNLIKE
+          final newLikes = (currentLikes - 1).clamp(0, double.infinity).toInt();
+          transaction.delete(postLikeRef);
           transaction.delete(userLikeRef);
-          transaction.update(postRef, {
-            'likes': (currentLikes - 1).clamp(0, double.infinity).toInt(),
-          });
+
+          if (postExists) {
+            transaction.update(postRef, {
+              'likes': newLikes,
+              'likeCount': newLikes,
+            });
+          }
         } else {
+          // If already liked, ensure both subcollection docs exist without double-incrementing count
+          if (isAlreadyLiked && postLikeDoc.exists && userLikeDoc.exists) return;
+
+          // LIKE
+          final newLikes = isAlreadyLiked ? currentLikes : currentLikes + 1;
           final now = FieldValue.serverTimestamp();
-          transaction.set(likeRef, {
-            'userId': userId,
+          transaction.set(postLikeRef, {
+            'userId': effectiveUserId,
             'createdAt': now,
           });
           transaction.set(userLikeRef, {
             'postId': postId,
             'createdAt': now,
           });
-          transaction.update(postRef, {
-            'likes': currentLikes + 1,
-          });
+
+          if (postExists) {
+            transaction.update(postRef, {
+              'likes': newLikes,
+              'likeCount': newLikes,
+            });
+          }
         }
       });
     } catch (e) {
-      debugPrint('Error toggling post like: $e');
+      debugPrint('Error toggling post like in PostRepositoryImpl: $e');
+      rethrow;
     }
   }
 
@@ -173,31 +256,47 @@ class PostRepositoryImpl implements PostRepository {
 
   @override
   Future<void> togglePostBookmark(String postId, String userId) async {
+    final authUid = FirebaseAuth.instance.currentUser?.uid;
+    final effectiveUserId = (authUid != null && authUid.isNotEmpty)
+        ? authUid
+        : (userId.isNotEmpty ? userId : 'user_1');
+
+    if (effectiveUserId.isEmpty) return;
+
     final postRef = _firestore.collection('posts').doc(postId);
-    final bookmarkRef = _firestore.collection('users').doc(userId).collection('bookmarks').doc(postId);
+    final bookmarkRef = _firestore.collection('users').doc(effectiveUserId).collection('bookmarks').doc(postId);
 
     try {
       await _firestore.runTransaction((transaction) async {
         final postDoc = await transaction.get(postRef);
         if (!postDoc.exists) return;
 
-        final currentBookmarks = postDoc.get('bookmarks') as int? ?? 0;
-        final bookmarkSnapshot = await transaction.get(bookmarkRef);
+        final map = postDoc.data() ?? {};
+        final bookmarkedBy = List<String>.from((map['bookmarkedBy'] as List?)?.map((e) => e.toString()) ?? []);
+        final currentBookmarks = map['bookmarks'] as int? ?? (map['bookmarkCount'] as int? ?? bookmarkedBy.length);
 
-        if (bookmarkSnapshot.exists) {
-          transaction.delete(bookmarkRef);
+        if (bookmarkedBy.contains(effectiveUserId)) {
+          bookmarkedBy.remove(effectiveUserId);
+          final newBookmarks = (currentBookmarks - 1).clamp(0, double.infinity).toInt();
           transaction.update(postRef, {
-            'bookmarks': (currentBookmarks - 1).clamp(0, double.infinity).toInt(),
+            'bookmarkedBy': bookmarkedBy,
+            'bookmarks': newBookmarks,
+            'bookmarkCount': newBookmarks,
           });
+          transaction.delete(bookmarkRef);
         } else {
-          final postModel = _mapDocToPost(postDoc, userId);
+          bookmarkedBy.add(effectiveUserId);
+          final newBookmarks = currentBookmarks + 1;
+          final postModel = _mapDocToPost(postDoc, effectiveUserId);
           transaction.set(bookmarkRef, {
             'postId': postId,
             'createdAt': FieldValue.serverTimestamp(),
             'post': postModel.toMap(),
           });
           transaction.update(postRef, {
-            'bookmarks': currentBookmarks + 1,
+            'bookmarkedBy': bookmarkedBy,
+            'bookmarks': newBookmarks,
+            'bookmarkCount': newBookmarks,
           });
         }
       });
