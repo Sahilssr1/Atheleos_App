@@ -929,13 +929,16 @@ class DummyUserRepository implements UserRepository {
   }
 
   @override
-  Future<List<ProfileModel>> getAllUsers() async {
-    return List.from(_users);
+  Future<List<ProfileModel>> getAllUsers({int limit = 50}) async {
+    return _users.take(limit).toList();
   }
 
   @override
-  Future<List<ProfileModel>> getUsersByRole(String role) async {
-    return _users.where((u) => u.role.toLowerCase() == role.toLowerCase()).toList();
+  Future<List<ProfileModel>> getUsersByRole(String role, {int limit = 50}) async {
+    return _users
+        .where((u) => u.role.toLowerCase() == role.toLowerCase())
+        .take(limit)
+        .toList();
   }
 
   @override

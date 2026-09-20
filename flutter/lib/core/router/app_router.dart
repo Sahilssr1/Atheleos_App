@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+import '../theme/app_theme.dart';
 
 // Screens
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/feed/presentation/screens/feed_screen.dart';
 import '../../features/feed/presentation/screens/post_detail_screen.dart';
@@ -23,9 +27,10 @@ import '../../features/chat/presentation/screens/shared_content_screen.dart';
 import '../../features/profile/presentation/screens/settings_screen.dart';
 import '../../features/profile/presentation/screens/verification_dashboard_screen.dart';
 import '../../features/profile/presentation/screens/portfolio_analytics_screen.dart';
-import '../../features/profile/presentation/screens/devices_dashboard_screen.dart';
 import '../../features/profile/presentation/screens/account_settings_screens.dart';
 import '../../features/profile/presentation/screens/safety_support_screens.dart';
+import '../../features/profile/presentation/screens/following_list_screen.dart';
+import '../../features/profile/domain/models/profile_model.dart';
 
 final authStateProvider = StateProvider<bool>((ref) => false);
 
@@ -35,14 +40,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/login',
     redirect: (context, state) {
-      final loggingIn = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/register';
+      final isAuthRoute = state.matchedLocation == '/login' ||
+          state.matchedLocation == '/register' ||
+          state.matchedLocation == '/forgot-password';
 
       if (!isAuthenticated) {
-        return loggingIn ? null : '/login';
+        return isAuthRoute ? null : '/login';
       }
 
-      if (loggingIn) {
+      if (isAuthRoute) {
         return '/home';
       }
 
@@ -52,6 +58,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
       ),
       GoRoute(
         path: '/register',
@@ -168,19 +178,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/settings',
-        builder: (context, state) => const SettingsScreen(),
+        builder: (context, state) => SettingsScreen(profile: state.extra as ProfileModel?),
         routes: [
           GoRoute(
             path: 'verification',
-            builder: (context, state) => const VerificationDashboardScreen(),
+            builder: (context, state) => VerificationDashboardScreen(profile: state.extra as ProfileModel?),
           ),
           GoRoute(
             path: 'portfolio',
-            builder: (context, state) => const PortfolioAnalyticsScreen(),
-          ),
-          GoRoute(
-            path: 'devices',
-            builder: (context, state) => const DevicesDashboardScreen(),
+            builder: (context, state) => PortfolioAnalyticsScreen(profile: state.extra as ProfileModel?),
           ),
           GoRoute(
             path: 'edit-profile',
@@ -195,13 +201,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const ChangeEmailScreen(),
           ),
           GoRoute(
-            path: 'phone',
-            builder: (context, state) => const PhoneVerificationScreen(),
+            path: 'password',
+            builder: (context, state) => const ChangePasswordScreen(),
           ),
           GoRoute(
-            path: 'recovery-phone',
-            builder: (context, state) =>
-                const PhoneVerificationScreen(recoveryPhone: true),
+            path: 'phone',
+            builder: (context, state) => const PhoneVerificationScreen(),
           ),
           GoRoute(
             path: 'connected-account',
@@ -210,6 +215,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'delete-account',
             builder: (context, state) => const DeleteAccountScreen(),
+          ),
+          GoRoute(
+            path: 'following',
+            builder: (context, state) => const FollowingListScreen(),
           ),
           GoRoute(
             path: 'blocked-users',
@@ -275,32 +284,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               sections: SettingsDocumentScreen.releaseNotes,
             ),
           ),
-          GoRoute(
-            path: 'two-factor',
-            builder: (context, state) => const SettingsDocumentScreen(
-              title: 'TWO-FACTOR AUTHENTICATION',
-              sections: [
-                (
-                  'Coming Soon',
-                  'Two-factor authentication is being prepared for a future release.'
-                )
-              ],
-            ),
-          ),
-          GoRoute(
-            path: 'connected/:service',
-            builder: (context, state) => SettingsDocumentScreen(
-              title: (state.pathParameters['service'] ?? 'CONNECTED SERVICE')
-                  .replaceAll('-', ' ')
-                  .toUpperCase(),
-              sections: const [
-                (
-                  'Coming Soon',
-                  'This connected service integration is being prepared for a future release.'
-                )
-              ],
-            ),
-          ),
         ],
       ),
     ],
@@ -308,7 +291,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 });
 
 // A production-grade shell widget leveraging StatefulNavigationShell
-class MainNavigationShell extends ConsumerWidget {
+class MainNavigationShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainNavigationShell({
@@ -317,52 +300,115 @@ class MainNavigationShell extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      body: navigationShell,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) {
-          if (index == 4) {
-            // Tapping the Profile tab resets the profile view to the logged-in user
-            ref.read(currentProfileIdProvider.notifier).state =
-                ref.read(loggedInUserIdProvider);
-            context.go('/profile');
+  ConsumerState<MainNavigationShell> createState() => _MainNavigationShellState();
+}
+
+class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
+  DateTime? _lastBackPressed;
+
+  void _handleBackPress() {
+    // 1. If not on the Home tab (index 0), navigate to Home tab first
+    if (widget.navigationShell.currentIndex != 0) {
+      widget.navigationShell.goBranch(0);
+      VisibilityDetectorController.instance.notifyNow();
+      return;
+    }
+
+    // 2. On Home tab: double-tap back within 2 seconds to exit
+    final now = DateTime.now();
+    if (_lastBackPressed == null ||
+        now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
+      _lastBackPressed = now;
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.exit_to_app, color: AppTheme.primaryColor, size: 20),
+              const SizedBox(width: 10),
+              Text(
+                'Press back again to exit',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13.5,
+                ),
+              ),
+            ],
+          ),
+          action: SnackBarAction(
+            label: 'EXIT',
+            textColor: AppTheme.primaryColor,
+            onPressed: () => SystemNavigator.pop(),
+          ),
+          backgroundColor: const Color(0xFF1E293B),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 2),
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        ),
+      );
+    } else {
+      // Pressed twice within 2 seconds -> exit app
+      ScaffoldMessenger.of(context).clearSnackBars();
+      SystemNavigator.pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackPress();
+      },
+      child: Scaffold(
+        body: widget.navigationShell,
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: widget.navigationShell.currentIndex,
+          onDestinationSelected: (index) {
+            if (index == 4) {
+              // Tapping the Profile tab resets the profile view to the logged-in user
+              ref.read(currentProfileIdProvider.notifier).state =
+                  ref.read(loggedInUserIdProvider);
+              context.go('/profile');
+              VisibilityDetectorController.instance.notifyNow();
+              return;
+            }
+            widget.navigationShell.goBranch(
+              index,
+              initialLocation: index == widget.navigationShell.currentIndex,
+            );
             VisibilityDetectorController.instance.notifyNow();
-            return;
-          }
-          navigationShell.goBranch(
-            index,
-            initialLocation: index == navigationShell.currentIndex,
-          );
-          VisibilityDetectorController.instance.notifyNow();
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.search),
-            label: 'Search',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.add_circle_outline),
-            selectedIcon: Icon(Icons.add_circle),
-            label: 'Upload',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.play_circle_outline),
-            selectedIcon: Icon(Icons.play_circle),
-            label: 'Clips',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.search),
+              label: 'Search',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.add_circle_outline),
+              selectedIcon: Icon(Icons.add_circle),
+              label: 'Upload',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.play_circle_outline),
+              selectedIcon: Icon(Icons.play_circle),
+              label: 'Clips',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
+              label: 'Profile',
+            ),
+          ],
+        ),
       ),
     );
   }

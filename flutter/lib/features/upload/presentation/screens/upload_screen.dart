@@ -20,6 +20,7 @@ import '../../../feed/domain/models/post_model.dart';
 import '../../../profile/domain/models/profile_model.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../feed/presentation/controllers/feed_controller.dart';
+import '../../../../core/utils/user_facing_error.dart';
 
 class UploadScreen extends ConsumerStatefulWidget {
   const UploadScreen({super.key});
@@ -73,8 +74,27 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     final picker = ImagePicker();
     final XFile? file = pickVideo
         ? await picker.pickVideo(source: ImageSource.gallery)
-        : await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+        : await picker.pickImage(
+            source: ImageSource.gallery,
+            maxWidth: 1920,
+            maxHeight: 1920,
+            imageQuality: 85,
+          );
     if (file != null) {
+      if (pickVideo) {
+        final length = await file.length();
+        if (length > 250 * 1024 * 1024) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Video exceeds the 250MB limit. Please select a shorter or compressed clip.'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+          return;
+        }
+      }
       setState(() {
         _pickedFile = file;
         _isVideo = pickVideo;
@@ -126,7 +146,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? ref.read(loggedInUserIdProvider);
     ProfileModel? userProfile = ref.read(currentUserProvider).valueOrNull;
     if (userProfile == null || userProfile.id != currentUid) {
-      if (currentUid.isNotEmpty && currentUid != 'user_1') {
+      if (currentUid.isNotEmpty) {
         userProfile = await ref.read(userRepositoryProvider).getUserById(currentUid);
       }
     }
@@ -135,7 +155,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
     final firebaseUser = FirebaseAuth.instance.currentUser;
     final String resolvedId = (userProfile != null && userProfile.id.isNotEmpty)
         ? userProfile.id
-        : (currentUid.isNotEmpty ? currentUid : 'user_1');
+        : currentUid;
     final String resolvedName = (userProfile != null && userProfile.name.isNotEmpty)
         ? userProfile.name
         : (firebaseUser?.displayName != null && firebaseUser!.displayName!.isNotEmpty ? firebaseUser.displayName! : 'Athlete');
@@ -151,6 +171,10 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
 
     String? mediaUrl;
     String? thumbnailUrl;
+    String? uploadedMediaId;
+    int? actualWidth;
+    int? actualHeight;
+    double? actualDuration;
     final postId = const Uuid().v4();
 
     try {
@@ -199,6 +223,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         }
 
         final mediaId = completedTask.mediaId!;
+        uploadedMediaId = mediaId;
         
         DocumentSnapshot<Map<String, dynamic>> docSnap = await FirebaseFirestore.instance
             .collection('media')
@@ -213,50 +238,68 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         final urls = mediaData['urls'] as Map;
         mediaUrl = urls['original'] as String;
         thumbnailUrl = urls['thumbnail'] as String?;
+
+        if (_isVideo && mediaData['videoMetadata'] != null) {
+          final vMeta = mediaData['videoMetadata'] as Map<dynamic, dynamic>;
+          final vWidth = (vMeta['width'] as num?)?.toInt();
+          final vHeight = (vMeta['height'] as num?)?.toInt();
+          if (vWidth != null && vWidth > 0 && vHeight != null && vHeight > 0) {
+            actualWidth = vWidth;
+            actualHeight = vHeight;
+          }
+          final vDur = (vMeta['duration'] as num?)?.toDouble();
+          if (vDur != null && vDur > 0) {
+            actualDuration = vDur;
+          }
+        }
       }
 
       setState(() { _uploadProgress = 1.0; });
       await Future.delayed(const Duration(milliseconds: 300));
 
-      int actualWidth = _isVideo ? 1080 : 1080;
-      int actualHeight = _isVideo ? 1920 : 1080;
+      if (actualWidth == null || actualHeight == null) {
+        actualWidth = _isVideo ? 1080 : 1080;
+        actualHeight = _isVideo ? 1920 : 1080;
 
-      try {
-        if (_pickedFile != null) {
-          if (_isVideo) {
-            VideoPlayerController? tempController;
-            try {
-              if (kIsWeb) {
-                tempController = VideoPlayerController.networkUrl(Uri.parse(mediaUrl ?? ''));
-              } else {
-                tempController = VideoPlayerController.file(File(_pickedFile!.path));
+        try {
+          if (_pickedFile != null) {
+            if (_isVideo) {
+              VideoPlayerController? tempController;
+              try {
+                if (kIsWeb) {
+                  tempController = VideoPlayerController.networkUrl(Uri.parse(mediaUrl ?? ''));
+                } else {
+                  tempController = VideoPlayerController.file(File(_pickedFile!.path));
+                }
+                await tempController.initialize();
+                final bool isRotated = tempController.value.rotationCorrection == 90 ||
+                    tempController.value.rotationCorrection == 270;
+                actualWidth = (isRotated ? tempController.value.size.height : tempController.value.size.width).toInt();
+                actualHeight = (isRotated ? tempController.value.size.width : tempController.value.size.height).toInt();
+              } catch (_) {} finally {
+                tempController?.dispose();
               }
-              await tempController.initialize();
-              actualWidth = tempController.value.size.width.toInt();
-              actualHeight = tempController.value.size.height.toInt();
-            } catch (_) {} finally {
-              tempController?.dispose();
+            } else {
+              final bytes = await _pickedFile!.readAsBytes();
+              final codec = await ui.instantiateImageCodec(bytes);
+              final frame = await codec.getNextFrame();
+              actualWidth = frame.image.width;
+              actualHeight = frame.image.height;
+              frame.image.dispose();
             }
-          } else {
-            final bytes = await _pickedFile!.readAsBytes();
-            final codec = await ui.instantiateImageCodec(bytes);
-            final frame = await codec.getNextFrame();
-            actualWidth = frame.image.width;
-            actualHeight = frame.image.height;
-            frame.image.dispose();
           }
-        }
-      } catch (_) {}
+        } catch (_) {}
+      }
 
       final mediaList = mediaUrl != null ? [
         MediaItem(
           mediaUrl: mediaUrl,
           mediaType: _isVideo ? 'video' : 'image',
           thumbnailUrl: thumbnailUrl ?? mediaUrl,
-          publicId: postId,
+          publicId: uploadedMediaId ?? postId,
           width: actualWidth,
           height: actualHeight,
-          duration: _isVideo ? 15.0 : null,
+          duration: _isVideo ? (actualDuration ?? 15.0) : null,
         )
       ] : <MediaItem>[];
 
@@ -308,7 +351,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         debugPrint('AtheleosDebug: Step 2 - Failed: $err');
       }
 
-      if (resolvedId.isNotEmpty && resolvedId != 'user_1') {
+      if (resolvedId.isNotEmpty) {
         try {
           await FirebaseFirestore.instance
               .collection('users')
@@ -341,7 +384,10 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       if (mounted) {
         setState(() { _isUploading = false; _uploadProgress = 0.0; });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(UserFacingError.message(e, fallback: 'Upload failed. Please try again.')),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -430,7 +476,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                       hintStyle: GoogleFonts.inter(color: Colors.white24),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
                       ),
                       filled: true,
                       fillColor: const Color(0xFF0F172A),
@@ -531,7 +577,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.cloud_upload_outlined,
-                                  size: 40, color: Colors.white.withOpacity(0.3)),
+                                  size: 40, color: Colors.white.withValues(alpha: 0.3)),
                               const SizedBox(height: 10),
                               Text('Tap to pick a photo or video',
                                   style: GoogleFonts.spaceGrotesk(
@@ -571,7 +617,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           // Upload progress overlay
           if (_isUploading)
             Container(
-              color: Colors.black.withOpacity(0.75),
+              color: Colors.black.withValues(alpha: 0.75),
               child: Center(
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 40),
@@ -579,7 +625,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                   decoration: BoxDecoration(
                     color: const Color(0xFF121212),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                    border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

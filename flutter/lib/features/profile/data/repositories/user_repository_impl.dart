@@ -1,13 +1,11 @@
 import '../../domain/models/profile_model.dart';
 import '../../domain/repositories/user_repository.dart';
-import 'dummy_user_repository.dart';
+import 'firestore_user_repository.dart';
 
-/// Concrete implementation of [UserRepository] that delegates to the in-memory
-/// [DummyUserRepository].  Kept for backwards-compatibility; prefer using
-/// [DummyUserRepository] or [FirestoreUserRepository] directly via the
-/// providers defined in profile_controller.dart.
+/// Concrete implementation of [UserRepository] that delegates to
+/// [FirestoreUserRepository].
 class UserRepositoryImpl implements UserRepository {
-  final DummyUserRepository _delegate = DummyUserRepository();
+  final FirestoreUserRepository _delegate = FirestoreUserRepository();
 
   @override
   Future<ProfileModel?> getUserById(String id) => _delegate.getUserById(id);
@@ -16,11 +14,12 @@ class UserRepositoryImpl implements UserRepository {
   Future<ProfileModel?> getCurrentUser() => _delegate.getCurrentUser();
 
   @override
-  Future<List<ProfileModel>> getAllUsers() => _delegate.getAllUsers();
+  Future<List<ProfileModel>> getAllUsers({int limit = 50}) =>
+      _delegate.getAllUsers(limit: limit);
 
   @override
-  Future<List<ProfileModel>> getUsersByRole(String role) =>
-      _delegate.getUsersByRole(role);
+  Future<List<ProfileModel>> getUsersByRole(String role, {int limit = 50}) =>
+      _delegate.getUsersByRole(role, limit: limit);
 
   @override
   Future<void> updateFollowState(String userId, bool isFollowing) =>

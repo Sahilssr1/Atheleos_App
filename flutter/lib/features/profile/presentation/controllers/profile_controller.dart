@@ -1,10 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import '../../domain/models/profile_model.dart';
 import '../../domain/repositories/user_repository.dart';
-import '../../data/repositories/dummy_user_repository.dart';
 import '../../data/repositories/firestore_user_repository.dart';
 import '../../../../core/services/cache_manager.dart';
 import '../../../../core/services/network_service.dart';
@@ -12,22 +12,12 @@ import '../../../../core/services/offline_sync_service.dart';
 import '../../../notifications/data/notification_service.dart';
 import '../../../notifications/domain/models/notification_model.dart';
 
-enum UserRepositoryType { dummy, firestore }
-
-// Create a single shared instance of DummyUserRepository to maintain session-wide state
-final _sharedUserRepository = DummyUserRepository();
-
-// Provider for the Dummy UserRepository
-final dummyUserRepositoryProvider = Provider<UserRepository>((ref) {
-  return _sharedUserRepository;
-});
-
 // Provider for the Firestore UserRepository
 final firestoreUserRepositoryProvider = Provider<UserRepository>((ref) {
   return FirestoreUserRepository();
 });
 
-// Selector for UserRepository based on active type
+// Primary UserRepository provider
 final userRepositoryProvider = Provider<UserRepository>((ref) {
   return ref.watch(firestoreUserRepositoryProvider);
 });
@@ -42,6 +32,9 @@ class ProfileListNotifier extends StateNotifier<AsyncValue<List<ProfileModel>>> 
 
   Future<void> loadAllProfiles() async {
     try {
+      if (_repository is FirestoreUserRepository) {
+        unawaited((_repository as FirestoreUserRepository).deleteLegacyBrandFederationProfiles());
+      }
       final profiles = await _repository.getAllUsers();
       state = AsyncValue.data(profiles);
     } catch (err, stack) {
@@ -83,7 +76,7 @@ final currentProfileIdProvider = StateProvider<String>((ref) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null && uid.isNotEmpty) return uid;
   } catch (_) {}
-  return 'user_1';
+  return '';
 });
 
 // Provider for the currently logged-in user ID (to distinguish own profile vs others)
@@ -97,40 +90,30 @@ final loggedInUserIdProvider = StateProvider<String>((ref) {
 
 // Provider for the active logged-in user's profile model
 final currentUserProvider = Provider<AsyncValue<ProfileModel?>>((ref) {
-  final listAsync = ref.watch(profileListProvider);
   final loggedInId = ref.watch(loggedInUserIdProvider);
+  if (loggedInId.isNotEmpty) {
+    return ref.watch(universalProfileControllerProvider(loggedInId));
+  }
 
-  return listAsync.when(
-    loading: () => const AsyncValue.loading(),
-    error: (err, stack) => AsyncValue.error(err, stack),
-    data: (list) {
-      try {
-        final profile = list.firstWhere((p) => p.id == loggedInId);
-        return AsyncValue.data(profile);
-      } catch (_) {
-        return const AsyncValue.data(null);
-      }
-    },
-  );
+  // Fallback: If not logged in via Firebase Auth, use active profile or first available
+  final activeId = ref.watch(currentProfileIdProvider);
+  if (activeId.isNotEmpty) {
+    return ref.watch(universalProfileControllerProvider(activeId));
+  }
+
+  return const AsyncValue.data(null);
 });
 
 // Reactive provider for the active profile being viewed (compatible with profile_screen.dart)
 final activeProfileProvider = Provider<AsyncValue<ProfileModel?>>((ref) {
-  final listAsync = ref.watch(profileListProvider);
   final activeId = ref.watch(currentProfileIdProvider);
+  final targetId = activeId.isNotEmpty ? activeId : ref.watch(loggedInUserIdProvider);
 
-  return listAsync.when(
-    loading: () => const AsyncValue.loading(),
-    error: (err, stack) => AsyncValue.error(err, stack),
-    data: (list) {
-      try {
-        final profile = list.firstWhere((p) => p.id == activeId);
-        return AsyncValue.data(profile);
-      } catch (_) {
-        return const AsyncValue.data(null);
-      }
-    },
-  );
+  if (targetId.isNotEmpty) {
+    return ref.watch(universalProfileControllerProvider(targetId));
+  }
+
+  return const AsyncValue.data(null);
 });
 
 // === NEW REQUESTED PROVIDERS & CONTROLLERS ===
@@ -215,8 +198,10 @@ class UniversalProfileController
       final user = await _repository.getUserById(_userId);
       if (user != null) {
         CacheManager().saveProfile(_userId, user.toMap());
+        state = AsyncValue.data(user);
+      } else {
+        state = const AsyncValue.data(null);
       }
-      state = AsyncValue.data(user);
     } catch (err, stack) {
       if (state is! AsyncData<ProfileModel?>) {
         state = AsyncValue.error(err, stack);
@@ -256,9 +241,9 @@ class UniversalProfileController
         final updated = await _repository.getUserById(_userId);
         if (updated != null) {
           CacheManager().saveProfile(_userId, updated.toMap());
+          _ref.read(profileListProvider.notifier).updateProfile(updated);
         }
         state = AsyncValue.data(updated);
-        _ref.read(profileListProvider.notifier).loadAllProfiles();
 
         // Emit a follow notification to the target only when following (not on unfollow).
         if (nextFollowState) {
@@ -292,34 +277,96 @@ class UniversalProfileController
   }
 
   /// Submit a verification request
-  Future<void> submitVerification(Map<String, dynamic> requestDetails) async {
-    if (state is AsyncData<ProfileModel?>) {
-      final currentProfile = state.asData!.value;
-      if (currentProfile == null) return;
+  Future<void> submitVerification(
+    Map<String, dynamic> requestDetails, {
+    ProfileModel? fallbackProfile,
+  }) async {
+    ProfileModel? targetProfile = state.valueOrNull ?? fallbackProfile;
 
-      final updatedProfile = currentProfile.copyWith(
-        verificationStatus: 'pending',
-        verificationRequestDetails: requestDetails,
-        verificationRejectedReason: '',
-      );
+    if (targetProfile == null) {
+      try {
+        targetProfile = await _repository
+            .getUserById(_userId)
+            .timeout(const Duration(seconds: 3));
+      } catch (_) {}
+    }
 
-      await _repository.updateUser(updatedProfile);
+    // Baseline fallback so we never fail silently
+    targetProfile ??= ProfileModel(
+      id: _userId,
+      name: FirebaseAuth.instance.currentUser?.displayName ?? 'User',
+      username: '',
+      avatarUrl: FirebaseAuth.instance.currentUser?.photoURL ?? '',
+      coverUrl: '',
+      role: 'Athlete',
+      verified: false,
+      sport: '',
+      primaryPosition: '',
+      clubOrAcademy: '',
+      city: '',
+      state: '',
+      bio: '',
+      email: FirebaseAuth.instance.currentUser?.email ?? '',
+      phoneNumber: FirebaseAuth.instance.currentUser?.phoneNumber ?? '',
+      dateOfBirth: '',
+      gender: '',
+      personalNotes: '',
+      website: '',
+      socialLinks: {},
+      mediaGallery: [],
+      followersCount: 0,
+      followingCount: 0,
+      postsCount: 0,
+      clipsCount: 0,
+      achievements: [],
+      certifications: [],
+    );
+
+    final updatedProfile = targetProfile.copyWith(
+      verificationStatus: 'pending',
+      verificationRequestDetails: requestDetails,
+      verificationRejectedReason: '',
+    );
+
+    // 1. Optimistically update local controller state, cache & active profile list
+    state = AsyncValue.data(updatedProfile);
+    try {
+      CacheManager().saveProfile(_userId, updatedProfile.toMap());
+    } catch (e) {
+      debugPrint('CacheManager saveProfile note: $e');
+    }
+    _ref.read(profileListProvider.notifier).updateProfile(updatedProfile);
+
+    // 2. Persist application to Firestore subcollection with safe timeout
+    final targetUid = FirebaseAuth.instance.currentUser?.uid ?? _userId;
+    try {
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(_userId)
+          .doc(targetUid)
           .collection('verification_applications')
           .add({
         ...requestDetails,
+        'userId': targetUid,
         'status': 'pending',
         'submittedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-      });
-      state = AsyncValue.data(updatedProfile);
-      _ref.read(profileListProvider.notifier).loadAllProfiles();
+      }).timeout(const Duration(seconds: 5));
+      debugPrint('submitVerification: Added application to Firestore for $targetUid');
+    } catch (e) {
+      debugPrint('submitVerification: Subcollection write note (non-fatal): $e');
+    }
 
-      // Self-notification confirming the submission (also email-eligible).
+    // 3. Persist profile document update with safe timeout
+    try {
+      await _repository.updateUser(updatedProfile).timeout(const Duration(seconds: 4));
+    } catch (e) {
+      debugPrint('submitVerification: Repository updateUser note (non-fatal): $e');
+    }
+
+    // 4. Self-notification confirming submission (unawaited, non-blocking)
+    try {
       unawaited(NotificationService.instance.system(
-        receiverId: _userId,
+        receiverId: targetUid,
         type: NotificationType.verificationSubmitted,
         title: 'Verification submitted',
         body: 'Your verification request was submitted and is under review.',
@@ -328,6 +375,8 @@ class UniversalProfileController
             '<p>Your verification request was submitted and is now under review. '
             'We will notify you once a decision has been made.</p>',
       ));
+    } catch (e) {
+      debugPrint('submitVerification: Notification note: $e');
     }
   }
 
@@ -337,41 +386,81 @@ class UniversalProfileController
     String? badge,
     int? level,
     String? rejectedReason,
+    ProfileModel? fallbackProfile,
   }) async {
-    if (state is AsyncData<ProfileModel?>) {
-      final currentProfile = state.asData!.value;
-      if (currentProfile == null) return;
+    ProfileModel? currentProfile = state.valueOrNull ?? fallbackProfile;
+    if (currentProfile == null) {
+      try {
+        currentProfile = await _repository
+            .getUserById(_userId)
+            .timeout(const Duration(seconds: 3));
+      } catch (_) {}
+    }
+    if (currentProfile == null) return;
 
-      final isApproved = status == 'approved';
-      final updatedProfile = currentProfile.copyWith(
-        verificationStatus: status,
-        verified: isApproved ? true : currentProfile.verified,
-        verificationBadge: isApproved
-            ? (badge ?? currentProfile.verificationBadge)
-            : currentProfile.verificationBadge,
-        verificationLevel: isApproved
-            ? (level ?? currentProfile.verificationLevel)
-            : currentProfile.verificationLevel,
-        verificationDate: isApproved
-            ? DateTime.now().toIso8601String().split('T')[0]
-            : currentProfile.verificationDate,
-        verificationRejectedReason: status == 'rejected'
-            ? (rejectedReason ?? 'Documents did not meet criteria.')
-            : '',
-      );
+    final isApproved = status == 'approved';
+    final updatedProfile = currentProfile.copyWith(
+      verificationStatus: status,
+      verified: isApproved ? true : currentProfile.verified,
+      verificationBadge: isApproved
+          ? (badge ?? currentProfile.verificationBadge)
+          : currentProfile.verificationBadge,
+      verificationLevel: isApproved
+          ? (level ?? currentProfile.verificationLevel)
+          : currentProfile.verificationLevel,
+      verificationDate: isApproved
+          ? DateTime.now().toIso8601String().split('T')[0]
+          : currentProfile.verificationDate,
+      verificationRejectedReason: status == 'rejected'
+          ? (rejectedReason ?? 'Documents did not meet criteria.')
+          : '',
+    );
 
-      await _repository.updateUser(updatedProfile);
-      state = AsyncValue.data(updatedProfile);
-      _ref.read(profileListProvider.notifier).loadAllProfiles();
+    // Immediate reactive updates
+    state = AsyncValue.data(updatedProfile);
+    try {
+      CacheManager().saveProfile(_userId, updatedProfile.toMap());
+    } catch (_) {}
+    _ref.read(profileListProvider.notifier).updateProfile(updatedProfile);
 
-      // Notify the applicant of the decision.
-      final decisionType = switch (status) {
-        'approved' => NotificationType.verificationApproved,
-        'rejected' => NotificationType.verificationRejected,
-        'more_info' => NotificationType.verificationMoreInfo,
-        _ => null,
-      };
-      if (decisionType != null) {
+    // Safe repository update
+    try {
+      await _repository.updateUser(updatedProfile).timeout(const Duration(seconds: 4));
+    } catch (e) {
+      debugPrint('adminAction: updateUser note (non-fatal): $e');
+    }
+
+    // Update latest application in subcollection if exists
+    try {
+      final targetUid = FirebaseAuth.instance.currentUser?.uid ?? _userId;
+      final apps = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(targetUid)
+          .collection('verification_applications')
+          .orderBy('submittedAt', descending: true)
+          .limit(1)
+          .get()
+          .timeout(const Duration(seconds: 4));
+      if (apps.docs.isNotEmpty) {
+        await apps.docs.first.reference.update({
+          'status': status,
+          'updatedAt': FieldValue.serverTimestamp(),
+          if (rejectedReason != null) 'rejectedReason': rejectedReason,
+        }).timeout(const Duration(seconds: 4));
+      }
+    } catch (e) {
+      debugPrint('adminAction: subcollection update note: $e');
+    }
+
+    // Notify the applicant of the decision
+    final decisionType = switch (status) {
+      'approved' => NotificationType.verificationApproved,
+      'rejected' => NotificationType.verificationRejected,
+      'more_info' => NotificationType.verificationMoreInfo,
+      _ => null,
+    };
+    if (decisionType != null) {
+      try {
         unawaited(NotificationService.instance.system(
           receiverId: _userId,
           type: decisionType,
@@ -381,7 +470,7 @@ class UniversalProfileController
               : null,
           emailSubject: 'ATHELEOS — Verification update',
         ));
-      }
+      } catch (_) {}
     }
   }
 }

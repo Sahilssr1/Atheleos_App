@@ -40,9 +40,9 @@ export default {
       }
       const token = authHeader.substring(7);
 
-      // Check if Admin
-      const adminSecret = env.ADMIN_SECRET_KEY || "atheleos-admin-secret-key-12345";
-      const isAdmin = token === adminSecret;
+      // Check if Admin (strictly requires non-empty ADMIN_SECRET_KEY in environment)
+      const adminSecret = env.ADMIN_SECRET_KEY;
+      const isAdmin = Boolean(adminSecret && adminSecret.length >= 16 && token === adminSecret);
 
       let user: any = null;
       if (!isAdmin) {
@@ -322,21 +322,26 @@ async function handleUpload(
   }
 
   if (!isVideo) {
+    const isPdf = mime === "application/pdf" || (fileName && fileName.toLowerCase().endsWith(".pdf"));
+    const fileExt = isPdf ? "pdf" : "webp";
+    const contentType = isPdf ? "application/pdf" : "image/webp";
+    const mediaTypeStr = isPdf ? "document" : "image";
+
     // 1. Immediately write original bytes to R2 to make it available
-    const r2Key = `media/${mediaId}.webp`;
+    const r2Key = `media/${mediaId}.${fileExt}`;
     await env.R2_BUCKET.put(r2Key, bytes, {
-      httpMetadata: { contentType: "image/webp" },
+      httpMetadata: { contentType },
     });
 
     const urlObj = new URL(request.url);
     const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
-    const imageUrl = `${baseUrl}/media/${mediaId}.webp`;
+    const fileUrl = `${baseUrl}/media/${mediaId}.${fileExt}`;
 
     const mediaDoc = {
       fields: {
         mediaId: { stringValue: mediaId },
         mediaHash: { stringValue: mediaHash },
-        mediaType: { stringValue: "image" },
+        mediaType: { stringValue: mediaTypeStr },
         ownerType: { stringValue: ownerType },
         status: { stringValue: "ready" },
         storageClass: { stringValue: "hot" },
@@ -348,9 +353,9 @@ async function handleUpload(
         urls: {
           mapValue: {
             fields: {
-              original: { stringValue: imageUrl },
-              thumbnail: { stringValue: imageUrl },
-              feed: { stringValue: imageUrl },
+              original: { stringValue: fileUrl },
+              thumbnail: { stringValue: fileUrl },
+              feed: { stringValue: fileUrl },
             },
           },
         },
@@ -680,21 +685,95 @@ async function triggerVideoProcessor(env: Env, jobId: string, token: string) {
   }
 }
 
-// --- Verification & Token Helpers ---
+interface GoogleJwkKey {
+  kid: string;
+  alg: string;
+  kty: string;
+  n: string;
+  e: string;
+  use?: string;
+}
+
+let _cachedJwks: { keys: GoogleJwkKey[] } | null = null;
+let _jwksCachedAt = 0;
+const JWKS_TTL_MS = 60 * 60 * 1000; // 1 hour cache
+
+function base64UrlToUint8Array(base64Url: string): Uint8Array {
+  let base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+  while (base64.length % 4) {
+    base64 += "=";
+  }
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function parseBase64UrlJson(base64Url: string): any {
+  let base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+  while (base64.length % 4) {
+    base64 += "=";
+  }
+  return JSON.parse(atob(base64));
+}
+
+async function getGoogleJwks(): Promise<GoogleJwkKey[]> {
+  const now = Date.now();
+  if (_cachedJwks && now - _jwksCachedAt < JWKS_TTL_MS) {
+    return _cachedJwks.keys;
+  }
+  try {
+    const res = await fetch("https://www.googleapis.com/service_accounts/v1/jwk/securetoken-system-uid");
+    if (!res.ok) throw new Error("Failed to fetch Google JWKS");
+    _cachedJwks = await res.json() as { keys: GoogleJwkKey[] };
+    _jwksCachedAt = now;
+    return _cachedJwks.keys;
+  } catch (err) {
+    if (_cachedJwks) return _cachedJwks.keys;
+    throw err;
+  }
+}
 
 async function verifyFirebaseToken(token: string, projectId: string): Promise<any> {
-  // Simple check for mockup environment. In production, fetch keys from:
-  // https://www.googleapis.com/service_accounts/v1/jwk/securetoken-system-uid
-  // And verify JWT signature.
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
-    const payload = JSON.parse(atob(parts[1]));
+
+    // 1. Parse header and extract Key ID (kid)
+    const header = parseBase64UrlJson(parts[0]);
+    if (header.alg !== "RS256" || !header.kid) return null;
+
+    // 2. Parse payload and validate claims
+    const payload = parseBase64UrlJson(parts[1]);
     if (payload.iss !== `https://securetoken.google.com/${projectId}`) return null;
     if (payload.aud !== projectId) return null;
     if (payload.exp < Date.now() / 1000) return null;
+
+    // 3. Match kid with Google public JWK
+    const jwks = await getGoogleJwks();
+    const matchingKey = jwks.find(k => k.kid === header.kid);
+    if (!matchingKey) return null;
+
+    // 4. Import public RSA key into Web Crypto API
+    const cryptoKey = await crypto.subtle.importKey(
+      "jwk",
+      matchingKey,
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+
+    // 5. Cryptographically verify signature
+    const data = new TextEncoder().encode(`${parts[0]}.${parts[1]}`);
+    const signature = base64UrlToUint8Array(parts[2]);
+    const isValid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", cryptoKey, signature, data);
+    if (!isValid) return null;
+
     return { uid: payload.sub, email: payload.email };
   } catch (e) {
+    console.error("verifyFirebaseToken signature verification failed:", e);
     return null;
   }
 }
@@ -712,6 +791,9 @@ function validateMagicBytes(bytes: Uint8Array, mime: string): boolean {
   if (mime.startsWith("image/webp")) {
     return hex.startsWith("52494646"); // RIFF
   }
+  if (mime.startsWith("application/pdf")) {
+    return hex.startsWith("25504446"); // %PDF
+  }
   if (mime.startsWith("video/mp4")) {
     // Check for ftyp signature at bytes 4-8 or standard containers
     return true;
@@ -725,6 +807,7 @@ function getMimeFromFilename(filename: string): string {
   if (ext === "png") return "image/png";
   if (ext === "webp") return "image/webp";
   if (ext === "mp4") return "video/mp4";
+  if (ext === "pdf") return "application/pdf";
   return "application/octet-stream";
 }
 

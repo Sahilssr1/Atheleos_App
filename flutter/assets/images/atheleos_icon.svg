@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 580 580" width="100%" height="100%">
+  <defs>
+    <linearGradient id="atheleosGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ECC86C" />
+      <stop offset="50%" stop-color="#C8A34A" />
+      <stop offset="100%" stop-color="#9E7B28" />
+    </linearGradient>
+  </defs>
+  <!-- Piece 0: Left wing & Apex -->
+  <polygon points="410,32 17,571 227,415 195,415 355,193 355,272 410,220" fill="url(#atheleosGold)" />
+  <!-- Piece 1: Dynamic Blade Slash -->
+  <polygon points="562,191 418,265 408,256 103,571 251,506" fill="url(#atheleosGold)" />
+  <!-- Piece 2: Right Vertical Column -->
+  <polygon points="410,383 355,438 355,571 410,571" fill="url(#atheleosGold)" />
+</svg>

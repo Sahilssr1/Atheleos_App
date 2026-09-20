@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/profile/domain/models/profile_model.dart';
 import '../../features/profile/presentation/controllers/profile_controller.dart';
+import 'app_avatar.dart';
 
 class MentionAutocompleteOverlay extends ConsumerStatefulWidget {
   final TextEditingController controller;
@@ -126,8 +127,8 @@ class _MentionAutocompleteOverlayState extends ConsumerState<MentionAutocomplete
                     final user = matchedUsers[index];
                     return ListTile(
                       dense: true,
-                      leading: CircleAvatar(
-                        backgroundImage: NetworkImage(user.avatarUrl),
+                      leading: AppAvatar(
+                        imageUrl: user.avatarUrl,
                         radius: 16,
                       ),
                       title: Text(

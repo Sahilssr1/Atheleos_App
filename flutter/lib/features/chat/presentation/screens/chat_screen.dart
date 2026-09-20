@@ -5,8 +5,12 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/mention_text.dart';
 import '../../../../core/widgets/mention_autocomplete_overlay.dart';
+import '../../../../core/widgets/app_avatar.dart';
+import '../../../../core/widgets/expandable_caption.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../profile/presentation/controllers/settings_controller.dart';
 import '../../../profile/domain/models/profile_model.dart';
@@ -82,6 +86,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (msg.type == 'shared_profile' || (msg.referencedUserId != null && msg.referencedUserId!.isNotEmpty)) {
       return '👤 Profile';
     }
+    if (msg.type == 'shared_event' || (msg.referencedEventId != null && msg.referencedEventId!.isNotEmpty)) {
+      return '📅 Event';
+    }
     if (msg.storyMediaUrl != null && msg.storyMediaUrl!.isNotEmpty) {
       return '📸 Story Reply';
     }
@@ -125,6 +132,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           accumulatedOffset += 380.0;
         } else if (m.type == 'shared_profile' || (m.referencedUserId != null && m.referencedUserId!.isNotEmpty)) {
           accumulatedOffset += 270.0;
+        } else if (m.type == 'shared_event' || (m.referencedEventId != null && m.referencedEventId!.isNotEmpty)) {
+          accumulatedOffset += 380.0;
         } else if (m.replyToContent != null && m.replyToContent!.isNotEmpty) {
           accumulatedOffset += 115.0;
         } else {
@@ -221,7 +230,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final currentTheme = ref.watch(chatThemeProvider(roomId));
 
     // Group vs 1-to-1 Room details resolution
-    final roomDetailsAsync = isGroup ? ref.watch(chatRoomDetailsProvider(roomId)) : null;
+    final roomDetailsAsync = ref.watch(chatRoomDetailsProvider(roomId));
+    final roomDetails = roomDetailsAsync.valueOrNull;
+    final isMessageRequest = !isGroup && roomDetails != null && roomDetails.isMessageRequestFor(myId);
     final receiverProfileAsync = !isGroup && receiverId.isNotEmpty ? ref.watch(userProvider(receiverId)) : null;
     final allProfiles = ref.watch(profileListProvider).valueOrNull ?? [];
     ProfileModel? fallbackProfile;
@@ -441,10 +452,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         final isSharedReel = msg.type == 'shared_reel' || (msg.referencedReelId != null && msg.referencedReelId!.isNotEmpty);
                         final isSharedPost = msg.type == 'shared_post' || (msg.referencedPostId != null && msg.referencedPostId!.isNotEmpty);
                         final isSharedProfile = msg.type == 'shared_profile' || (msg.referencedUserId != null && msg.referencedUserId!.isNotEmpty);
-                        final hasCustomCard = isSharedReel || isSharedPost || isSharedProfile;
+                        final isSharedEvent = msg.type == 'shared_event' || (msg.referencedEventId != null && msg.referencedEventId!.isNotEmpty);
+                        final hasCustomCard = isSharedReel || isSharedPost || isSharedProfile || isSharedEvent;
                         final isHighlighted = msg.id == _highlightedMessageId;
 
-                        // 1. STANDALONE CUSTOM CARDS (SHARED REEL, POST, PROFILE) WITH SWIPE-TO-REPLY
+                        // 1. STANDALONE CUSTOM CARDS (SHARED REEL, POST, PROFILE, EVENT) WITH SWIPE-TO-REPLY
                         final itemKey = _messageKeys.putIfAbsent(msg.id, () => GlobalKey());
                         if (hasCustomCard) {
                           return KeyedSubtree(
@@ -513,12 +525,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                               formattedTime: formattedTime,
                                               messageState: msg.messageState,
                                               accentColor: currentTheme.accentColor,
+                                            )
+                                          else if (isSharedEvent)
+                                            _SharedEventCard(
+                                              eventId: msg.referencedEventId ?? '',
+                                              isOwn: isOwn,
+                                              formattedTime: formattedTime,
+                                              messageState: msg.messageState,
+                                              accentColor: currentTheme.accentColor,
                                             ),
                                           // Custom user note if provided (different from default)
                                           if (msg.content.isNotEmpty &&
                                               msg.content != 'Shared a reel' &&
                                               msg.content != 'Shared a post' &&
-                                              msg.content != 'Shared a profile')
+                                              msg.content != 'Shared a profile' &&
+                                              msg.content != 'Shared an event')
                                             Container(
                                               margin: const EdgeInsets.only(top: 4),
                                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -861,6 +882,170 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           _replyingToMessage = null;
                         });
                       },
+                    ),
+                  ],
+                ),
+              ),
+
+            // Message Request Action Banner
+            if (isMessageRequest)
+              Container(
+                margin: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B).withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.4)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.mark_email_unread_outlined, color: AppTheme.primaryColor, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Message Request from $receiverName',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Replying to this conversation will accept it and move it to your main Chats list. They won\'t know you\'ve seen it until you reply.',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.65),
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        // Block Button
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.redAccent,
+                              side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.5)),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  backgroundColor: const Color(0xFF1E293B),
+                                  title: Text('Block $receiverName?', style: const TextStyle(color: Colors.white)),
+                                  content: const Text(
+                                    'They will not be able to message or find your profile.',
+                                    style: TextStyle(color: Colors.white70),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, false),
+                                      child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text('Block', style: TextStyle(color: Colors.redAccent)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true && mounted) {
+                                await SettingsActions(myId).blockUser(receiverId);
+                                await FirebaseFirestore.instance.collection('chats').doc(roomId).delete();
+                                if (context.canPop()) {
+                                  context.pop();
+                                }
+                              }
+                            },
+                            child: const Text('Block', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Delete Button
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  backgroundColor: const Color(0xFF1E293B),
+                                  title: const Text('Delete Message Request?', style: TextStyle(color: Colors.white)),
+                                  content: const Text(
+                                    'This request will be removed from your inbox.',
+                                    style: TextStyle(color: Colors.white70),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, false),
+                                      child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true && mounted) {
+                                await FirebaseFirestore.instance.collection('chats').doc(roomId).delete();
+                                if (context.canPop()) {
+                                  context.pop();
+                                }
+                              }
+                            },
+                            child: const Text('Delete', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Accept Button
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: () async {
+                              HapticFeedback.lightImpact();
+                              await ref.read(chatRepositoryProvider).acceptMessageRequest(roomId, myId);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Message request accepted! Moved to your Chats.'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            },
+                            child: const Text('Accept', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1320,15 +1505,10 @@ class _SharedReelCard extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   child: Row(
                     children: [
-                      CircleAvatar(
+                      AppAvatar(
+                        imageUrl: authorAvatar,
                         radius: 12,
-                        backgroundImage: (authorAvatar.isNotEmpty && authorAvatar.startsWith('http'))
-                            ? NetworkImage(authorAvatar)
-                            : null,
-                        backgroundColor: Colors.white10,
-                        child: (authorAvatar.isEmpty || !authorAvatar.startsWith('http'))
-                            ? const Icon(Icons.person, size: 14, color: Colors.white54)
-                            : null,
+                        name: authorName,
                       ),
                       const SizedBox(width: 6),
                       Expanded(
@@ -1386,11 +1566,17 @@ class _SharedReelCard extends ConsumerWidget {
                 if (post.content.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
-                    child: Text(
-                      post.content,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+                    child: ExpandableCaption(
+                      text: post.content,
+                      mentions: post.mentions,
+                      trimLength: 70,
+                      trimLines: 2,
+                      style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.3),
+                      actionStyle: TextStyle(
+                        color: accentColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
 
@@ -1507,13 +1693,36 @@ class _SharedPostCard extends ConsumerWidget {
           );
         }
 
-        final mediaUrl = post.media.isNotEmpty ? post.media.first.mediaUrl : '';
+        final firstMedia = post.media.isNotEmpty ? post.media.first : null;
+        final isVideo = post.hasVideo || (firstMedia?.isVideo ?? false);
         final authorName = post.userName.isNotEmpty ? post.userName : 'Athlete';
         final authorAvatar = post.userAvatar;
 
+        String mediaUrl = '';
+        if (firstMedia != null) {
+          if (firstMedia.thumbnailUrl != null && firstMedia.thumbnailUrl!.isNotEmpty) {
+            mediaUrl = firstMedia.thumbnailUrl!;
+          } else if (!isVideo) {
+            mediaUrl = firstMedia.mediaUrl;
+          } else if (firstMedia.mediaUrl.contains('/video/upload/')) {
+            mediaUrl = firstMedia.mediaUrl
+                .replaceAll('/video/upload/', '/video/upload/so_0/')
+                .replaceAll(RegExp(r'\.(mp4|mov|webm)$', caseSensitive: false), '.jpg');
+          }
+        }
+
         return GestureDetector(
           onTap: () {
-            context.push('/post/${post.id}');
+            if (isVideo) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ReelsViewerScreen(clips: [post], initialIndex: 0),
+                ),
+              );
+            } else {
+              context.push('/post/${post.id}');
+            }
           },
           child: Container(
             width: cardWidth.clamp(220.0, 260.0),
@@ -1542,15 +1751,10 @@ class _SharedPostCard extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   child: Row(
                     children: [
-                      CircleAvatar(
+                      AppAvatar(
+                        imageUrl: authorAvatar,
                         radius: 12,
-                        backgroundImage: (authorAvatar.isNotEmpty && authorAvatar.startsWith('http'))
-                            ? NetworkImage(authorAvatar)
-                            : null,
-                        backgroundColor: Colors.white10,
-                        child: (authorAvatar.isEmpty || !authorAvatar.startsWith('http'))
-                            ? const Icon(Icons.person, size: 14, color: Colors.white54)
-                            : null,
+                        name: authorName,
                       ),
                       const SizedBox(width: 6),
                       Expanded(
@@ -1560,35 +1764,79 @@ class _SharedPostCard extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Icon(Icons.feed_rounded, size: 14, color: accentColor),
+                      Icon(
+                        isVideo ? Icons.video_library_rounded : Icons.feed_rounded,
+                        size: 14,
+                        color: accentColor,
+                      ),
                     ],
                   ),
                 ),
 
-                // Post Media Thumbnail
-                if (mediaUrl.isNotEmpty)
-                  AspectRatio(
-                    aspectRatio: 1.0,
-                    child: CachedNetworkImage(
-                      imageUrl: mediaUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(color: Colors.black26),
-                      errorWidget: (_, __, ___) => Container(
-                        color: Colors.black26,
-                        child: const Icon(Icons.image_outlined, color: Colors.white24, size: 36),
+                // Post Media Thumbnail (with play button overlay if video)
+                if (mediaUrl.isNotEmpty || isVideo)
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      AspectRatio(
+                        aspectRatio: isVideo ? 9 / 12 : 1.0,
+                        child: mediaUrl.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: mediaUrl,
+                                fit: BoxFit.cover,
+                                placeholder: (_, __) => Container(color: Colors.black26),
+                                errorWidget: (_, __, ___) => Container(
+                                  color: Colors.black26,
+                                  child: Icon(
+                                    isVideo ? Icons.movie_creation_outlined : Icons.image_outlined,
+                                    color: Colors.white24,
+                                    size: 36,
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                color: Colors.black26,
+                                child: Icon(
+                                  isVideo ? Icons.movie_creation_outlined : Icons.image_outlined,
+                                  color: Colors.white24,
+                                  size: 36,
+                                ),
+                              ),
                       ),
-                    ),
+                      if (isVideo)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.45),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white24, width: 1),
+                              ),
+                              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
 
                 // Caption
                 if (post.content.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
-                    child: Text(
-                      post.content,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+                    child: ExpandableCaption(
+                      text: post.content,
+                      mentions: post.mentions,
+                      trimLength: 70,
+                      trimLines: 2,
+                      style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.3),
+                      actionStyle: TextStyle(
+                        color: accentColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
 
@@ -1598,7 +1846,7 @@ class _SharedPostCard extends ConsumerWidget {
                   child: Row(
                     children: [
                       Text(
-                        'View Post',
+                        isVideo ? 'Watch Reel' : 'View Post',
                         style: TextStyle(
                           color: accentColor,
                           fontWeight: FontWeight.bold,
@@ -1704,15 +1952,10 @@ class _SharedProfileCard extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircleAvatar(
+                AppAvatar(
+                  imageUrl: avatarUrl,
                   radius: 28,
-                  backgroundImage: (avatarUrl.isNotEmpty && avatarUrl.startsWith('http'))
-                      ? NetworkImage(avatarUrl)
-                      : null,
-                  backgroundColor: Colors.white10,
-                  child: (avatarUrl.isEmpty || !avatarUrl.startsWith('http'))
-                      ? const Icon(Icons.person, size: 30, color: Colors.white54)
-                      : null,
+                  name: name,
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -1796,6 +2039,312 @@ class _SharedProfileCard extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SharedEventCard extends ConsumerWidget {
+  final String eventId;
+  final bool isOwn;
+  final String formattedTime;
+  final String messageState;
+  final Color accentColor;
+
+  const _SharedEventCard({
+    required this.eventId,
+    required this.isOwn,
+    required this.formattedTime,
+    required this.messageState,
+    required this.accentColor,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final eventAsync = ref.watch(sharedEventDetailsProvider(eventId));
+    final cardWidth = MediaQuery.of(context).size.width * 0.72;
+
+    return eventAsync.when(
+      loading: () => Container(
+        width: cardWidth.clamp(230.0, 275.0),
+        height: 240,
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isOwn ? accentColor.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.12),
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2, color: accentColor),
+          ),
+        ),
+      ),
+      error: (_, __) => Container(
+        width: cardWidth.clamp(230.0, 275.0),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F172A),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white12, width: 1),
+        ),
+        child: const Center(
+          child: Text('Event unavailable', style: TextStyle(color: Colors.white38, fontSize: 12)),
+        ),
+      ),
+      data: (event) {
+        if (event == null) {
+          return Container(
+            width: cardWidth.clamp(230.0, 275.0),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white12, width: 1),
+            ),
+            child: const Center(
+              child: Text('Event unavailable', style: TextStyle(color: Colors.white38, fontSize: 12)),
+            ),
+          );
+        }
+
+        final bannerUrl = event.bannerThumbnailUrl.isNotEmpty
+            ? event.bannerThumbnailUrl
+            : event.bannerUrl;
+        final organizerAvatar = event.organizerAvatar;
+        final organizerName = event.organizerName.isNotEmpty ? event.organizerName : 'Organizer';
+
+        return GestureDetector(
+          onTap: () {
+            context.push('/events/${event.eventId}');
+          },
+          child: Container(
+            width: cardWidth.clamp(230.0, 275.0),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isOwn ? accentColor.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.12),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 1. Organizer Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 12,
+                        backgroundImage: (organizerAvatar.isNotEmpty && organizerAvatar.startsWith('http'))
+                            ? NetworkImage(organizerAvatar)
+                            : null,
+                        backgroundColor: Colors.white10,
+                        child: (organizerAvatar.isEmpty || !organizerAvatar.startsWith('http'))
+                            ? const Icon(Icons.event_seat_rounded, size: 13, color: Colors.white54)
+                            : null,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                organizerName,
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (event.verifiedOrganizer) ...[
+                              const SizedBox(width: 3),
+                              const Icon(Icons.verified, color: Colors.blue, size: 11),
+                            ],
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: accentColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: accentColor.withValues(alpha: 0.3), width: 0.8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.calendar_month_rounded, size: 10, color: accentColor),
+                            const SizedBox(width: 3),
+                            Text(
+                              event.sport.toUpperCase(),
+                              style: TextStyle(color: accentColor, fontSize: 8.5, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // 2. Event Banner with Badges
+                Stack(
+                  children: [
+                    AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: bannerUrl.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: bannerUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => Container(color: Colors.black26),
+                              errorWidget: (_, __, ___) => Container(
+                                color: const Color(0xFF1E293B),
+                                child: const Center(
+                                  child: Icon(Icons.sports_rounded, color: Colors.white24, size: 36),
+                                ),
+                              ),
+                            )
+                          : Container(
+                              color: const Color(0xFF1E293B),
+                              child: const Center(
+                                child: Icon(Icons.sports_rounded, color: Colors.white24, size: 36),
+                              ),
+                            ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          event.competitionLevel.toUpperCase(),
+                          style: const TextStyle(color: Colors.white70, fontSize: 8, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: event.eventStatus == 'Registration Open'
+                              ? Colors.green
+                              : (event.eventStatus == 'Upcoming' ? Colors.blue : Colors.red),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          event.eventStatus.toUpperCase(),
+                          style: const TextStyle(color: Colors.black, fontSize: 8, fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // 3. Title & Info
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        event.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today_outlined, size: 11, color: accentColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${event.startDate.month}/${event.startDate.day}/${event.startDate.year}${event.startTime.isNotEmpty ? " • ${event.startTime}" : ""}',
+                            style: const TextStyle(color: Colors.white70, fontSize: 10),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on_outlined, size: 11, color: Colors.white38),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              '${event.venue}, ${event.city}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.white54, fontSize: 10),
+                            ),
+                          ),
+                          Text(
+                            event.isFree ? 'FREE' : '\$${event.entryFee.toStringAsFixed(0)}',
+                            style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // 4. Footer Action
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
+                  child: Row(
+                    children: [
+                      Text(
+                        'View Event',
+                        style: TextStyle(
+                          color: accentColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_ios_rounded, size: 9, color: accentColor),
+                      const Spacer(),
+                      Text(
+                        formattedTime,
+                        style: const TextStyle(fontSize: 9, color: Colors.white38),
+                      ),
+                      if (isOwn) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          messageState == 'sending'
+                              ? 'sending...'
+                              : (messageState == 'failed' ? 'failed' : 'sent'),
+                          style: TextStyle(
+                            fontSize: 8,
+                            color: messageState == 'failed' ? Colors.redAccent : Colors.white38,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

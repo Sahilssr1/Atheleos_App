@@ -370,32 +370,38 @@ class DummyPostRepository implements PostRepository {
   ];
 
   @override
-  Future<List<PostModel>> getPosts({String? currentUserId}) async {
+  Future<List<PostModel>> getPosts({String? currentUserId, int limit = 12}) async {
     await Future.delayed(const Duration(milliseconds: 200));
-    return List.from(_postsCache);
+    return _postsCache.take(limit).toList();
   }
 
   @override
-  Future<List<PostModel>> getPostsByCategory(String category, {String? currentUserId}) async {
+  Future<List<PostModel>> getPostsByCategory(String category, {String? currentUserId, int limit = 12}) async {
     await Future.delayed(const Duration(milliseconds: 150));
     if (category == 'All') {
-      return List.from(_postsCache);
+      return _postsCache.take(limit).toList();
     }
-    return _postsCache.where((post) => post.category.name.toLowerCase() == category.toLowerCase()).toList();
+    return _postsCache
+        .where((post) => post.category.name.toLowerCase() == category.toLowerCase())
+        .take(limit)
+        .toList();
   }
 
   @override
-  Stream<List<PostModel>> watchPosts({String? currentUserId}) {
-    return Stream.value(List.from(_postsCache));
+  Stream<List<PostModel>> watchPosts({String? currentUserId, int limit = 12}) {
+    return Stream.value(_postsCache.take(limit).toList());
   }
 
   @override
-  Stream<List<PostModel>> watchPostsByCategory(String category, {String? currentUserId}) {
+  Stream<List<PostModel>> watchPostsByCategory(String category, {String? currentUserId, int limit = 12}) {
     if (category == 'All') {
-      return Stream.value(List.from(_postsCache));
+      return Stream.value(_postsCache.take(limit).toList());
     }
     return Stream.value(
-      _postsCache.where((p) => p.category.name.toLowerCase() == category.toLowerCase()).toList(),
+      _postsCache
+          .where((p) => p.category.name.toLowerCase() == category.toLowerCase())
+          .take(limit)
+          .toList(),
     );
   }
 
@@ -405,6 +411,7 @@ class DummyPostRepository implements PostRepository {
     required String sport,
     required String sortBy,
     String? currentUserId,
+    int limit = 12,
   }) {
     var result = List<PostModel>.from(_postsCache);
     if (category != 'All') {
@@ -418,7 +425,7 @@ class DummyPostRepository implements PostRepository {
     } else {
       result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     }
-    return Stream.value(result);
+    return Stream.value(result.take(limit).toList());
   }
 
   @override

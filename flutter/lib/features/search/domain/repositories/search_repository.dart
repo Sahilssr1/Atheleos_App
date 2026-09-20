@@ -1,7 +1,7 @@
-import '../../../../core/data/dummy/users_dummy.dart';
+import '../../../profile/domain/models/profile_model.dart';
 
 abstract class SearchRepository {
-  Future<List<DummyUser>> searchAthletes({
+  Future<List<ProfileModel>> searchAthletes({
     required String query,
     required String sport,
     required String state,

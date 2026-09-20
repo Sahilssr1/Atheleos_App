@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/event_model.dart';
 
 abstract class EventsRepository {
-  Stream<List<EventModel>> streamEvents();
+  Stream<List<EventModel>> streamEvents({int limit = 25});
   Stream<bool> watchJoinedStatus(String eventId, String userId);
   Stream<bool> watchBookmarkedStatus(String eventId, String userId);
   Future<void> createEvent(EventModel event);
@@ -17,10 +17,11 @@ class EventsRepositoryImpl implements EventsRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
-  Stream<List<EventModel>> streamEvents() {
+  Stream<List<EventModel>> streamEvents({int limit = 25}) {
     return _firestore
         .collection('events')
         .orderBy('startDate')
+        .limit(limit)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs

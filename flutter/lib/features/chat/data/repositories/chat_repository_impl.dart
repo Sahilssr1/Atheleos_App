@@ -100,20 +100,42 @@ class ChatRepositoryImpl implements ChatRepository {
     }
 
     final roomRef = _firestore.collection('chats').doc(roomId);
+    final roomSnap = await roomRef.get();
+    final roomData = roomSnap.data();
+    final isNewRoom = !roomSnap.exists || roomData == null;
+
+    final roomUpdates = <String, dynamic>{
+      'id': roomId,
+      'participantIds': [message.senderId, message.receiverId],
+      'lastMessage': message.content,
+      'lastMessageTimestamp': message.timestamp.toIso8601String(),
+      'lastSenderId': message.senderId,
+      'unreadBy': FieldValue.arrayUnion([message.receiverId]),
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+
+    if (access.isRequest) {
+      // Not mutual followers and receiver has not replied -> Message request
+      roomUpdates['repliedUserIds'] = FieldValue.arrayUnion([message.senderId]);
+      roomUpdates['requestFor'] = message.receiverId;
+    } else {
+      // Mutual followers (they follow each other back) OR receiver already replied -> Direct to normal chats for both
+      roomUpdates['repliedUserIds'] = FieldValue.arrayUnion([message.senderId, message.receiverId]);
+      roomUpdates['requestFor'] = FieldValue.delete();
+    }
+
+    if (isNewRoom) {
+      roomUpdates['initiatorId'] = message.senderId;
+      roomUpdates['createdAt'] = DateTime.now().toIso8601String();
+    } else {
+      if (roomData?['initiatorId'] == null) {
+        roomUpdates['initiatorId'] = roomData?['lastSenderId'] ?? message.senderId;
+      }
+    }
+
     final messageRef = roomRef.collection('messages').doc(message.id);
     final batch = _firestore.batch();
-    batch.set(
-        roomRef,
-        {
-          'id': roomId,
-          'participantIds': [message.senderId, message.receiverId],
-          'lastMessage': message.content,
-          'lastMessageTimestamp': message.timestamp.toIso8601String(),
-          'unreadBy': FieldValue.arrayUnion([message.receiverId]),
-          'requestFor':
-              access.isRequest ? message.receiverId : FieldValue.delete(),
-        },
-        SetOptions(merge: true));
+    batch.set(roomRef, roomUpdates, SetOptions(merge: true));
     batch.set(messageRef, message.toMap());
     await batch.commit();
 
@@ -148,20 +170,38 @@ class ChatRepositoryImpl implements ChatRepository {
     final roomData = roomSnap.data() ?? {};
     final participantIds = List<String>.from(roomData['participantIds'] ?? [message.senderId, message.receiverId]);
     final otherParticipants = participantIds.where((id) => id != message.senderId).toList();
+    final isGroup = roomId.startsWith('group_') || (roomData['type'] == 'group');
+
+    final roomUpdates = <String, dynamic>{
+      'id': roomId,
+      'participantIds': participantIds,
+      'lastMessage': message.content.isNotEmpty ? message.content : 'Shared content',
+      'lastMessageTimestamp': message.timestamp.toIso8601String(),
+      'lastSenderId': message.senderId,
+      'unreadBy': FieldValue.arrayUnion(otherParticipants),
+      'repliedUserIds': FieldValue.arrayUnion([message.senderId]),
+      'updatedAt': DateTime.now().toIso8601String(),
+    };
+
+    if (!isGroup && otherParticipants.length == 1) {
+      final otherId = otherParticipants.first;
+      final access = await _messagingAccess.check(
+        senderId: message.senderId,
+        receiverId: otherId,
+      );
+      if (!access.isRequest) {
+        roomUpdates['repliedUserIds'] = FieldValue.arrayUnion([message.senderId, otherId]);
+        roomUpdates['requestFor'] = FieldValue.delete();
+      } else if (roomData['requestFor'] == message.senderId) {
+        roomUpdates['requestFor'] = FieldValue.delete();
+      }
+    } else if (roomData['requestFor'] == message.senderId) {
+      roomUpdates['requestFor'] = FieldValue.delete();
+    }
 
     final messageRef = roomRef.collection('messages').doc(message.id);
     final batch = _firestore.batch();
-    batch.set(
-      roomRef,
-      {
-        'id': roomId,
-        'participantIds': participantIds,
-        'lastMessage': message.content.isNotEmpty ? message.content : 'Shared content',
-        'lastMessageTimestamp': message.timestamp.toIso8601String(),
-        'unreadBy': FieldValue.arrayUnion(otherParticipants),
-      },
-      SetOptions(merge: true),
-    );
+    batch.set(roomRef, roomUpdates, SetOptions(merge: true));
     batch.set(messageRef, message.toMap());
     await batch.commit();
   }
@@ -335,6 +375,13 @@ class ChatRepositoryImpl implements ChatRepository {
 
   @override
   Future<void> markRoomAsRead(String roomId, String userId) async {
+    final roomDoc = await _firestore.collection('chats').doc(roomId).get();
+    final roomData = roomDoc.data() ?? {};
+    final rawReplied = roomData['repliedUserIds'];
+    final repliedList = rawReplied is List ? rawReplied.map((e) => e.toString()).toList() : <String>[];
+    final isGroup = roomId.startsWith('group_') || roomData['type'] == 'group';
+    final isRequest = !isGroup && repliedList.isNotEmpty && !repliedList.contains(userId);
+
     final settings = await _firestore
         .collection('users')
         .doc(userId)
@@ -347,12 +394,22 @@ class ChatRepositoryImpl implements ChatRepository {
     final data = <String, dynamic>{
       'unreadBy': FieldValue.arrayRemove([userId]),
     };
-    if ((messaging['readReceipts'] as bool?) ?? true) {
+    if (!isRequest && ((messaging['readReceipts'] as bool?) ?? true)) {
       data['readBy'] = FieldValue.arrayUnion([userId]);
     }
     await _firestore
         .collection('chats')
         .doc(roomId)
         .set(data, SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> acceptMessageRequest(String roomId, String userId) async {
+    final roomRef = _firestore.collection('chats').doc(roomId);
+    await roomRef.set({
+      'repliedUserIds': FieldValue.arrayUnion([userId]),
+      'requestFor': FieldValue.delete(),
+      'updatedAt': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
   }
 }

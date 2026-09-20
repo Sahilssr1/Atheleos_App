@@ -89,48 +89,53 @@ class OfflineSyncNotifier extends StateNotifier<List<OfflineAction>> {
     await _saveQueue();
   }
 
-  /// Process all pending sync actions sequentially
+  bool _isSyncing = false;
+
+  /// Process all pending sync actions sequentially with re-entrancy protection
   Future<void> syncPendingActions() async {
-    if (state.isEmpty) return;
+    if (_isSyncing || state.isEmpty) return;
+    _isSyncing = true;
 
-    final actions = List<OfflineAction>.from(state);
-    state = [];
-    await _saveQueue();
+    try {
+      final actions = List<OfflineAction>.from(state);
+      state = [];
+      await _saveQueue();
 
-    debugPrint('OfflineSync: Syncing ${actions.length} pending actions...');
+      debugPrint('OfflineSync: Syncing ${actions.length} pending actions...');
 
-    for (final action in actions) {
-      try {
-        switch (action.actionType) {
-          case 'like':
-            final userId = action.data['userId'] as String;
-            await _ref.read(postRepositoryProvider).togglePostLike(action.targetId, userId);
-            break;
-          case 'bookmark':
-            final userId = action.data['userId'] as String;
-            await _ref.read(postRepositoryProvider).togglePostBookmark(action.targetId, userId);
-            break;
-          case 'comment':
-            final commentMap = action.data['comment'] as Map<String, dynamic>;
-            final comment = CommentModel.fromMap(commentMap, commentMap['commentId'] as String);
-            await _ref.read(commentRepositoryProvider).addComment(comment);
-            break;
-          case 'follow':
-            final isFollowing = action.data['isFollowing'] as bool;
-            // update follow in remote database via delegate
-            final userRepo = _ref.read(userRepositoryProvider);
-            await userRepo.updateFollowState(action.targetId, isFollowing);
-            break;
+      for (final action in actions) {
+        try {
+          switch (action.actionType) {
+            case 'like':
+              final userId = action.data['userId'] as String;
+              await _ref.read(postRepositoryProvider).togglePostLike(action.targetId, userId);
+              break;
+            case 'bookmark':
+              final userId = action.data['userId'] as String;
+              await _ref.read(postRepositoryProvider).togglePostBookmark(action.targetId, userId);
+              break;
+            case 'comment':
+              final commentMap = action.data['comment'] as Map<String, dynamic>;
+              final comment = CommentModel.fromMap(commentMap, commentMap['commentId'] as String);
+              await _ref.read(commentRepositoryProvider).addComment(comment);
+              break;
+            case 'follow':
+              final isFollowing = action.data['isFollowing'] as bool;
+              // update follow in remote database via delegate
+              final userRepo = _ref.read(userRepositoryProvider);
+              await userRepo.updateFollowState(action.targetId, isFollowing);
+              break;
+          }
+        } catch (e) {
+          debugPrint('OfflineSync: Action ${action.id} failed to sync: $e');
         }
-      } catch (e) {
-        debugPrint('OfflineSync: Action ${action.id} failed to sync: $e');
-        // If it's a persistent error, drop it; if it's transient, we could re-queue it.
-        // For simplicity and to avoid locks, we drop failed actions but log them.
       }
-    }
 
-    // Refresh feed and profiles silent check
-    _ref.invalidate(feedPostsProvider);
+      // Refresh feed and profiles silent check
+      _ref.invalidate(feedPostsProvider);
+    } finally {
+      _isSyncing = false;
+    }
   }
 }
 

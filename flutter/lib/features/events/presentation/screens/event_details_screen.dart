@@ -9,9 +9,12 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../notifications/data/notification_service.dart';
 import '../../../notifications/domain/models/notification_model.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
+import '../../../chat/presentation/widgets/share_content_bottom_sheet.dart';
 import '../../domain/models/event_model.dart';
 import '../../domain/repositories/events_repository.dart';
 import '../controllers/events_controller.dart';
+import '../../../../core/widgets/app_avatar.dart';
+import '../../../../core/utils/user_facing_error.dart';
 
 class EventDetailsScreen extends ConsumerWidget {
   final String eventId;
@@ -70,10 +73,18 @@ class EventDetailsScreen extends ConsumerWidget {
                     child: Icon(Icons.send_rounded, color: Colors.white),
                   ),
                   title: const Text('Share inside ATHELEOS', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                  subtitle: const Text('Send directly to coaches or scouts', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                  subtitle: const Text('Send directly to followers or coaches', style: TextStyle(color: Colors.white38, fontSize: 10)),
                   onTap: () {
                     Navigator.pop(context);
-                    _showInternalShareDialog(context, event, profiles);
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      builder: (context) => ShareContentBottomSheet(
+                        eventId: event.eventId,
+                        shareType: 'event',
+                      ),
+                    );
                   },
                 ),
                 ListTile(
@@ -94,60 +105,6 @@ class EventDetailsScreen extends ConsumerWidget {
               ],
             ),
           ),
-        );
-      },
-    );
-  }
-
-  void _showInternalShareDialog(BuildContext context, EventModel event, List<dynamic> profiles) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
-          title: Text(
-            'Share with Connections',
-            style: GoogleFonts.spaceGrotesk(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          content: Container(
-            width: double.maxFinite,
-            constraints: const BoxConstraints(maxHeight: 250),
-            child: profiles.isEmpty
-                ? const Center(child: Text('No active coaches or players online.', style: TextStyle(color: Colors.white38)))
-                : ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: profiles.length,
-                    itemBuilder: (context, index) {
-                      final p = profiles[index];
-                      return ListTile(
-                        leading: CircleAvatar(backgroundImage: NetworkImage(p.avatarUrl), radius: 14),
-                        title: Text(p.name, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                        subtitle: Text('@${p.username} • ${p.role}', style: const TextStyle(color: Colors.white38, fontSize: 10)),
-                        trailing: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.black,
-                            minimumSize: const Size(60, 28),
-                            padding: EdgeInsets.zero,
-                          ),
-                          onPressed: () {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Event successfully sent to ${p.name}!')),
-                            );
-                          },
-                          child: const Text('Send', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close', style: TextStyle(color: Colors.white38)),
-            ),
-          ],
         );
       },
     );
@@ -186,7 +143,14 @@ class EventDetailsScreen extends ConsumerWidget {
                   background: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.network(event.bannerUrl, fit: BoxFit.cover),
+                      if (event.bannerUrl.trim().isNotEmpty)
+                        Image.network(
+                          event.bannerUrl.trim(),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(color: const Color(0xFF0F172A)),
+                        )
+                      else
+                        Container(color: const Color(0xFF0F172A)),
                       Container(
                         decoration: const BoxDecoration(
                           gradient: LinearGradient(
@@ -234,8 +198,8 @@ class EventDetailsScreen extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withOpacity(0.1),
-                              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
+                              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                              border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -260,10 +224,10 @@ class EventDetailsScreen extends ConsumerWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: event.eventStatus == 'Registration Open'
-                                  ? Colors.green.withOpacity(0.2)
+                                  ? Colors.green.withValues(alpha: 0.2)
                                   : event.eventStatus == 'Upcoming'
-                                      ? Colors.blue.withOpacity(0.2)
-                                      : Colors.red.withOpacity(0.2),
+                                      ? Colors.blue.withValues(alpha: 0.2)
+                                      : Colors.red.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -292,18 +256,18 @@ class EventDetailsScreen extends ConsumerWidget {
 
                       // Host / Organizer Block
                       GestureDetector(
-                        onTap: () => context.go('/profile/${event.organizerUid}'),
+                        onTap: () => context.push('/profile/${event.organizerUid}'),
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: const Color(0xFF0F172A),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white.withOpacity(0.04)),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
                           ),
                           child: Row(
                             children: [
-                              CircleAvatar(
-                                backgroundImage: NetworkImage(event.organizerAvatar),
+                              AppAvatar(
+                                imageUrl: event.organizerAvatar,
                                 radius: 18,
                               ),
                               const SizedBox(width: 12),
@@ -418,7 +382,10 @@ class EventDetailsScreen extends ConsumerWidget {
                                   } catch (e) {
                                     if (context.mounted) {
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Operation failed: $e'), backgroundColor: Colors.red),
+                                        SnackBar(
+                                          content: Text(UserFacingError.message(e, fallback: 'Unable to complete action. Please try again.')),
+                                          backgroundColor: Colors.red,
+                                        ),
                                       );
                                     }
                                   }
@@ -433,15 +400,40 @@ class EventDetailsScreen extends ConsumerWidget {
                           ),
                         ),
                       ],
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.white24),
+                          minimumSize: const Size(double.infinity, 44),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.transparent,
+                            isScrollControlled: true,
+                            builder: (context) => ShareContentBottomSheet(
+                              eventId: event.eventId,
+                              shareType: 'event',
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.share_outlined, size: 16, color: AppTheme.primaryColor),
+                        label: Text(
+                          'SHARE WITH FOLLOWERS',
+                          style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5),
+                        ),
+                      ),
                       const SizedBox(height: 24),
 
                       // Deadline Warning
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.04),
+                          color: Colors.red.withValues(alpha: 0.04),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.red.withOpacity(0.1)),
+                          border: Border.all(color: Colors.red.withValues(alpha: 0.1)),
                         ),
                         child: Row(
                           children: [
@@ -487,8 +479,8 @@ class EventDetailsScreen extends ConsumerWidget {
                                       child: CircleAvatar(
                                         radius: 14,
                                         backgroundColor: Colors.black,
-                                        child: CircleAvatar(
-                                          backgroundImage: NetworkImage(attendeeAvatars[index]),
+                                        child: AppAvatar(
+                                          imageUrl: attendeeAvatars[index],
                                           radius: 13,
                                         ),
                                       ),
@@ -562,7 +554,7 @@ class EventDetailsScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF0F172A),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.02)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.02)),
       ),
       child: Row(
         children: [

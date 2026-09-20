@@ -14,6 +14,7 @@ import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../domain/models/event_model.dart';
 import '../../domain/repositories/events_repository.dart';
 import '../controllers/events_controller.dart';
+import '../../../../core/utils/user_facing_error.dart';
 
 class CreateEventScreen extends ConsumerStatefulWidget {
   const CreateEventScreen({super.key});
@@ -128,7 +129,12 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
 
   Future<void> _pickBanner() async {
     final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1080,
+      imageQuality: 85,
+    );
     if (file != null) {
       setState(() {
         _bannerFile = file;
@@ -249,9 +255,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     });
 
     try {
-      String mediaUrl = 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=800';
-      String publicId = 'default_event';
-      String thumbnailUrl = mediaUrl;
+      String mediaUrl = '';
+      String publicId = '';
+      String thumbnailUrl = '';
 
       // Handle Cloudinary upload if a banner is picked
       if (_bannerFile != null) {
@@ -380,7 +386,10 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
           _isUploading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to publish event: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(UserFacingError.message(e, fallback: 'Failed to publish event. Please try again.')),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }

@@ -6,6 +6,7 @@ import '../../domain/models/post_model.dart';
 import '../controllers/feed_controller.dart';
 import '../widgets/post_card.dart';
 import '../../../clips/presentation/screens/clips_screen.dart';
+import '../../../../core/utils/user_facing_error.dart';
 
 /// Instagram-style vertical posts viewer.
 ///
@@ -125,10 +126,11 @@ class _UserPostsViewerScreenState extends ConsumerState<UserPostsViewerScreen> {
       ),
       error: (err, stack) => Center(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(24.0),
           child: Text(
-            'Error loading posts: $err',
-            style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+            UserFacingError.message(err, fallback: 'Unable to load posts right now.'),
+            style: const TextStyle(color: Colors.white54, fontSize: 13),
+            textAlign: TextAlign.center,
           ),
         ),
       ),

@@ -12,7 +12,7 @@ class BookmarkRepositoryImpl implements BookmarkRepository {
     final authUid = FirebaseAuth.instance.currentUser?.uid;
     final effectiveUserId = (authUid != null && authUid.isNotEmpty)
         ? authUid
-        : (userId.isNotEmpty ? userId : 'user_1');
+        : userId;
 
     if (effectiveUserId.isEmpty) return;
 
@@ -78,7 +78,9 @@ class BookmarkRepositoryImpl implements BookmarkRepository {
     final authUid = FirebaseAuth.instance.currentUser?.uid;
     final effectiveUserId = (authUid != null && authUid.isNotEmpty)
         ? authUid
-        : (userId.isNotEmpty ? userId : 'user_1');
+        : userId;
+
+    if (effectiveUserId.isEmpty) return Stream.value(const []);
 
     return _firestore
         .collection('users')

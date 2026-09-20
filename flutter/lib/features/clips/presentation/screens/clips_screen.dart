@@ -26,6 +26,8 @@ import '../../../../core/services/network_service.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../../../feed/presentation/controllers/like_controller.dart';
 import '../../../chat/presentation/widgets/share_content_bottom_sheet.dart';
+import '../../../../core/widgets/app_avatar.dart';
+import '../../../../core/widgets/expandable_caption.dart';
 
 String formatNumber(int number) {
   if (number >= 1000000) {
@@ -194,12 +196,10 @@ class _ClipsScreenState extends ConsumerState<ClipsScreen> {
                 itemBuilder: (context, index) {
                   final clip = clips[index];
                   return ClipPlayerItem(
-                    // Key by clip id so PageView never reuses a `_ClipPlayerItemState`
-                    // for a different clip — which would leave a stale
-                    // VideoPlayerController pointing at another video.
                     key: ValueKey('clip_${clip.id}'),
                     clip: clip,
                     isActive: index == _currentIndex,
+                    isPreload: (index - _currentIndex).abs() <= 1,
                     onShare: () {
                       ref.read(clipsProvider.notifier).incrementShare(clip.id);
                       showModalBottomSheet(
@@ -232,11 +232,13 @@ class _ClipsScreenState extends ConsumerState<ClipsScreen> {
 class ClipPlayerItem extends ConsumerStatefulWidget {
   final PostModel clip;
   final bool isActive;
+  final bool isPreload;
 
   const ClipPlayerItem({
     super.key,
     required this.clip,
     required this.isActive,
+    this.isPreload = false,
     this.onBookmark,
     this.onShare,
     this.onDelete,
@@ -271,7 +273,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
   @override
   void initState() {
     super.initState();
-    if (widget.isActive) {
+    if (widget.isActive || widget.isPreload) {
       _initializePlayer();
     }
   }
@@ -279,15 +281,19 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
   @override
   void didUpdateWidget(covariant ClipPlayerItem oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // We rely on ValueKey('clip_${clip.id}') at the call site to force a
-    // fresh state when the clip id changes, so we only have to worry about
-    // isActive transitions here.
-    if (widget.isActive != oldWidget.isActive) {
+    // 3-player sliding window: Active plays, Preload initializes & pauses, others dispose.
+    if (widget.isActive != oldWidget.isActive || widget.isPreload != oldWidget.isPreload) {
       if (widget.isActive) {
         if (_controller == null && !_isInitializing) {
           _initializePlayer();
         } else if (_controller != null && _isInitialized) {
           _controller!.play();
+        }
+      } else if (widget.isPreload) {
+        if (_controller == null && !_isInitializing) {
+          _initializePlayer();
+        } else if (_controller != null && _isInitialized && _isPlaying) {
+          _controller!.pause();
         }
       } else {
         _disposePlayer();
@@ -419,6 +425,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
   }
 
   void _handleDoubleTap() {
+    HapticFeedback.mediumImpact();
     setState(() {
       _showHeartAnimation = true;
     });
@@ -468,7 +475,39 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
     final loggedInId = ref.watch(loggedInUserIdProvider);
     final isOwner = loggedInId.isNotEmpty && loggedInId == widget.clip.userId;
 
-    final thumbnailUrl = widget.clip.media.isNotEmpty ? (widget.clip.media.first.thumbnailUrl ?? widget.clip.media.first.mediaUrl) : '';
+    final firstMedia = widget.clip.media.isNotEmpty ? widget.clip.media.first : null;
+    final double? storedAspect = firstMedia?.aspectRatio;
+
+    // Resolve thumbnail safely: if video, avoid raw .mp4 URL
+    String thumbnailUrl = '';
+    if (firstMedia != null) {
+      if (firstMedia.thumbnailUrl != null && firstMedia.thumbnailUrl!.isNotEmpty) {
+        thumbnailUrl = firstMedia.thumbnailUrl!;
+      } else if (!firstMedia.isVideo) {
+        thumbnailUrl = firstMedia.mediaUrl;
+      } else if (firstMedia.mediaUrl.contains('/video/upload/')) {
+        thumbnailUrl = firstMedia.mediaUrl
+            .replaceAll('/video/upload/', '/video/upload/so_0/')
+            .replaceAll(RegExp(r'\.(mp4|mov|webm)$', caseSensitive: false), '.jpg');
+      }
+    }
+
+    BoxFit determineFit(double? aspect) {
+      if (aspect == null || aspect <= 0) return BoxFit.cover;
+      // Instagram-style frame calculation:
+      // If the video is landscape or square (> 0.85, such as 1:1, 4:3, or 16:9 landscape),
+      // render with BoxFit.contain centered on clean black letterboxing so the full frame,
+      // burned-in text, and composition are 100% preserved without zoom cropping.
+      // Vertical reels (<= 0.85, such as 9:16 portrait ~0.56, 3:4, or 4:5) use BoxFit.cover
+      // to fill the screen immersively like Instagram Reels.
+      return aspect > 0.85 ? BoxFit.contain : BoxFit.cover;
+    }
+
+    final double liveAspect = (_isInitialized && _controller != null && _controller!.value.aspectRatio > 0)
+        ? _controller!.value.aspectRatio
+        : (storedAspect != null && storedAspect > 0 ? storedAspect : 9 / 16);
+    final liveFit = determineFit(liveAspect);
+    final thumbFit = determineFit(storedAspect);
 
     return VisibilityDetector(
       key: Key('clip_player_${widget.clip.id}'),
@@ -499,53 +538,68 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
         GestureDetector(
           onTap: _handleSingleTap,
           onDoubleTap: _handleDoubleTap,
-          child: Container(
-            color: Colors.black,
-            child: _hasError
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+          child: SizedBox.expand(
+            child: Container(
+              color: Colors.black,
+              child: _hasError
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.white54, size: 40),
+                          const SizedBox(height: 8),
+                          const Text('Could not load video', style: TextStyle(color: Colors.white54, fontSize: 13)),
+                          const SizedBox(height: 12),
+                          TextButton.icon(
+                            onPressed: _initializePlayer,
+                            icon: const Icon(Icons.refresh, color: AppTheme.primaryColor, size: 16),
+                            label: const Text('Retry', style: TextStyle(color: AppTheme.primaryColor, fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _isInitialized && _controller != null
+                  ? Center(
+                      child: FittedBox(
+                        fit: liveFit,
+                        child: SizedBox(
+                          width: liveAspect * 1000,
+                          height: 1000,
+                          child: VideoPlayer(_controller!),
+                        ),
+                      ),
+                    )
+                  : Stack(
+                      fit: StackFit.expand,
                       children: [
-                        const Icon(Icons.error_outline, color: Colors.white54, size: 40),
-                        const SizedBox(height: 8),
-                        const Text('Could not load video', style: TextStyle(color: Colors.white54, fontSize: 13)),
-                        const SizedBox(height: 12),
-                        TextButton.icon(
-                          onPressed: _initializePlayer,
-                          icon: const Icon(Icons.refresh, color: AppTheme.primaryColor, size: 16),
-                          label: const Text('Retry', style: TextStyle(color: AppTheme.primaryColor, fontSize: 12)),
-                        ),
-                      ],
-                    ),
-                  )
-                : _isInitialized && _controller != null
-                ? FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: _controller!.value.size.width,
-                      height: _controller!.value.size.height,
-                      child: VideoPlayer(_controller!),
-                    ),
-                  )
-                : Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (thumbnailUrl.isNotEmpty)
-                        CachedNetworkImage(
-                          imageUrl: thumbnailUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => const Center(
-                            child: CircularProgressIndicator(color: AppTheme.primaryColor),
+                        if (thumbnailUrl.isNotEmpty)
+                          Center(
+                            child: FittedBox(
+                              fit: thumbFit,
+                              child: SizedBox(
+                                width: (storedAspect ?? (9 / 16)) * 1000,
+                                height: 1000,
+                                child: CachedNetworkImage(
+                                  imageUrl: thumbnailUrl,
+                                  fit: BoxFit.cover,
+                                  memCacheWidth: 1080,
+                                  memCacheHeight: 1920,
+                                  placeholder: (context, url) => const Center(
+                                    child: CircularProgressIndicator(color: AppTheme.primaryColor),
+                                  ),
+                                  errorWidget: (context, url, error) => const Center(
+                                    child: Icon(Icons.broken_image, color: Colors.white24, size: 40),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                          errorWidget: (context, url, error) => const Center(
-                            child: Icon(Icons.broken_image, color: Colors.white24, size: 40),
-                          ),
-                        ),
                       const Center(
                         child: CircularProgressIndicator(color: AppTheme.primaryColor),
                       ),
                     ],
                   ),
+            ),
           ),
         ),
 
@@ -576,14 +630,13 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
             children: [
               GestureDetector(
                 onTap: () {
-                  context.go('/profile/${widget.clip.userId}');
+                  context.push('/profile/${widget.clip.userId}');
                 },
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    AppAvatar(
+                      imageUrl: widget.clip.userAvatar,
                       radius: 18,
-                      backgroundColor: const Color(0xFF1E293B),
-                      backgroundImage: NetworkImage(widget.clip.userAvatar),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -638,14 +691,21 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
                 ],
               ),
               const SizedBox(height: 8),
-              MentionText(
+              ExpandableCaption(
                 text: widget.clip.content,
                 mentions: widget.clip.mentions,
+                trimLength: 85,
+                trimLines: 2,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   height: 1.3,
+                ),
+                actionStyle: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.70),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
                 ),
               ),
               const SizedBox(height: 8),
@@ -676,6 +736,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
                 iconColor: likeState.isLiked ? AppTheme.primaryColor : Colors.white,
                 label: '${likeState.likesCount}',
                 onTap: () {
+                  HapticFeedback.lightImpact();
                   ref.read(sharedLikeStateProvider.notifier).toggleLike(widget.clip);
                 },
               ),
@@ -687,6 +748,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
                 iconColor: Colors.white,
                 label: '${widget.clip.commentsCount}',
                 onTap: () {
+                  HapticFeedback.lightImpact();
                   _showClipComments(context);
                 },
               ),
@@ -698,6 +760,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
                 iconColor: widget.clip.hasBookmarked ? AppTheme.primaryColor : Colors.white,
                 label: 'Save',
                 onTap: () {
+                  HapticFeedback.selectionClick();
                   if (widget.onBookmark != null) {
                     widget.onBookmark!();
                   } else {
@@ -989,14 +1052,24 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
   void _submitComment() async {
     final text = _commentController.text.trim();
     if (text.isEmpty) return;
+    HapticFeedback.lightImpact();
 
     final userAsync = ref.read(currentUserProvider);
     final user = userAsync.valueOrNull;
 
-    final userId = user?.id ?? 'user_1';
-    final username = user?.name ?? 'Jordan Vance';
-    final avatar = user?.avatarUrl ?? 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150';
-    final verified = user?.verified ?? true;
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final userId = (user?.id != null && user!.id.isNotEmpty)
+        ? user.id
+        : (firebaseUser?.uid ?? '');
+    final username = (user?.name != null && user!.name.isNotEmpty)
+        ? user.name
+        : (firebaseUser?.displayName?.isNotEmpty == true
+            ? firebaseUser!.displayName!
+            : 'Athlete');
+    final avatar = (user?.avatarUrl != null && user!.avatarUrl.isNotEmpty)
+        ? user.avatarUrl
+        : (firebaseUser?.photoURL ?? '');
+    final verified = user?.verified ?? false;
 
     _commentController.clear();
     _commentFocusNode.unfocus();
@@ -1139,7 +1212,9 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
   Widget build(BuildContext context) {
     final commentsStream = ref.watch(commentsStreamProvider(widget.clipId));
     final userAsync = ref.watch(currentUserProvider);
-    final currentUserAvatar = userAsync.valueOrNull?.avatarUrl ?? 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150';
+    final currentUserAvatar = (userAsync.valueOrNull?.avatarUrl != null && userAsync.valueOrNull!.avatarUrl.isNotEmpty)
+        ? userAsync.valueOrNull!.avatarUrl
+        : (FirebaseAuth.instance.currentUser?.photoURL ?? '');
 
     return Container(
       decoration: const BoxDecoration(
@@ -1265,11 +1340,11 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
                             GestureDetector(
                               onTap: () {
                                 Navigator.pop(context);
-                                context.go('/profile/${comment.userId}');
+                                context.push('/profile/${comment.userId}');
                               },
-                              child: CircleAvatar(
+                              child: AppAvatar(
+                                imageUrl: comment.profileImage,
                                 radius: 14,
-                                backgroundImage: NetworkImage(comment.profileImage),
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -1280,7 +1355,7 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
                                   GestureDetector(
                                     onTap: () {
                                       Navigator.pop(context);
-                                      context.go('/profile/${comment.userId}');
+                                      context.push('/profile/${comment.userId}');
                                     },
                                     child: Row(
                                       children: [
@@ -1315,6 +1390,7 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
                                     children: [
                                       GestureDetector(
                                         onTap: () {
+                                          HapticFeedback.selectionClick();
                                           setState(() {
                                             _replyingToComment = comment;
                                           });
@@ -1416,6 +1492,11 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
 
           Row(
             children: [
+              AppAvatar(
+                imageUrl: currentUserAvatar,
+                radius: 16,
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: MentionAutocompleteOverlay(
                   controller: _commentController,
@@ -1543,11 +1624,6 @@ class _ReelsViewerScreenState extends ConsumerState<ReelsViewerScreen> {
     super.dispose();
   }
 
-  void _onLike(int index) {
-    final clip = _clips[index];
-    ref.read(sharedLikeStateProvider.notifier).toggleLike(clip);
-  }
-
   void _onBookmark(int index) {
     final clip = _clips[index];
     final bool newBookmarkState = !clip.hasBookmarked;
@@ -1625,6 +1701,7 @@ class _ReelsViewerScreenState extends ConsumerState<ReelsViewerScreen> {
                 key: ValueKey('reels_viewer_${clip.id}'),
                 clip: clip,
                 isActive: index == _currentIndex,
+                isPreload: (index - _currentIndex).abs() <= 1,
                 onBookmark: () => _onBookmark(index),
                 onShare: () => _onShare(index),
                 onDelete: () => _onDeleted(index),

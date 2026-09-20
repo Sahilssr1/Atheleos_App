@@ -8,6 +8,7 @@ import '../../../feed/domain/models/post_model.dart';
 import '../../../feed/presentation/screens/user_posts_viewer_screen.dart';
 import '../controllers/profile_controller.dart';
 import '../../../clips/presentation/screens/clips_screen.dart';
+import '../../../../core/utils/user_facing_error.dart';
 
 class ProfilePostsGrid extends ConsumerStatefulWidget {
   final String userId;
@@ -64,10 +65,11 @@ class _ProfilePostsGridState extends ConsumerState<ProfilePostsGrid> {
           ),
           error: (err, stack) => Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
+              padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
               child: Text(
-                'Error loading gallery: $err',
-                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                UserFacingError.message(err, fallback: 'Unable to load posts right now.'),
+                style: const TextStyle(color: Colors.white54, fontSize: 13),
+                textAlign: TextAlign.center,
               ),
             ),
           ),
@@ -207,6 +209,8 @@ class _ProfilePostsGridState extends ConsumerState<ProfilePostsGrid> {
                             CachedNetworkImage(
                               imageUrl: thumbnailUrl,
                               fit: BoxFit.cover,
+                              memCacheWidth: 360,
+                              memCacheHeight: 360,
                               placeholder: (context, url) => Container(
                                 color: const Color(0xFF0F172A),
                                 child: const Center(

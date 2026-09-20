@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/sports_service.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
+import '../../../chat/presentation/widgets/share_content_bottom_sheet.dart';
 import '../../domain/models/event_model.dart';
 import '../controllers/events_controller.dart';
 
@@ -191,29 +194,139 @@ class EventsScreen extends ConsumerWidget {
           // 5. Events List Feed
           Expanded(
             child: filteredEventsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
-              error: (err, _) => Center(child: Text('Error loading events: $err', style: const TextStyle(color: Colors.red))),
+              loading: () => const _EventsScreenShimmerLoading(),
+              error: (err, _) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Unable to load events',
+                        style: GoogleFonts.spaceGrotesk(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        err.toString(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white38, fontSize: 11),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.black),
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: const Text('RETRY', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          ref.invalidate(eventsStreamProvider);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               data: (events) {
                 if (events.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Text(
-                        'No matches found for your event filters.',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.spaceGrotesk(color: Colors.white38, fontSize: 13),
+                  return RefreshIndicator(
+                    color: AppTheme.primaryColor,
+                    backgroundColor: const Color(0xFF0F172A),
+                    onRefresh: () async {
+                      HapticFeedback.lightImpact();
+                      ref.invalidate(eventsStreamProvider);
+                    },
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                      child: Container(
+                        height: MediaQuery.of(context).size.height * 0.55,
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0F172A),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white12),
+                              ),
+                              child: const Icon(
+                                Icons.event_busy_outlined,
+                                color: Colors.white38,
+                                size: 30,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No Events Found',
+                              style: GoogleFonts.spaceGrotesk(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'No matches found for your current filters. Adjust your sport or competition level to discover upcoming combines.',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.spaceGrotesk(
+                                color: Colors.white38,
+                                fontSize: 12,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppTheme.primaryColor),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              icon: const Icon(Icons.refresh, size: 16, color: AppTheme.primaryColor),
+                              label: Text(
+                                'RESET FILTERS',
+                                style: GoogleFonts.spaceGrotesk(
+                                  color: AppTheme.primaryColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              onPressed: () {
+                                HapticFeedback.lightImpact();
+                                searchController.clear();
+                                ref.read(eventSearchQueryProvider.notifier).state = '';
+                                ref.read(activeSportFilterProvider.notifier).state = 'All';
+                                ref.read(activeLevelFilterProvider.notifier).state = 'All';
+                                ref.invalidate(eventsStreamProvider);
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
                 }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: events.length,
-                  itemBuilder: (context, index) {
-                    final event = events[index];
-                    return _buildEventCard(context, event);
+                return RefreshIndicator(
+                  color: AppTheme.primaryColor,
+                  backgroundColor: const Color(0xFF0F172A),
+                  onRefresh: () async {
+                    HapticFeedback.lightImpact();
+                    ref.invalidate(eventsStreamProvider);
                   },
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                    padding: const EdgeInsets.all(16),
+                    itemCount: events.length,
+                    itemBuilder: (context, index) {
+                      final event = events[index];
+                      return _buildEventCard(context, event);
+                    },
+                  ),
                 );
               },
             ),
@@ -241,7 +354,7 @@ class EventsScreen extends ConsumerWidget {
       color: const Color(0xFF0F172A),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.white.withOpacity(0.04)),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
       ),
       child: InkWell(
         onTap: () {
@@ -256,12 +369,31 @@ class EventsScreen extends ConsumerWidget {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: Stack(
                 children: [
-                  Image.network(
-                    event.bannerThumbnailUrl.isNotEmpty ? event.bannerThumbnailUrl : event.bannerUrl,
-                    width: double.infinity,
-                    height: 120,
-                    fit: BoxFit.cover,
-                  ),
+                  Builder(builder: (context) {
+                    final banner = event.bannerThumbnailUrl.trim().isNotEmpty
+                        ? event.bannerThumbnailUrl.trim()
+                        : event.bannerUrl.trim();
+                    if (banner.isNotEmpty) {
+                      return Image.network(
+                        banner,
+                        width: double.infinity,
+                        height: 120,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: double.infinity,
+                          height: 120,
+                          color: const Color(0xFF1E293B),
+                          child: const Icon(Icons.event, color: Colors.white24, size: 36),
+                        ),
+                      );
+                    }
+                    return Container(
+                      width: double.infinity,
+                      height: 120,
+                      color: const Color(0xFF1E293B),
+                      child: const Icon(Icons.event, color: Colors.white24, size: 36),
+                    );
+                  }),
                   Positioned(
                     top: 10,
                     left: 10,
@@ -311,8 +443,8 @@ class EventsScreen extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.1),
-                          border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                          border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -326,7 +458,7 @@ class EventsScreen extends ConsumerWidget {
                       ),
                       Text(
                         '${event.currentParticipants} / ${event.maxParticipants} Joined',
-                        style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.4), fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4), fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -349,7 +481,7 @@ class EventsScreen extends ConsumerWidget {
                           '${event.venue}, ${event.city}, ${event.state}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.6)),
+                          style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.6)),
                         ),
                       ),
                     ],
@@ -385,11 +517,176 @@ class EventsScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 12),
+                  const Divider(color: Colors.white10, height: 1),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.transparent,
+                            isScrollControlled: true,
+                            builder: (context) => ShareContentBottomSheet(
+                              eventId: event.eventId,
+                              shareType: 'event',
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.share_outlined, size: 15, color: AppTheme.primaryColor),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Share with Followers',
+                                style: GoogleFonts.spaceGrotesk(
+                                  color: Colors.white70,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'View Details',
+                            style: GoogleFonts.spaceGrotesk(
+                              color: AppTheme.primaryColor,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: AppTheme.primaryColor),
+                        ],
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _EventsScreenShimmerLoading extends StatelessWidget {
+  const _EventsScreenShimmerLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: const Color(0xFF1E293B),
+      highlightColor: const Color(0xFF334155),
+      child: ListView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: 3,
+        itemBuilder: (context, index) {
+          return Card(
+            margin: const EdgeInsets.only(bottom: 16),
+            color: const Color(0xFF0F172A),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 120,
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            width: 80,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                          Container(
+                            width: 60,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: 220,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 160,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(color: Colors.white10, height: 1),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            width: 70,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          Container(
+                            width: 50,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

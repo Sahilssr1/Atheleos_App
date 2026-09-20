@@ -10,6 +10,7 @@ class PrivacySettings {
   final bool hideWeight;
   final bool hidePerformanceRating;
   final bool hidePersonalNotes;
+  final bool showFollowing; // whether to show following on public profile
 
   const PrivacySettings({
     this.hideEmail = false,
@@ -19,6 +20,7 @@ class PrivacySettings {
     this.hideWeight = true,
     this.hidePerformanceRating = false,
     this.hidePersonalNotes = false,
+    this.showFollowing = false, // false by default per user specification
   });
 
   PrivacySettings copyWith({
@@ -29,6 +31,7 @@ class PrivacySettings {
     bool? hideWeight,
     bool? hidePerformanceRating,
     bool? hidePersonalNotes,
+    bool? showFollowing,
   }) {
     return PrivacySettings(
       hideEmail: hideEmail ?? this.hideEmail,
@@ -39,6 +42,7 @@ class PrivacySettings {
       hidePerformanceRating:
           hidePerformanceRating ?? this.hidePerformanceRating,
       hidePersonalNotes: hidePersonalNotes ?? this.hidePersonalNotes,
+      showFollowing: showFollowing ?? this.showFollowing,
     );
   }
 
@@ -50,6 +54,7 @@ class PrivacySettings {
         'hideWeight': hideWeight,
         'hidePerformanceRating': hidePerformanceRating,
         'hidePersonalNotes': hidePersonalNotes,
+        'showFollowing': showFollowing,
       };
 
   factory PrivacySettings.fromMap(Map<String, dynamic> map) {
@@ -61,6 +66,7 @@ class PrivacySettings {
       hideWeight: map['hideWeight'] ?? true,
       hidePerformanceRating: map['hidePerformanceRating'] ?? false,
       hidePersonalNotes: map['hidePersonalNotes'] ?? false,
+      showFollowing: map['showFollowing'] ?? false,
     );
   }
 }
@@ -97,9 +103,11 @@ class MessagingSettings {
       };
 
   factory MessagingSettings.fromMap(Map<String, dynamic> map) {
-    final allowedSenders = map['allowedSenders'] == 'verified'
-        ? 'followers'
-        : map['allowedSenders'] ?? 'everyone';
+    var rawSender = map['allowedSenders'];
+    if (rawSender == 'verified') rawSender = 'followers';
+    const validSenders = {'everyone', 'followers', 'nobody'};
+    final allowedSenders =
+        validSenders.contains(rawSender) ? (rawSender as String) : 'everyone';
     return MessagingSettings(
       allowedSenders: allowedSenders,
       allowMessageRequests: map['allowMessageRequests'] ?? true,
@@ -297,15 +305,32 @@ class UserSettingsModel {
       };
 
   factory UserSettingsModel.fromMap(Map<String, dynamic> map) {
+    final privacyMap = Map<String, dynamic>.from(map['privacy'] ?? {});
+    final messagingMap = Map<String, dynamic>.from(map['messaging'] ?? {});
+    final notificationsMap =
+        Map<String, dynamic>.from(map['notifications'] ?? {});
+    final appPreferencesMap =
+        Map<String, dynamic>.from(map['appPreferences'] ?? {});
+
+    // Backward-compatibility: absorb any legacy dot-separated keys
+    for (final entry in map.entries) {
+      final k = entry.key;
+      if (k.startsWith('privacy.')) {
+        privacyMap[k.substring('privacy.'.length)] = entry.value;
+      } else if (k.startsWith('messaging.')) {
+        messagingMap[k.substring('messaging.'.length)] = entry.value;
+      } else if (k.startsWith('notifications.')) {
+        notificationsMap[k.substring('notifications.'.length)] = entry.value;
+      } else if (k.startsWith('appPreferences.')) {
+        appPreferencesMap[k.substring('appPreferences.'.length)] = entry.value;
+      }
+    }
+
     return UserSettingsModel(
-      privacy: PrivacySettings.fromMap(
-          Map<String, dynamic>.from(map['privacy'] ?? {})),
-      messaging: MessagingSettings.fromMap(
-          Map<String, dynamic>.from(map['messaging'] ?? {})),
-      notifications: NotificationSettings.fromMap(
-          Map<String, dynamic>.from(map['notifications'] ?? {})),
-      appPreferences: AppPreferences.fromMap(
-          Map<String, dynamic>.from(map['appPreferences'] ?? {})),
+      privacy: PrivacySettings.fromMap(privacyMap),
+      messaging: MessagingSettings.fromMap(messagingMap),
+      notifications: NotificationSettings.fromMap(notificationsMap),
+      appPreferences: AppPreferences.fromMap(appPreferencesMap),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
     );
   }

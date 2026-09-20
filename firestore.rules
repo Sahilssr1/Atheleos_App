@@ -89,12 +89,14 @@ service cloud.firestore {
           'postsCount', 'clipsCount', 'followingCount',
           'recruitmentStatus', 'recruitingStatus', 'profileCompletion',
           'publicKey', 'topSpeed', 'verticalLeap',
+          'showFollowing',
           'createdAt', 'updatedAt'
         ];
       }
 
       // Public read: hide soft-deleted profiles except to the owner.
-      allow read: if resource.data.get('isDeleted', false) != true || isOwner(uid) || isPhoneOwner(uid);
+      // Safely allows resource == null so checking existence of a user does not throw permission-denied.
+      allow read: if resource == null || resource.data.get('isDeleted', false) != true || isOwner(uid) || isPhoneOwner(uid);
 
       // Create: only the authenticated user can create their own profile doc.
       // Block any attempt to pre-set server-managed fields at creation time.
@@ -131,11 +133,11 @@ service cloud.firestore {
 
 
       // ── User settings ────────────────────────────────────────────────────────
-      // Any active user may read another user's preferences (DM permission checks,
+      // Any authenticated user may read preferences (privacy masking, DM permission checks,
       // read-receipt toggles in messaging_access_service and chat_repository_impl).
       match /settings/{settingsId} {
-        allow read: if isActiveUser();
-        allow write: if (isOwner(uid) || isPhoneOwner(uid)) && isActiveUser();
+        allow read: if isAuthenticated();
+        allow write: if (isOwner(uid) || isPhoneOwner(uid)) && isAuthenticated();
       }
 
       // ── Hidden keywords (content filter) ─────────────────────────────────────
@@ -250,7 +252,7 @@ service cloud.firestore {
     // USERNAMES  /usernames/{username}
     // ═══════════════════════════════════════════════════════════════════════════
     match /usernames/{username} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAuthenticated()
         && request.resource.data.uid == request.auth.uid;
       allow update: if isActiveUser()
@@ -258,6 +260,13 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid;
       allow delete: if isActiveUser()
         && resource.data.uid == request.auth.uid;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL OTPS  /email_otps/{email}
+    // ═══════════════════════════════════════════════════════════════════════════
+    match /email_otps/{email} {
+      allow read, write: if true;
     }
 
 
@@ -334,7 +343,18 @@ service cloud.firestore {
                );
         }
 
-        allow read, update, delete: if isChatParticipant();
+        allow read: if isChatParticipant();
+
+        // Only the sender may edit their message, or other participants may toggle read status / reactions
+        allow update: if isChatParticipant()
+          && (
+               (resource.data.senderId == request.auth.uid || isPhoneOwner(resource.data.senderId))
+               || onlyFields(['read', 'reactions', 'reaction', 'readBy', 'deliveredAt', 'readAt'])
+             );
+
+        // Only the author can delete their own message
+        allow delete: if isChatParticipant()
+          && (resource.data.senderId == request.auth.uid || isPhoneOwner(resource.data.senderId));
 
         allow create: if isActiveUser()
           && (request.resource.data.senderId == request.auth.uid || isPhoneOwner(request.resource.data.senderId))

@@ -6,10 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/password_validator.dart';
+import '../../../../core/widgets/password_requirements_view.dart';
 import '../../domain/models/profile_model.dart';
 import '../controllers/profile_controller.dart';
 import '../controllers/settings_controller.dart';
 import 'edit_profile_screen.dart';
+import '../../../../core/utils/user_facing_error.dart';
 
 class EditProfileSettingsRoute extends ConsumerWidget {
   const EditProfileSettingsRoute({super.key});
@@ -405,8 +408,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
   Future<void> _save() async {
     final password = _newController.text;
-    if (password.length < 8) {
-      _showError(context, 'Use at least 8 characters for your new password.');
+    final validationError = PasswordValidator.validate(password);
+    if (validationError != null) {
+      _showError(context, validationError);
       return;
     }
     if (password != _confirmController.text) {
@@ -439,7 +443,13 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         _PasswordField(
             controller: _currentController, label: 'Current password'),
         const SizedBox(height: 12),
-        _PasswordField(controller: _newController, label: 'New password'),
+        _PasswordField(
+          controller: _newController,
+          label: 'New password',
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 10),
+        PasswordRequirementsView(password: _newController.text),
         const SizedBox(height: 12),
         _PasswordField(
             controller: _confirmController, label: 'Confirm new password'),
@@ -795,8 +805,13 @@ class _PrimaryButton extends StatelessWidget {
 class _PasswordField extends StatefulWidget {
   final TextEditingController controller;
   final String label;
+  final ValueChanged<String>? onChanged;
 
-  const _PasswordField({required this.controller, required this.label});
+  const _PasswordField({
+    required this.controller,
+    required this.label,
+    this.onChanged,
+  });
 
   @override
   State<_PasswordField> createState() => _PasswordFieldState();
@@ -810,6 +825,7 @@ class _PasswordFieldState extends State<_PasswordField> {
     return TextField(
       controller: widget.controller,
       obscureText: _obscure,
+      onChanged: widget.onChanged,
       decoration: InputDecoration(
         labelText: widget.label,
         suffixIcon: IconButton(
@@ -828,13 +844,7 @@ bool _isEmail(String value) =>
     RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value.trim());
 
 String _friendlyError(Object error) {
-  if (error is FirebaseAuthException) {
-    return error.message ?? error.code.replaceAll('-', ' ');
-  }
-  return error
-      .toString()
-      .replaceFirst('Exception: ', '')
-      .replaceFirst('Bad state: ', '');
+  return UserFacingError.message(error);
 }
 
 void _showError(BuildContext context, String message) {

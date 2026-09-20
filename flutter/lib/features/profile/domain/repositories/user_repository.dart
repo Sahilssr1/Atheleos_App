@@ -3,8 +3,8 @@ import '../../domain/models/profile_model.dart';
 abstract class UserRepository {
   Future<ProfileModel?> getUserById(String id);
   Future<ProfileModel?> getCurrentUser();
-  Future<List<ProfileModel>> getAllUsers();
-  Future<List<ProfileModel>> getUsersByRole(String role);
+  Future<List<ProfileModel>> getAllUsers({int limit = 50});
+  Future<List<ProfileModel>> getUsersByRole(String role, {int limit = 50});
   Future<void> updateFollowState(String userId, bool isFollowing);
   Future<void> updateUser(ProfileModel user);
   Future<void> toggleFollow(String currentUserId, String targetUserId);

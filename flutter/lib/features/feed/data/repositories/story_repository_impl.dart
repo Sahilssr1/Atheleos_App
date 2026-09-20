@@ -7,14 +7,15 @@ class StoryRepositoryImpl implements StoryRepository {
 
   @override
   Stream<List<StoryModel>> watchActiveStories() {
-    // Listen to all active stories and filter locally or query using ISO Strings.
-    // To ensure firestore works seamlessly without requiring complex compound indexes on app start,
-    // we query all and filter locally for stories under 24 hours.
+    final cutoff = DateTime.now().subtract(const Duration(hours: 24));
+    final cutoffIso = cutoff.toIso8601String();
     return _firestore
         .collection('stories')
+        .where('createdAt', isGreaterThan: cutoffIso)
+        .orderBy('createdAt', descending: true)
+        .limit(50)
         .snapshots()
         .map((snapshot) {
-          final cutoff = DateTime.now().subtract(const Duration(hours: 24));
           final list = snapshot.docs
               .map((doc) {
                 try {

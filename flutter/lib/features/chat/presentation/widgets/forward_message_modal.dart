@@ -72,6 +72,7 @@ class _ForwardMessageModalState extends ConsumerState<ForwardMessageModal> {
           referencedPostId: msg.referencedPostId,
           referencedReelId: msg.referencedReelId,
           referencedUserId: msg.referencedUserId,
+          referencedEventId: msg.referencedEventId,
           gifProvider: msg.gifProvider,
           gifUrl: msg.gifUrl,
           gifId: msg.gifId,
@@ -120,6 +121,7 @@ class _ForwardMessageModalState extends ConsumerState<ForwardMessageModal> {
     final targetItems = <_ForwardTargetItem>[];
 
     for (final room in chatRooms) {
+      if (room.isMessageRequestFor(widget.myId)) continue;
       if (room.isGroup) {
         targetItems.add(_ForwardTargetItem(
           id: room.id,

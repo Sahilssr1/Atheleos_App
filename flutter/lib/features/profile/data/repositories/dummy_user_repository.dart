@@ -20,14 +20,15 @@ class DummyUserRepository implements UserRepository {
   }
 
   @override
-  Future<List<ProfileModel>> getAllUsers() async {
-    return _inner.getAllProfiles();
+  Future<List<ProfileModel>> getAllUsers({int limit = 50}) async {
+    final all = await _inner.getAllProfiles();
+    return all.take(limit).toList();
   }
 
   @override
-  Future<List<ProfileModel>> getUsersByRole(String role) async {
+  Future<List<ProfileModel>> getUsersByRole(String role, {int limit = 50}) async {
     final all = await _inner.getAllProfiles();
-    return all.where((p) => p.role == role).toList();
+    return all.where((p) => p.role == role).take(limit).toList();
   }
 
   @override

@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/cache_manager.dart';
 import '../../../../core/services/media_upload_service.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../feed/domain/models/post_model.dart';
+import '../../../events/domain/models/event_model.dart';
 import '../../domain/models/chat_message.dart';
 import '../../domain/models/chat_room_model.dart';
 import '../../domain/models/media_attachment.dart';
@@ -96,7 +98,7 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
 
       _markRead();
     }, onError: (err) {
-      print('[CHAT STREAM ERROR] $err');
+      debugPrint('[CHAT STREAM ERROR] $err');
       _notifyLoaded();
     });
   }
@@ -198,7 +200,7 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
 
       _updateState();
     } catch (e) {
-      print('[CHAT PAGINATION ERROR] $e');
+      debugPrint('[CHAT PAGINATION ERROR] $e');
     } finally {
       _isLoadingMore = false;
       if (_ref != null) {
@@ -218,6 +220,7 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
     String? referencedPostId,
     String? referencedReelId,
     String? referencedUserId,
+    String? referencedEventId,
     String? gifProvider,
     String? gifUrl,
     String? gifId,
@@ -230,6 +233,7 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
         referencedPostId == null &&
         referencedReelId == null &&
         referencedUserId == null &&
+        referencedEventId == null &&
         gifUrl == null) {
       return;
     }
@@ -247,6 +251,7 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
       referencedPostId: referencedPostId,
       referencedReelId: referencedReelId,
       referencedUserId: referencedUserId,
+      referencedEventId: referencedEventId,
       gifProvider: gifProvider,
       gifUrl: gifUrl,
       gifId: gifId,
@@ -273,7 +278,7 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
       }
       state = state.map((m) => m.id == id ? serverMessage : m).toList();
     } catch (e, stack) {
-      print('[CHAT ERROR] Failed to send message: $e\n$stack');
+      debugPrint('[CHAT ERROR] Failed to send message: $e\n$stack');
       state = state.map((m) => m.id == id ? m.copyWith(localState: 'FAILED', messageState: 'failed') : m).toList();
     }
   }
@@ -401,7 +406,7 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
             return;
           }
         } catch (fallbackErr) {
-          print('[CHAT FALLBACK ERROR] $fallbackErr');
+          debugPrint('[CHAT FALLBACK ERROR] $fallbackErr');
         }
 
         state = state.map((m) => m.id == id ? m.copyWith(localState: 'FAILED', messageState: 'failed') : m).toList();
@@ -526,4 +531,10 @@ final sharedPostDetailsProvider = FutureProvider.family<PostModel?, String>((ref
   final doc = await FirebaseFirestore.instance.collection('posts').doc(postId).get();
   if (!doc.exists || doc.data() == null) return null;
   return PostModel.fromMap({'id': doc.id, ...doc.data()!});
+});
+
+final sharedEventDetailsProvider = FutureProvider.family<EventModel?, String>((ref, eventId) async {
+  final doc = await FirebaseFirestore.instance.collection('events').doc(eventId).get();
+  if (!doc.exists || doc.data() == null) return null;
+  return EventModel.fromMap(doc.data()!, doc.id);
 });

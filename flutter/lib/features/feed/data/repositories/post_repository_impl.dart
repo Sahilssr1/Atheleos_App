@@ -17,32 +17,35 @@ class PostRepositoryImpl implements PostRepository {
   }
 
   @override
-  Future<List<PostModel>> getPosts({String? currentUserId}) async {
+  Future<List<PostModel>> getPosts({String? currentUserId, int limit = 12}) async {
     final snapshot = await _firestore
         .collection('posts')
         .orderBy('createdAt', descending: true)
+        .limit(limit)
         .get();
     return snapshot.docs.map((doc) => _mapDocToPost(doc, currentUserId)).toList();
   }
 
   @override
-  Future<List<PostModel>> getPostsByCategory(String category, {String? currentUserId}) async {
+  Future<List<PostModel>> getPostsByCategory(String category, {String? currentUserId, int limit = 12}) async {
     if (category.toLowerCase() == 'all') {
-      return getPosts(currentUserId: currentUserId);
+      return getPosts(currentUserId: currentUserId, limit: limit);
     }
     final snapshot = await _firestore
         .collection('posts')
         .where('category', isEqualTo: category.toLowerCase())
         .orderBy('createdAt', descending: true)
+        .limit(limit)
         .get();
     return snapshot.docs.map((doc) => _mapDocToPost(doc, currentUserId)).toList();
   }
 
   @override
-  Stream<List<PostModel>> watchPosts({String? currentUserId}) {
+  Stream<List<PostModel>> watchPosts({String? currentUserId, int limit = 12}) {
     return _firestore
         .collection('posts')
         .orderBy('createdAt', descending: true)
+        .limit(limit)
         .snapshots()
         .map((snapshot) {
           return snapshot.docs.map((doc) => _mapDocToPost(doc, currentUserId)).toList();
@@ -50,17 +53,18 @@ class PostRepositoryImpl implements PostRepository {
   }
 
   @override
-  Stream<List<PostModel>> watchPostsByCategory(String category, {String? currentUserId}) {
+  Stream<List<PostModel>> watchPostsByCategory(String category, {String? currentUserId, int limit = 12}) {
     if (category.toLowerCase() == 'all') {
-      return watchPosts(currentUserId: currentUserId);
+      return watchPosts(currentUserId: currentUserId, limit: limit);
     }
     return _firestore
         .collection('posts')
         .where('category', isEqualTo: category.toLowerCase())
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
         .snapshots()
         .map((snapshot) {
           final posts = snapshot.docs.map((doc) => _mapDocToPost(doc, currentUserId)).toList();
-          posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return posts;
         });
   }
@@ -71,6 +75,7 @@ class PostRepositoryImpl implements PostRepository {
     required String sport,
     required String sortBy,
     String? currentUserId,
+    int limit = 12,
   }) {
     Query query = _firestore.collection('posts');
 
@@ -93,7 +98,7 @@ class PostRepositoryImpl implements PostRepository {
     }
 
     final sortField = sortBy == 'Trending' ? 'likes' : 'createdAt';
-    query = query.orderBy(sortField, descending: true);
+    query = query.orderBy(sortField, descending: true).limit(limit);
 
     return query.snapshots().map((snapshot) {
       return snapshot.docs.map((doc) => _mapDocToPost(doc, currentUserId)).toList();
@@ -174,7 +179,7 @@ class PostRepositoryImpl implements PostRepository {
     final authUid = FirebaseAuth.instance.currentUser?.uid;
     final effectiveUserId = (authUid != null && authUid.isNotEmpty)
         ? authUid
-        : (userId.isNotEmpty ? userId : 'user_1');
+        : userId;
 
     if (effectiveUserId.isEmpty || postId.isEmpty) return;
 
@@ -259,7 +264,7 @@ class PostRepositoryImpl implements PostRepository {
     final authUid = FirebaseAuth.instance.currentUser?.uid;
     final effectiveUserId = (authUid != null && authUid.isNotEmpty)
         ? authUid
-        : (userId.isNotEmpty ? userId : 'user_1');
+        : userId;
 
     if (effectiveUserId.isEmpty) return;
 

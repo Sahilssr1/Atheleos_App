@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/sport_selector_field.dart';
+import '../../../../core/utils/password_validator.dart';
+import '../../../../core/widgets/password_requirements_view.dart';
+import '../../../../core/widgets/atheleos_logo.dart';
+import '../../data/models/user_model.dart';
 import '../controllers/auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -64,9 +72,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     final step = authState.currentStep;
-    final isOnboarding = step == AuthStep.phoneInput ||
+    final isOnboarding = step == AuthStep.createAccountCredentials ||
+        step == AuthStep.phoneInput ||
         step == AuthStep.otpInput ||
-        step == AuthStep.basicAccount ||
         step == AuthStep.roleSelection ||
         step == AuthStep.location ||
         step == AuthStep.roleDetails;
@@ -126,12 +134,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         _SplashWidget(onFinished: () {
                           ref.read(authControllerProvider.notifier).setStep(AuthStep.login);
                         }),
-                        const _LoginGoogleWidget(),
+                        const _LoginCredentialsWidget(),
                         const _PhoneLoginWidget(),
                         const _PhoneLoginOtpWidget(),
+                        const _CreateAccountCredentialsWidget(),
                         const _PhoneInputWidget(),
                         const _OtpInputWidget(),
-                        const _BasicAccountWidget(),
                         const _RoleSelectionWidget(),
                         const _LocationWidget(),
                         const _RoleDetailsWidget(),
@@ -183,10 +191,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         step == AuthStep.phoneLogin ||
         step == AuthStep.phoneLoginOtp;
 
-    // For onboarding steps: count from phoneInput (5) to roleDetails (10) = 6 steps
-    const onboardingStart = AuthStep.phoneInput;
+    // For onboarding steps: count from createAccountCredentials (4) to roleDetails (9) = 6 steps
+    const onboardingStart = AuthStep.createAccountCredentials;
     final onboardingIndex = step.index - onboardingStart.index;
-    const totalOnboardingSteps = 6; // phoneInput→otpInput→basicAccount→roleSelection→location→roleDetails
+    const totalOnboardingSteps = 6; // credentials→phoneInput→otpInput→roleSelection→location→roleDetails
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -198,11 +206,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
               onPressed: () async {
-                if (step == AuthStep.phoneInput || step == AuthStep.basicAccount) {
+                if (step == AuthStep.createAccountCredentials) {
+                  ref.read(authControllerProvider.notifier).goBackToLogin();
+                } else if (step == AuthStep.phoneInput) {
                   final shouldExit = await _showExitConfirmationDialog();
                   if (shouldExit) {
                     await ref.read(authControllerProvider.notifier).exitOnboarding();
                   }
+                } else if (step == AuthStep.phoneLoginOtp && state.phoneLinkedAccounts.isNotEmpty) {
+                  ref.read(authControllerProvider.notifier).clearPhoneLinkedAccounts();
                 } else {
                   ref.read(authControllerProvider.notifier).previousStep();
                 }
@@ -301,37 +313,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-// ATHELEOS GOLD LOGO PAINTER
-class AtheleosLogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppTheme.primaryColor
-      ..style = PaintingStyle.fill;
 
-    final path = Path();
-    // High-tech, sharp stylized athletic letter "A"
-    path.moveTo(size.width * 0.5, size.height * 0.05);
-    path.lineTo(size.width * 0.2, size.height * 0.95);
-    path.lineTo(size.width * 0.35, size.height * 0.95);
-    path.lineTo(size.width * 0.5, size.height * 0.45);
-    path.lineTo(size.width * 0.65, size.height * 0.95);
-    path.lineTo(size.width * 0.8, size.height * 0.95);
-    path.close();
-
-    // Sharp cross-cutting horizontal graphic block
-    path.moveTo(size.width * 0.38, size.height * 0.68);
-    path.lineTo(size.width * 0.62, size.height * 0.68);
-    path.lineTo(size.width * 0.68, size.height * 0.77);
-    path.lineTo(size.width * 0.32, size.height * 0.77);
-    path.close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
 
 // STEP 0: SPLASH SCREEN
 class _SplashWidget extends StatefulWidget {
@@ -426,192 +408,728 @@ class _SplashWidgetState extends State<_SplashWidget> with SingleTickerProviderS
   }
 }
 
-// STEP 1: CONTINUE WITH GOOGLE SCREEN
-class _LoginGoogleWidget extends ConsumerWidget {
-  const _LoginGoogleWidget();
+// STEP 1: USERNAME OR EMAIL + PASSWORD LOGIN
+class _LoginCredentialsWidget extends ConsumerStatefulWidget {
+  const _LoginCredentialsWidget();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authControllerProvider);
+  ConsumerState<_LoginCredentialsWidget> createState() =>
+      _LoginCredentialsWidgetState();
+}
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24),
-      child: Column(
-        children: [
-          const Spacer(),
-          // Giant premium branding
-          CustomPaint(
-            size: const Size(100, 100),
-            painter: AtheleosLogoPainter(),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'ATHELEOS',
-            style: GoogleFonts.spaceGrotesk(
-              fontSize: 36,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 4,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'THE PREMIUM ATHLETIC ARENA',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.spaceGrotesk(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 2,
-              color: AppTheme.primaryColor,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            'WELCOME TO THE FUTURE',
-            style: GoogleFonts.spaceGrotesk(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Connect with top-tier coaches, scout elite prospects, and monetize your combine highlights.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: Colors.white70,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 32),
+class _LoginCredentialsWidgetState
+    extends ConsumerState<_LoginCredentialsWidget> {
+  final _identifierController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  bool _obscurePassword = true;
+  bool _rememberMe = true;
 
-          if (authState.errorMessage != null)
-            Container(
-              padding: const EdgeInsets.all(12),
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                border: Border.all(color: Colors.red.withOpacity(0.3)),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.error_outline, color: Colors.red, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      authState.errorMessage!,
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+  Map<String, String>? _savedCredentials;
+  bool _hasFullSavedCredentials = false;
+  bool _showManualInputs = false;
+  bool _isDirectSigningIn = false;
 
-          // Google Sign-In primary option
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedAccount();
+  }
+
+  Future<void> _loadSavedAccount() async {
+    final creds =
+        await ref.read(authControllerProvider.notifier).getSavedCredentials();
+    if (creds != null && mounted) {
+      final hasPassword =
+          creds['password'] != null && creds['password']!.isNotEmpty;
+      setState(() {
+        _savedCredentials = creds;
+        _hasFullSavedCredentials = hasPassword;
+        _showManualInputs = !hasPassword;
+        _identifierController.text = creds['identifier'] ?? '';
+      });
+    } else if (mounted) {
+      setState(() {
+        _showManualInputs = true;
+      });
+    }
+  }
+
+  Future<void> _handleDirectSavedSignIn() async {
+    setState(() => _isDirectSigningIn = true);
+    try {
+      await ref
+          .read(authControllerProvider.notifier)
+          .directSignInWithSavedAccount();
+    } finally {
+      if (mounted) {
+        setState(() => _isDirectSigningIn = false);
+      }
+    }
+  }
+
+  Future<void> _forgetSavedAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF181818),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Colors.white12),
+        ),
+        title: Text(
+          'Remove Saved Account?',
+          style: GoogleFonts.spaceGrotesk(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'This will remove your saved credentials from this device. You will need to enter your password next time you sign in.',
+          style: GoogleFonts.inter(color: Colors.white70, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel',
+                style: GoogleFonts.inter(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Remove',
+                style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      await ref.read(authControllerProvider.notifier).clearSavedCredentials();
+      setState(() {
+        _savedCredentials = null;
+        _hasFullSavedCredentials = false;
+        _showManualInputs = true;
+        _identifierController.clear();
+        _passwordController.clear();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _identifierController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _handleLogin() {
+    if (_formKey.currentState!.validate()) {
+      ref.read(authControllerProvider.notifier).loginWithUsernameOrEmail(
+            identifier: _identifierController.text.trim(),
+            password: _passwordController.text,
+            saveCredentials: _rememberMe,
+          );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final authState = ref.watch(authControllerProvider);
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 16),
+              Center(
+                child: CustomPaint(
+                  size: const Size(64, 64),
+                  painter: AtheleosLogoPainter(),
                 ),
-                elevation: 0,
               ),
-              onPressed: () {
-                ref.read(authControllerProvider.notifier).signInWithGoogle();
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 22,
-                    height: 22,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(4),
+              const SizedBox(height: 16),
+
+              if (_hasFullSavedCredentials && !_showManualInputs) ...[
+                // ─────────────────────────────────────────────────────────────
+                // 1-TAP SAVED ACCOUNT SIGN-IN SCREEN
+                // ─────────────────────────────────────────────────────────────
+                Text(
+                  'WELCOME BACK',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Continue directly with your saved Arena account or switch credentials.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.white70,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                if (authState.errorMessage != null) ...[
+                  _buildErrorBanner(authState.errorMessage!),
+                  const SizedBox(height: 16),
+                ],
+
+                // Hero Saved Account Card
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF141414),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppTheme.primaryColor.withOpacity(0.4),
+                      width: 1.5,
                     ),
-                    child: Center(
-                      child: Text(
-                        'G',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withOpacity(0.08),
+                        blurRadius: 18,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // Badge & Remove Row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.bolt_rounded,
+                                    size: 14, color: AppTheme.primaryColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'SAVED ON DEVICE',
+                                  style: GoogleFonts.spaceGrotesk(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close,
+                                color: Colors.white38, size: 18),
+                            tooltip: 'Remove saved account',
+                            onPressed: _forgetSavedAccount,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // User Profile Info
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 28,
+                            backgroundColor:
+                                AppTheme.primaryColor.withOpacity(0.2),
+                            child: Text(
+                              ((_savedCredentials!['fullName']?.isNotEmpty ??
+                                          false)
+                                      ? _savedCredentials!['fullName']![0]
+                                      : 'U')
+                                  .toUpperCase(),
+                              style: GoogleFonts.spaceGrotesk(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                                fontSize: 22,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _savedCredentials!['fullName'] ??
+                                      'Atheleos User',
+                                  style: GoogleFonts.spaceGrotesk(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    fontSize: 17,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '@${_savedCredentials!['username']}',
+                                  style: GoogleFonts.inter(
+                                    color: AppTheme.primaryColor,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    (_savedCredentials!['role'] ?? 'ATHLETE')
+                                        .toUpperCase(),
+                                    style: GoogleFonts.spaceGrotesk(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      // 1-TAP SIGN IN ACTION BUTTON
+                      SizedBox(
+                        height: 54,
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 4,
+                            shadowColor:
+                                AppTheme.primaryColor.withOpacity(0.4),
+                          ),
+                          onPressed: _isDirectSigningIn
+                              ? null
+                              : _handleDirectSavedSignIn,
+                          child: _isDirectSigningIn
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.black,
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.flash_on_rounded,
+                                        size: 20, color: Colors.black),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'CONTINUE AS @${(_savedCredentials!['username'] ?? 'USER').toUpperCase()}',
+                                      style: GoogleFonts.spaceGrotesk(
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 1.2,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                         ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Switch Account Option
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _showManualInputs = true;
+                          });
+                        },
+                        child: Text(
+                          'Switch Account / Enter Password',
+                          style: GoogleFonts.inter(
+                            color: Colors.white54,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                // ─────────────────────────────────────────────────────────────
+                // MANUAL INPUTS / GOOGLE AUTOFILL MODE
+                // ─────────────────────────────────────────────────────────────
+                Text(
+                  'WELCOME TO ARENA',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Sign in to access your athlete combine stats, scouting reports, and network.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.white70,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Return to Saved Account Banner if available
+                if (_hasFullSavedCredentials) ...[
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _showManualInputs = false;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: AppTheme.primaryColor.withOpacity(0.35),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.bolt_rounded,
+                              color: AppTheme.primaryColor, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Use saved 1-Tap sign in for @${_savedCredentials!['username']}',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios,
+                              color: AppTheme.primaryColor, size: 12),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'CONTINUE WITH GOOGLE',
-                    style: GoogleFonts.spaceGrotesk(
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.5,
-                      fontSize: 14,
-                    ),
-                  ),
+                  const SizedBox(height: 16),
                 ],
-              ),
-            ),
-          ),
 
-          const SizedBox(height: 20),
-          GestureDetector(
-            onTap: () =>
-                ref.read(authControllerProvider.notifier).goToPhoneLogin(),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.help_outline,
-                    color: Colors.white38, size: 14),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    'Forgot Google account?',
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: Colors.white38,
-                      decoration: TextDecoration.underline,
-                      decorationColor: Colors.white24,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    'Sign in another way',
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: AppTheme.primaryColor,
-                      fontWeight: FontWeight.w600,
+                if (authState.errorMessage != null) ...[
+                  _buildErrorBanner(authState.errorMessage!),
+                  const SizedBox(height: 16),
+                ],
+
+                AutofillGroup(
+                  onDisposeAction: AutofillContextAction.commit,
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Username or Email Field
+                        TextFormField(
+                          controller: _identifierController,
+                          keyboardType: TextInputType.emailAddress,
+                          autofillHints: const [
+                            AutofillHints.username,
+                            AutofillHints.email,
+                          ],
+                          textInputAction: TextInputAction.next,
+                          style: GoogleFonts.inter(
+                              color: Colors.white, fontSize: 15),
+                          decoration: const InputDecoration(
+                            labelText: 'Username or Email',
+                            hintText:
+                                'e.g. dynamic_player or player@atheleos.com',
+                            prefixIcon: Icon(Icons.alternate_email,
+                                color: AppTheme.primaryColor, size: 20),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Enter your username or email address';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Password Field
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          autofillHints: const [AutofillHints.password],
+                          textInputAction: TextInputAction.done,
+                          onFieldSubmitted: (_) => _handleLogin(),
+                          style: GoogleFonts.inter(
+                              color: Colors.white, fontSize: 15),
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            hintText: 'Enter your password',
+                            prefixIcon: const Icon(Icons.lock_outline,
+                                color: AppTheme.primaryColor, size: 20),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                color: Colors.white54,
+                                size: 20,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Enter your password';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Remember Me & Forgot Password Row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _rememberMe = !_rememberMe;
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: Checkbox(
+                                      value: _rememberMe,
+                                      activeColor: AppTheme.primaryColor,
+                                      checkColor: Colors.black,
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      onChanged: (val) {
+                                        setState(() {
+                                          _rememberMe = val ?? true;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Remember credentials',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => context.push('/forgot-password'),
+                              child: Text(
+                                'Forgot password?',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: AppTheme.primaryColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Primary SIGN IN Button
+                        SizedBox(
+                          height: 54,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.black,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            onPressed: _handleLogin,
+                            child: Text(
+                              'SIGN IN',
+                              style: GoogleFonts.spaceGrotesk(
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.5,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Google Password Manager Assistant Hint
+                        Container(
+                          margin: const EdgeInsets.only(top: 14),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.04),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.vpn_key_outlined,
+                                  color: AppTheme.primaryColor, size: 16),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Google Password Manager automatically suggests and prompts to save your credentials securely.',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 11, color: Colors.white54),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ],
-            ),
-          ),
 
-          const SizedBox(height: 20),
-          Text(
-            'By signing in, you agree to the Atheleos Athlete Code of Conduct and Verified Recruitment Agreements.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
-              fontSize: 10,
-              color: Colors.white38,
-              height: 1.4,
-            ),
+              const SizedBox(height: 24),
+
+              // Divider OR
+              Row(
+                children: [
+                  const Expanded(child: Divider(color: Color(0xFF2A2A2A))),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'OR',
+                      style: GoogleFonts.spaceGrotesk(
+                        color: Colors.white38,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ),
+                  const Expanded(child: Divider(color: Color(0xFF2A2A2A))),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // Secondary: Phone Number Sign-in Option
+              SizedBox(
+                height: 52,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Color(0xFF333333)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () => ref
+                      .read(authControllerProvider.notifier)
+                      .goToPhoneLogin(),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.phone_iphone,
+                          color: AppTheme.primaryColor, size: 18),
+                      const SizedBox(width: 10),
+                      Text(
+                        'SIGN IN WITH MOBILE NUMBER',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
+              // Create Account Link
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Don\'t have an account? ',
+                    style: GoogleFonts.inter(
+                      color: Colors.white54,
+                      fontSize: 14,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => ref
+                        .read(authControllerProvider.notifier)
+                        .goToCreateAccount(),
+                    child: Text(
+                      'Create Account',
+                      style: GoogleFonts.inter(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+            ],
           ),
-          const SizedBox(height: 16),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -755,16 +1273,16 @@ class _PhoneLoginWidgetState extends State<_PhoneLoginWidget> {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// FALLBACK 2 OTP: PHONE LOGIN — 6-DIGIT OTP ENTRY
+// FALLBACK 2 OTP: PHONE LOGIN — 6-DIGIT OTP ENTRY & ACCOUNT CHOOSER
 // ════════════════════════════════════════════════════════════════════
-class _PhoneLoginOtpWidget extends StatefulWidget {
+class _PhoneLoginOtpWidget extends ConsumerStatefulWidget {
   const _PhoneLoginOtpWidget();
 
   @override
-  State<_PhoneLoginOtpWidget> createState() => _PhoneLoginOtpWidgetState();
+  ConsumerState<_PhoneLoginOtpWidget> createState() => _PhoneLoginOtpWidgetState();
 }
 
-class _PhoneLoginOtpWidgetState extends State<_PhoneLoginOtpWidget> {
+class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
   final List<TextEditingController> _controllers =
       List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes =
@@ -784,11 +1302,347 @@ class _PhoneLoginOtpWidgetState extends State<_PhoneLoginOtpWidget> {
     });
   }
 
+  Widget _buildAccountChooser(BuildContext context, AuthState authState) {
+    final count = authState.phoneLinkedAccounts.length;
+    final isSingle = count == 1;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 12),
+          // Verified badge indicator
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AppTheme.primaryColor.withOpacity(0.35),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.verified_rounded,
+                    color: AppTheme.primaryColor,
+                    size: 13,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    'PHONE VERIFIED',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            isSingle ? 'PROFILE FOUND' : 'SELECT ACCOUNT',
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            isSingle
+                ? 'We found 1 profile registered with ${authState.tempPhoneNumber}. Tap the card below to sign in:'
+                : '$count profiles are linked with ${authState.tempPhoneNumber}. Tap the account you wish to access:',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: Colors.white70,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 24),
+          ...authState.phoneLinkedAccounts.map((account) {
+            return _buildAccountCard(context, account);
+          }),
+          const SizedBox(height: 20),
+          Center(
+            child: TextButton.icon(
+              onPressed: () =>
+                  ref.read(authControllerProvider.notifier).goToPhoneLogin(),
+              icon: const Icon(Icons.refresh_rounded, size: 16, color: Colors.white60),
+              label: Text(
+                'Use a different phone number',
+                style: GoogleFonts.inter(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+          Center(
+            child: TextButton(
+              onPressed: () =>
+                  ref.read(authControllerProvider.notifier).goBackToLogin(),
+              child: Text(
+                'Sign in with username or email',
+                style: GoogleFonts.inter(
+                  color: Colors.white38,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccountCard(BuildContext context, UserModel account) {
+    final displayName = account.fullName.trim().isNotEmpty
+        ? account.fullName.trim()
+        : (account.username.isNotEmpty ? account.username : 'User');
+    final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
+    final hasAvatar = account.avatarUrl.trim().isNotEmpty &&
+        (account.avatarUrl.trim().startsWith('http://') ||
+            account.avatarUrl.trim().startsWith('https://'));
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF141414),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.primaryColor.withOpacity(0.35),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withOpacity(0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          splashColor: AppTheme.primaryColor.withOpacity(0.12),
+          highlightColor: AppTheme.primaryColor.withOpacity(0.06),
+          onTap: () {
+            ref.read(authControllerProvider.notifier).selectPhoneAccount(account);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Profile picture / Avatar
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppTheme.primaryColor.withOpacity(0.6),
+                      width: 1.8,
+                    ),
+                  ),
+                  child: ClipOval(
+                    child: hasAvatar
+                        ? CachedNetworkImage(
+                            imageUrl: account.avatarUrl.trim(),
+                            fit: BoxFit.cover,
+                            width: 54,
+                            height: 54,
+                            placeholder: (context, url) => Container(
+                              color: const Color(0xFF222222),
+                              child: const Center(
+                                child: SpinKitPulse(
+                                  color: AppTheme.primaryColor,
+                                  size: 18,
+                                ),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) =>
+                                _buildAvatarFallback(initial),
+                          )
+                        : _buildAvatarFallback(initial),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                // Profile details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        displayName,
+                        style: GoogleFonts.spaceGrotesk(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '@${account.username}',
+                        style: GoogleFonts.inter(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (account.alternateEmail.isNotEmpty || account.googleEmail.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          account.alternateEmail.isNotEmpty
+                              ? account.alternateEmail
+                              : account.googleEmail,
+                          style: GoogleFonts.inter(
+                            color: Colors.white38,
+                            fontSize: 11,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          if (account.role.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: AppTheme.primaryColor.withOpacity(0.4),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Text(
+                                account.role.toUpperCase(),
+                                style: GoogleFonts.spaceGrotesk(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryColor,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          if (account.sport.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.06),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: Colors.white12,
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Text(
+                                account.sport,
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Trailing login indicator
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppTheme.primaryColor.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'LOG IN',
+                        style: GoogleFonts.spaceGrotesk(
+                          color: AppTheme.primaryColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: AppTheme.primaryColor,
+                        size: 13,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatarFallback(String initial) {
+    return Container(
+      color: const Color(0xFF1C1C1E),
+      child: Center(
+        child: Text(
+          initial,
+          style: GoogleFonts.spaceGrotesk(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryColor,
+            fontSize: 20,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer(
       builder: (context, ref, child) {
         final authState = ref.watch(authControllerProvider);
+
+        if (authState.phoneLinkedAccounts.isNotEmpty) {
+          return _buildAccountChooser(context, authState);
+        }
+
         return SingleChildScrollView(
           padding:
               const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
@@ -965,6 +1819,512 @@ Widget _buildErrorBanner(String message) {
   );
 }
 
+// ════════════════════════════════════════════════════════════════════
+// STEP 4: CREATE ACCOUNT — CREDENTIALS & EMAIL VERIFICATION
+// ════════════════════════════════════════════════════════════════════
+class _CreateAccountCredentialsWidget extends ConsumerStatefulWidget {
+  const _CreateAccountCredentialsWidget();
+
+  @override
+  ConsumerState<_CreateAccountCredentialsWidget> createState() =>
+      _CreateAccountCredentialsWidgetState();
+}
+
+class _CreateAccountCredentialsWidgetState
+    extends ConsumerState<_CreateAccountCredentialsWidget> {
+  final _formKey = GlobalKey<FormState>();
+  final _usernameController = TextEditingController();
+  final _fullNameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _emailOtpController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
+  Timer? _debounceTimer;
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _usernameController.dispose();
+    _fullNameController.dispose();
+    _emailController.dispose();
+    _emailOtpController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  void _onUsernameChanged(String value) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (mounted && value.trim().length >= 3) {
+        ref
+            .read(authControllerProvider.notifier)
+            .checkUsernameAvailability(value.trim());
+      }
+    });
+  }
+
+  void _sendEmailOtp() {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address')),
+      );
+      return;
+    }
+    ref
+        .read(authControllerProvider.notifier)
+        .sendEmailVerificationOtp(email);
+  }
+
+  void _verifyEmailOtp() {
+    final code = _emailOtpController.text.trim();
+    if (code.length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter the 6-digit OTP')),
+      );
+      return;
+    }
+    ref.read(authControllerProvider.notifier).verifyEmailOtp(code);
+  }
+
+  void _handleSubmit(AuthState authState) {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (authState.isUsernameAvailable != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please choose a valid and available username'),
+        ),
+      );
+      return;
+    }
+
+    if (!authState.isEmailVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Please verify your email address with the OTP before proceeding'),
+        ),
+      );
+      return;
+    }
+
+    TextInput.finishAutofillContext(shouldSave: true);
+    ref.read(authControllerProvider.notifier).finalizeCredentialsAndProceed(
+          username: _usernameController.text.trim(),
+          fullName: _fullNameController.text.trim(),
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final authState = ref.watch(authControllerProvider);
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12),
+          child: AutofillGroup(
+            onDisposeAction: AutofillContextAction.commit,
+            child: Form(
+              key: _formKey,
+              child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'CREATE ACCOUNT',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Step 1 of registration: Set your identity, verify your email, and secure your credentials.',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.white70,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                if (authState.errorMessage != null)
+                  _buildErrorBanner(authState.errorMessage!),
+
+                // 1. ARENA USERNAME
+                TextFormField(
+                  controller: _usernameController,
+                  onChanged: _onUsernameChanged,
+                  autofillHints: const [
+                    AutofillHints.newUsername,
+                    AutofillHints.username,
+                  ],
+                  textInputAction: TextInputAction.next,
+                  style: GoogleFonts.spaceGrotesk(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Arena Username',
+                    hintText: 'e.g. dynamic_player',
+                    prefixIcon: const Icon(Icons.alternate_email,
+                        color: AppTheme.primaryColor, size: 18),
+                    suffixIcon: Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (authState.isCheckingUsername)
+                            const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppTheme.primaryColor,
+                              ),
+                            )
+                          else if (authState.isUsernameAvailable == true)
+                            const Icon(Icons.check_circle,
+                                color: Colors.greenAccent, size: 20)
+                          else if (authState.isUsernameAvailable == false)
+                            const Icon(Icons.cancel,
+                                color: Colors.redAccent, size: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Username is required';
+                    }
+                    if (val.trim().length < 3) {
+                      return 'Username must be at least 3 characters';
+                    }
+                    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(val.trim())) {
+                      return 'Only letters, numbers, and underscores allowed';
+                    }
+                    if (authState.isUsernameAvailable == false) {
+                      return 'This username is already taken';
+                    }
+                    return null;
+                  },
+                ),
+                if (authState.isUsernameAvailable == true)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 12),
+                    child: Text(
+                      '✓ @${_usernameController.text.trim()} is available',
+                      style: GoogleFonts.inter(
+                          color: Colors.greenAccent, fontSize: 11),
+                    ),
+                  )
+                else if (authState.isUsernameAvailable == false)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 12),
+                    child: Text(
+                      '✗ Username is already taken',
+                      style: GoogleFonts.inter(
+                          color: Colors.redAccent, fontSize: 11),
+                    ),
+                  ),
+                const SizedBox(height: 14),
+
+                // 2. FULL NAME
+                TextFormField(
+                  controller: _fullNameController,
+                  autofillHints: const [AutofillHints.name],
+                  textInputAction: TextInputAction.next,
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                    hintText: 'e.g. Alex Hunter',
+                    prefixIcon: Icon(Icons.person_outline,
+                        color: AppTheme.primaryColor, size: 18),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Full name is required';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 14),
+
+                // 3. EMAIL ADDRESS (1 ACCOUNT PER EMAIL)
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
+                  textInputAction: TextInputAction.next,
+                  enabled: !authState.isEmailVerified,
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: 'Email Address',
+                    hintText: 'e.g. athlete@example.com',
+                    prefixIcon: const Icon(Icons.mail_outline,
+                        color: AppTheme.primaryColor, size: 18),
+                    suffixIcon: Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: authState.isEmailVerified
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.verified,
+                                    color: Colors.greenAccent, size: 18),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'VERIFIED',
+                                  style: GoogleFonts.spaceGrotesk(
+                                    color: Colors.greenAccent,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                            )
+                          : TextButton(
+                              onPressed: _sendEmailOtp,
+                              child: Text(
+                                authState.isEmailOtpSent
+                                    ? 'Resend OTP'
+                                    : 'Send OTP',
+                                style: GoogleFonts.spaceGrotesk(
+                                  color: AppTheme.primaryColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Email is required';
+                    }
+                    if (!val.contains('@') || !val.contains('.')) {
+                      return 'Enter a valid email address';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Text(
+                    'Strict policy: 1 account per email address.',
+                    style: GoogleFonts.inter(
+                        color: Colors.white38, fontSize: 11),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // 4. EMAIL OTP INPUT
+                if (authState.isEmailOtpSent && !authState.isEmailVerified) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF141414),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: AppTheme.primaryColor.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.mark_email_read_outlined,
+                                color: AppTheme.primaryColor, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              'VERIFY EMAIL OTP',
+                              style: GoogleFonts.spaceGrotesk(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Enter the 6-digit code sent to ${authState.tempEmail}:',
+                          style: GoogleFonts.inter(
+                              color: Colors.white60, fontSize: 12),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _emailOtpController,
+                                keyboardType: TextInputType.number,
+                                maxLength: 6,
+                                style: GoogleFonts.spaceGrotesk(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                  letterSpacing: 4,
+                                ),
+                                decoration: const InputDecoration(
+                                  hintText: '123456',
+                                  counterText: '',
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primaryColor,
+                                foregroundColor: Colors.black,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              onPressed: _verifyEmailOtp,
+                              child: Text(
+                                'VERIFY',
+                                style: GoogleFonts.spaceGrotesk(
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+
+                // 5. PASSWORD
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  autofillHints: const [AutofillHints.newPassword],
+                  textInputAction: TextInputAction.next,
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                  onChanged: (val) {
+                    setState(() {});
+                  },
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    hintText: 'Min 8 chars, A-Z, a-z, 0-9, symbol',
+                    prefixIcon: const Icon(Icons.lock_outline,
+                        color: AppTheme.primaryColor, size: 18),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: Colors.white54,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
+                  ),
+                  validator: (val) => PasswordValidator.validate(val),
+                ),
+                const SizedBox(height: 10),
+                PasswordRequirementsView(password: _passwordController.text),
+                const SizedBox(height: 14),
+
+                // 6. CONFIRM PASSWORD
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: _obscureConfirm,
+                  autofillHints: const [AutofillHints.newPassword],
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _handleSubmit(authState),
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: 'Confirm Password',
+                    hintText: 'Re-enter your password',
+                    prefixIcon: const Icon(Icons.lock_reset,
+                        color: AppTheme.primaryColor, size: 18),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureConfirm
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: Colors.white54,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscureConfirm = !_obscureConfirm;
+                        });
+                      },
+                    ),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.isEmpty) {
+                      return 'Please confirm your password';
+                    }
+                    if (val != _passwordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 28),
+
+                // SUBMIT BUTTON
+                SizedBox(
+                  height: 54,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => _handleSubmit(authState),
+                    child: Text(
+                      'CONTINUE TO MOBILE VERIFICATION',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
+      );
+      },
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// STEP 5: PHONE NUMBER INPUT (VALIDATES <= 5 ACCOUNTS LIMIT)
+// ════════════════════════════════════════════════════════════════════
 class _PhoneInputWidget extends StatefulWidget {
   const _PhoneInputWidget();
 
@@ -1007,7 +2367,7 @@ class _PhoneInputWidgetState extends State<_PhoneInputWidget> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Atheleos requires a verified mobile number to secure recruitment contacts and avoid bots.',
+                  'Step 2: Atheleos allows up to 5 accounts linked to one phone number. We will send a one-time SMS verification code.',
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     color: Colors.white70,
@@ -1017,41 +2377,36 @@ class _PhoneInputWidgetState extends State<_PhoneInputWidget> {
                 const SizedBox(height: 32),
 
                 if (authState.errorMessage != null)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
-                      border: Border.all(color: Colors.red.withOpacity(0.3)),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      authState.errorMessage!,
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ),
+                  _buildErrorBanner(authState.errorMessage!),
 
                 // Phone Input Field with India prefix preset
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
-                  style: GoogleFonts.spaceGrotesk(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  style: GoogleFonts.spaceGrotesk(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16),
                   decoration: InputDecoration(
                     labelText: 'Mobile Number',
                     prefixIcon: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       margin: const EdgeInsets.only(right: 8),
                       decoration: const BoxDecoration(
-                        border: Border(right: BorderSide(color: Color(0xFF222222))),
+                        border: Border(
+                            right: BorderSide(color: Color(0xFF222222))),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.phone_iphone_outlined, color: AppTheme.primaryColor, size: 18),
+                          const Icon(Icons.phone_iphone_outlined,
+                              color: AppTheme.primaryColor, size: 18),
                           const SizedBox(width: 8),
                           Text(
                             '+91',
-                            style: GoogleFonts.spaceGrotesk(color: Colors.white, fontWeight: FontWeight.bold),
+                            style: GoogleFonts.spaceGrotesk(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -1077,17 +2432,21 @@ class _PhoneInputWidgetState extends State<_PhoneInputWidget> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
                       foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
                         final phone = '+91${_phoneController.text.trim()}';
-                        ref.read(authControllerProvider.notifier).sendVerificationCode(phone);
+                        ref
+                            .read(authControllerProvider.notifier)
+                            .sendRegistrationPhoneCode(phone);
                       }
                     },
                     child: Text(
                       'SEND SECURE OTP',
-                      style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5),
+                      style: GoogleFonts.spaceGrotesk(
+                          fontWeight: FontWeight.w900, letterSpacing: 1.5),
                     ),
                   ),
                 ),
@@ -1100,7 +2459,9 @@ class _PhoneInputWidgetState extends State<_PhoneInputWidget> {
   }
 }
 
-// STEP 2 (OTP): OTP CODES INPUTS
+// ════════════════════════════════════════════════════════════════════
+// STEP 6: PHONE OTP VERIFICATION FOR REGISTRATION
+// ════════════════════════════════════════════════════════════════════
 class _OtpInputWidget extends StatefulWidget {
   const _OtpInputWidget();
 
@@ -1109,8 +2470,10 @@ class _OtpInputWidget extends StatefulWidget {
 }
 
 class _OtpInputWidgetState extends State<_OtpInputWidget> {
-  final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  final List<TextEditingController> _controllers =
+      List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes =
+      List.generate(6, (_) => FocusNode());
   String _smsCode = '';
 
   @override
@@ -1158,12 +2521,16 @@ class _OtpInputWidgetState extends State<_OtpInputWidget> {
               const SizedBox(height: 8),
               RichText(
                 text: TextSpan(
-                  style: GoogleFonts.inter(fontSize: 13, color: Colors.white70, height: 1.5),
+                  style: GoogleFonts.inter(
+                      fontSize: 13, color: Colors.white70, height: 1.5),
                   children: [
-                    const TextSpan(text: 'We sent a secure 6-digit confirmation PIN to '),
+                    const TextSpan(
+                        text: 'We sent a secure 6-digit confirmation PIN to '),
                     TextSpan(
                       text: authState.tempPhoneNumber,
-                      style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -1171,19 +2538,7 @@ class _OtpInputWidgetState extends State<_OtpInputWidget> {
               const SizedBox(height: 32),
 
               if (authState.errorMessage != null)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    border: Border.all(color: Colors.red.withOpacity(0.3)),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    authState.errorMessage!,
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                  ),
-                ),
+                _buildErrorBanner(authState.errorMessage!),
 
               // SMS 6 blocks grid
               Row(
@@ -1211,14 +2566,15 @@ class _OtpInputWidgetState extends State<_OtpInputWidget> {
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide(
-                            color: _controllers[index].text.isNotEmpty 
-                                ? AppTheme.primaryColor 
+                            color: _controllers[index].text.isNotEmpty
+                                ? AppTheme.primaryColor
                                 : const Color(0xFF222222),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+                          borderSide: const BorderSide(
+                              color: AppTheme.primaryColor, width: 2),
                         ),
                       ),
                       onChanged: (value) {
@@ -1229,10 +2585,12 @@ class _OtpInputWidgetState extends State<_OtpInputWidget> {
                         if (value.isEmpty && index > 0) {
                           _focusNodes[index - 1].requestFocus();
                         }
-                        
+
                         // Auto-submit on reaching 6 digits
                         if (_smsCode.length == 6) {
-                          ref.read(authControllerProvider.notifier).verifyOTPCode(_smsCode);
+                          ref
+                              .read(authControllerProvider.notifier)
+                              .verifyRegistrationPhoneCode(_smsCode);
                         }
                       },
                     ),
@@ -1245,18 +2603,26 @@ class _OtpInputWidgetState extends State<_OtpInputWidget> {
                 height: 56,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _smsCode.length == 6 ? AppTheme.primaryColor : Colors.white12,
-                    foregroundColor: _smsCode.length == 6 ? Colors.black : Colors.white30,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    backgroundColor: _smsCode.length == 6
+                        ? AppTheme.primaryColor
+                        : Colors.white12,
+                    foregroundColor: _smsCode.length == 6
+                        ? Colors.black
+                        : Colors.white30,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: _smsCode.length == 6 
+                  onPressed: _smsCode.length == 6
                       ? () {
-                          ref.read(authControllerProvider.notifier).verifyOTPCode(_smsCode);
+                          ref
+                              .read(authControllerProvider.notifier)
+                              .verifyRegistrationPhoneCode(_smsCode);
                         }
                       : null,
                   child: Text(
                     'VERIFY SECURITY CODE',
-                    style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5),
+                    style: GoogleFonts.spaceGrotesk(
+                        fontWeight: FontWeight.w900, letterSpacing: 1.5),
                   ),
                 ),
               ),
@@ -1265,14 +2631,20 @@ class _OtpInputWidgetState extends State<_OtpInputWidget> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Didn\'t receive code? ', style: TextStyle(color: Colors.white38)),
+                  const Text('Didn\'t receive code? ',
+                      style: TextStyle(color: Colors.white38)),
                   TextButton(
                     onPressed: () {
-                      ref.read(authControllerProvider.notifier).sendVerificationCode(authState.tempPhoneNumber);
+                      ref
+                          .read(authControllerProvider.notifier)
+                          .sendRegistrationPhoneCode(
+                              authState.tempPhoneNumber);
                     },
                     child: const Text(
                       'Resend Code',
-                      style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -1281,157 +2653,13 @@ class _OtpInputWidgetState extends State<_OtpInputWidget> {
               const Center(
                 child: Text(
                   'Tip: Enter 123456 or any 6-digit pin in the sandbox to bypass.',
-                  style: TextStyle(color: Colors.white24, fontSize: 10, fontStyle: FontStyle.italic),
+                  style: TextStyle(
+                      color: Colors.white24,
+                      fontSize: 10,
+                      fontStyle: FontStyle.italic),
                 ),
               ),
             ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-// STEP 3: CREATE PREMIUM SPORTS PROFILE
-class _BasicAccountWidget extends StatefulWidget {
-  const _BasicAccountWidget();
-
-  @override
-  State<_BasicAccountWidget> createState() => _BasicAccountWidgetState();
-}
-
-class _BasicAccountWidgetState extends State<_BasicAccountWidget> {
-  final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
-  final _fullNameController = TextEditingController();
-  @override
-  void dispose() {
-    _usernameController.dispose();
-    _fullNameController.dispose();
-    super.dispose();
-  }
-
-
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, child) {
-        final authState = ref.watch(authControllerProvider);
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'CREATE PREMIUM PROFILE',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Set up your unique credentials to unlock our high-performance scout and recruitment network.',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.white70,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                if (authState.errorMessage != null)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
-                      border: Border.all(color: Colors.red.withOpacity(0.3)),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      authState.errorMessage!,
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ),
-
-                // Username Field
-                TextFormField(
-                  controller: _usernameController,
-                  style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                  decoration: const InputDecoration(
-                    labelText: 'Arena Username',
-                    prefixIcon: Icon(Icons.alternate_email, color: AppTheme.primaryColor, size: 16),
-                    hintText: 'e.g. dynamic_quarterback',
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Username is required';
-                    }
-                    if (value.trim().length < 4) {
-                      return 'Username must be at least 4 characters';
-                    }
-                    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
-                      return 'Only letters, numbers, and underscores are allowed';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // Full Name Field
-                TextFormField(
-                  controller: _fullNameController,
-                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name',
-                    prefixIcon: Icon(Icons.person, color: AppTheme.primaryColor, size: 16),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Full name is required';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-
-
-
-
-
-                SizedBox(
-                  height: 56,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        ref.read(authControllerProvider.notifier).createBasicAccount(
-                          username: _usernameController.text,
-                          fullName: _fullNameController.text,
-                          alternateEmail: '',
-                          password: '',
-                        );
-                      }
-                    },
-                    child: Text(
-                      'CONTINUE TO ROLES',
-                      style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
           ),
         );
       },
@@ -1494,11 +2722,19 @@ class _RoleSelectionWidgetState extends State<_RoleSelectionWidget> {
               ),
               const SizedBox(height: 16),
 
-              // BRAND / FEDERATION CARD
+              // BRAND CARD
               _buildRoleCard(
-                roleName: 'Brand / Federation',
-                icon: Icons.business,
+                roleName: 'Brand',
+                icon: Icons.business_center_outlined,
                 description: 'Coordinate sports events, sponsor combines, issue brand contracts, and partner with top verified local talent pools.',
+              ),
+              const SizedBox(height: 16),
+
+              // FEDERATION CARD
+              _buildRoleCard(
+                roleName: 'Federation',
+                icon: Icons.account_balance_outlined,
+                description: 'Official sports governing bodies and associations. Sanction tournaments, organize state/national meets, and verify competitive rosters.',
               ),
               const SizedBox(height: 32),
 
@@ -1978,6 +3214,8 @@ class _RoleDetailsWidgetState extends State<_RoleDetailsWidget> {
       builder: (context, ref, child) {
         final authState = ref.watch(authControllerProvider);
         final role = authState.currentUser.role;
+        final isAthleteOrCoach = role == 'Athlete' || role == 'Coach';
+        final isFederation = role == 'Federation';
 
         return SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12),
@@ -1994,7 +3232,11 @@ class _RoleDetailsWidgetState extends State<_RoleDetailsWidget> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Fill in physical metrics or categories so scouts can locate you. You can skip any field for now.',
+                isAthleteOrCoach
+                    ? 'Fill in physical metrics or categories so scouts can locate you. You can skip any field for now.'
+                    : isFederation
+                        ? 'Specify your governing sport or administrative scope. You can update details anytime.'
+                        : 'Specify your brand industry category or primary sport focus. You can update details anytime.',
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   color: Colors.white70,
@@ -2095,6 +3337,17 @@ class _RoleDetailsWidgetState extends State<_RoleDetailsWidget> {
                       ),
                     ),
                   ],
+                ),
+              ] else if (isFederation) ...[
+                // Federation specific
+                const Text('Governing Sport / Scope', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                SportSelectorField(
+                  initialSport: _sportController.text,
+                  hintText: 'Select Governing Sport / Scope',
+                  onSportChanged: (val) {
+                    _sportController.text = val;
+                  },
                 ),
               ] else ...[
                 // Brand specific

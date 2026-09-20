@@ -4,14 +4,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../domain/models/profile_model.dart';
 import '../controllers/profile_controller.dart';
 
 class PortfolioAnalyticsScreen extends ConsumerWidget {
-  const PortfolioAnalyticsScreen({super.key});
+  final ProfileModel? profile;
+  const PortfolioAnalyticsScreen({super.key, this.profile});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(activeProfileProvider);
+    final activeProfileAsync = ref.watch(activeProfileProvider);
+    final profileAsync = profile != null
+        ? AsyncValue.data(profile)
+        : (activeProfileAsync.valueOrNull != null
+            ? activeProfileAsync
+            : ref.watch(currentUserProvider));
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -27,10 +34,11 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
         error: (e, _) => Center(
             child: Text('$e', style: const TextStyle(color: Colors.red))),
         data: (profile) {
-          if (profile == null)
+          if (profile == null) {
             return const Center(
                 child: Text('Profile not found.',
                     style: TextStyle(color: Colors.white38)));
+          }
 
           final portfolioLink = 'https://atheleos.com/@${profile.username}';
 

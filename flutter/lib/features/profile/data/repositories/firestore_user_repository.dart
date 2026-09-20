@@ -74,6 +74,7 @@ class FirestoreUserRepository implements UserRepository {
       industry: data['industry'] as String?,
       organizationName: data['organizationName'] as String?,
       isFollowing: data['isFollowing'] ?? false,
+      showFollowing: data['showFollowing'] ?? false,
       statistics: _parseStatistics(data['statistics']),
       verificationStatus: data['verificationStatus'] ?? 'none',
       verificationBadge: data['verificationBadge'] ?? '',
@@ -134,6 +135,7 @@ class FirestoreUserRepository implements UserRepository {
       'mediaGallery': profile.mediaGallery,
       'industry': profile.industry,
       'organizationName': profile.organizationName,
+      'showFollowing': profile.showFollowing,
       'updatedAt': FieldValue.serverTimestamp(),
       'statistics': profile.statistics.map((s) => s.toMap()).toList(),
     };
@@ -204,25 +206,58 @@ class FirestoreUserRepository implements UserRepository {
 
   @override
   Future<ProfileModel?> getCurrentUser() async {
-    final uid = _auth.currentUser?.uid ?? 'user_1';
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      return null;
+    }
     return getUserById(uid);
   }
 
-  @override
-  Future<List<ProfileModel>> getAllUsers() async {
+  /// Automatically deletes legacy 'Brand / Federation' profiles from Firestore backend
+  Future<int> deleteLegacyBrandFederationProfiles() async {
     try {
-      final querySnapshot = await _firestore.collection('users').get();
-      if (querySnapshot.docs.isEmpty) {
-        // Pre-populate with our default user to keep list items valid and non-crashing
-        final currentUid = _auth.currentUser?.uid ?? 'user_1';
-        final user = await getUserById(currentUid);
-        if (user != null) {
-          return [user];
+      final snap = await _firestore.collection('users').get();
+      int deletedCount = 0;
+      final batch = _firestore.batch();
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final rawRole = (data['role'] as String? ?? '').trim().toLowerCase();
+        if (rawRole == 'brand / federation' ||
+            rawRole == 'brand/federation' ||
+            rawRole == 'brand & federation' ||
+            rawRole == 'brand_federation') {
+          batch.delete(doc.reference);
+          deletedCount++;
         }
       }
-      return querySnapshot.docs
+      if (deletedCount > 0) {
+        await batch.commit();
+        debugPrint('FirestoreUserRepository: Purged $deletedCount legacy Brand / Federation profiles.');
+      }
+      return deletedCount;
+    } catch (e) {
+      debugPrint('FirestoreUserRepository: Error purging legacy profiles: $e');
+      return 0;
+    }
+  }
+
+  @override
+  Future<List<ProfileModel>> getAllUsers({int limit = 50}) async {
+    try {
+      final querySnapshot =
+          await _firestore.collection('users').limit(limit).get();
+      final firestoreUsers = querySnapshot.docs
           .map((doc) => _mapToProfile(doc.id, doc.data()))
+          .where((p) {
+            final r = p.role.trim().toLowerCase();
+            return r != 'brand / federation' &&
+                   r != 'brand/federation' &&
+                   r != 'brand & federation' &&
+                   r != 'brand_federation';
+          })
           .toList();
+
+      return firestoreUsers;
     } catch (e) {
       debugPrint('FirestoreUserRepository: Error loading all users: $e');
       return [];
@@ -230,11 +265,12 @@ class FirestoreUserRepository implements UserRepository {
   }
 
   @override
-  Future<List<ProfileModel>> getUsersByRole(String role) async {
+  Future<List<ProfileModel>> getUsersByRole(String role, {int limit = 50}) async {
     try {
       final querySnapshot = await _firestore
           .collection('users')
           .where('role', isEqualTo: role)
+          .limit(limit)
           .get();
       return querySnapshot.docs
           .map((doc) => _mapToProfile(doc.id, doc.data()))
@@ -247,8 +283,8 @@ class FirestoreUserRepository implements UserRepository {
 
   @override
   Future<void> updateFollowState(String userId, bool isFollowing) async {
-    final myId = _auth.currentUser?.uid ?? 'user_1';
-    if (myId == userId) return;
+    final myId = _auth.currentUser?.uid;
+    if (myId == null || myId.isEmpty || myId == userId) return;
 
     final targetRef = _firestore.collection('users').doc(userId);
     final myRef = _firestore.collection('users').doc(myId);
@@ -333,6 +369,8 @@ class FirestoreUserRepository implements UserRepository {
         firestoreQuery = firestoreQuery.where('verified', isEqualTo: true);
       }
 
+      firestoreQuery = firestoreQuery.limit(50);
+
       final snapshot = await firestoreQuery.get();
       final results = snapshot.docs
           .map((doc) =>
@@ -340,6 +378,13 @@ class FirestoreUserRepository implements UserRepository {
           .toList();
 
       return results.where((user) {
+        final r = user.role.trim().toLowerCase();
+        if (r == 'brand / federation' ||
+            r == 'brand/federation' ||
+            r == 'brand & federation' ||
+            r == 'brand_federation') {
+          return false;
+        }
         final matchesQuery = query.isEmpty ||
             user.name.toLowerCase().contains(query.toLowerCase()) ||
             user.username.toLowerCase().contains(query.toLowerCase()) ||
@@ -363,15 +408,10 @@ class FirestoreUserRepository implements UserRepository {
 
   @override
   Future<void> incrementProfileViews(String uid) async {
+    if (uid.isEmpty) return;
     try {
-      await _firestore.runTransaction((transaction) async {
-        final docRef = _firestore.collection('users').doc(uid);
-        final snapshot = await transaction.get(docRef);
-        if (snapshot.exists) {
-          final data = snapshot.data() ?? {};
-          final currentViews = data['profileViews'] ?? 0;
-          transaction.update(docRef, {'profileViews': currentViews + 1});
-        }
+      await _firestore.collection('users').doc(uid).update({
+        'profileViews': FieldValue.increment(1),
       });
     } catch (e) {
       debugPrint('Error incrementing profile views: $e');
@@ -380,15 +420,10 @@ class FirestoreUserRepository implements UserRepository {
 
   @override
   Future<void> incrementPortfolioShares(String uid) async {
+    if (uid.isEmpty) return;
     try {
-      await _firestore.runTransaction((transaction) async {
-        final docRef = _firestore.collection('users').doc(uid);
-        final snapshot = await transaction.get(docRef);
-        if (snapshot.exists) {
-          final data = snapshot.data() ?? {};
-          final currentShares = data['portfolioShares'] ?? 0;
-          transaction.update(docRef, {'portfolioShares': currentShares + 1});
-        }
+      await _firestore.collection('users').doc(uid).update({
+        'portfolioShares': FieldValue.increment(1),
       });
     } catch (e) {
       debugPrint('Error incrementing portfolio shares: $e');

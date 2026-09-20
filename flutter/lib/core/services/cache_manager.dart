@@ -49,7 +49,7 @@ class CacheManager {
   }
 
   Future<void> saveFeed(List<Map<String, dynamic>> posts) async {
-    final list = posts.take(100).toList(); // limit to 100 latest
+    final list = posts.take(25).toList(); // Capped to 25 latest for instant cold start without disk stalls
     await prefs.setString(_feedKey, json.encode(list, toEncodable: _customJsonEncoder));
   }
 
@@ -67,7 +67,7 @@ class CacheManager {
 
   /// Save explore posts
   Future<void> saveExplore(List<Map<String, dynamic>> posts) async {
-    final list = posts.take(200).toList(); // limit to 200 explore items
+    final list = posts.take(30).toList(); // Capped to 30 explore items
     await prefs.setString(_exploreKey, json.encode(list, toEncodable: _customJsonEncoder));
   }
 
@@ -239,7 +239,12 @@ class CacheManager {
   }
 
   Future<void> clearAll() async {
-    await prefs.clear();
+    try {
+      _prefs ??= await SharedPreferences.getInstance();
+      await _prefs?.clear();
+    } catch (e) {
+      debugPrint('CacheManager clearAll prefs error: $e');
+    }
     try {
       final cacheDir = await _getVideoCacheDir();
       if (await cacheDir.exists()) {

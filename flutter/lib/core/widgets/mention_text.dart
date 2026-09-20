@@ -96,7 +96,7 @@ class _MentionTextState extends ConsumerState<MentionText> {
       if (mapping.uid.isNotEmpty) {
         final recognizer = TapGestureRecognizer()
           ..onTap = () {
-            context.go('/profile/${mapping.uid}');
+            context.push('/profile/${mapping.uid}');
           };
         _recognizers.add(recognizer);
 

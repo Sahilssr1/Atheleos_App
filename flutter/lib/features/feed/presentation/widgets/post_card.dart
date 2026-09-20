@@ -1,19 +1,20 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/post_media_widget.dart';
-import '../../../../core/widgets/mention_text.dart';
+import '../../../../core/widgets/expandable_caption.dart';
 import '../../domain/models/post_model.dart';
 import '../controllers/feed_controller.dart';
 import '../controllers/post_delete_controller.dart';
 import '../screens/feed_screen.dart'
-    show AnimatedLikeButton, AnimatedBookmarkButton, CommentBottomSheet, ShareBottomSheet;
+    show AnimatedLikeButton, AnimatedBookmarkButton, CommentBottomSheet;
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../../core/services/cache_manager.dart';
 import '../controllers/like_controller.dart';
 import '../../../chat/presentation/widgets/share_content_bottom_sheet.dart';
+import 'package:flutter/services.dart';
+import '../../../../core/widgets/app_avatar.dart';
 
 /// Reusable feed-style post card.
 ///
@@ -44,10 +45,12 @@ class PostCard extends ConsumerWidget {
   });
 
   void _handleLike(WidgetRef ref) {
+    HapticFeedback.lightImpact();
     ref.read(sharedLikeStateProvider.notifier).toggleLike(post);
   }
 
   void _handleBookmark(WidgetRef ref) {
+    HapticFeedback.selectionClick();
     if (onToggleBookmark != null) {
       onToggleBookmark!(post.hasBookmarked);
       return;
@@ -179,46 +182,35 @@ class PostCard extends ConsumerWidget {
     final isOwner = loggedInId.isNotEmpty && loggedInId == post.userId;
     final likeState = ref.watch(postLikeProvider(post));
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.white.withOpacity(0.04)),
-      ),
-      color: const Color(0xFF0B1220),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header: Profile Avatar, Details and Category Chip
-            Builder(builder: (context) {
-              final displayName = post.userName.trim().isNotEmpty ? post.userName.trim() : 'Athlete';
-              final hasValidAvatar = post.userAvatar.isNotEmpty &&
-                  (post.userAvatar.startsWith('http://') || post.userAvatar.startsWith('https://'));
+    return RepaintBoundary(
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
+        ),
+        color: const Color(0xFF0B1220),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header: Profile Avatar, Details and Category Chip
+              Builder(builder: (context) {
+                final displayName = post.userName.trim().isNotEmpty ? post.userName.trim() : 'Athlete';
 
-              return Row(
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      context.go('/profile/${post.userId}');
-                    },
-                    child: CircleAvatar(
-                      radius: 20,
-                      backgroundColor: AppTheme.primaryColor.withOpacity(0.15),
-                      backgroundImage: hasValidAvatar ? CachedNetworkImageProvider(post.userAvatar) : null,
-                      child: !hasValidAvatar
-                          ? Text(
-                              displayName.isNotEmpty ? displayName[0].toUpperCase() : 'A',
-                              style: const TextStyle(
-                                color: AppTheme.primaryColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            )
-                          : null,
+                return Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        context.push('/profile/${post.userId}');
+                      },
+                      child: AppAvatar(
+                        imageUrl: post.userAvatar,
+                        radius: 20,
+                        name: displayName,
+                      ),
                     ),
-                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -226,7 +218,7 @@ class PostCard extends ConsumerWidget {
                       children: [
                         GestureDetector(
                           onTap: () {
-                            context.go('/profile/${post.userId}');
+                            context.push('/profile/${post.userId}');
                           },
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -252,8 +244,8 @@ class PostCard extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
-                      border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -276,10 +268,17 @@ class PostCard extends ConsumerWidget {
             const SizedBox(height: 12),
 
             // Content Caption Text
-            MentionText(
+            ExpandableCaption(
               text: post.content,
               mentions: post.mentions,
+              trimLength: 95,
+              trimLines: 2,
               style: const TextStyle(fontSize: 13, height: 1.45, color: Color(0xE6FFFFFF)),
+              actionStyle: TextStyle(
+                color: Colors.white.withValues(alpha: 0.60),
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -293,6 +292,7 @@ class PostCard extends ConsumerWidget {
                 mediaHeight: post.media.first.height,
                 isLiked: likeState.isLiked,
                 onDoubleTapLike: () {
+                  HapticFeedback.mediumImpact();
                   ref.read(sharedLikeStateProvider.notifier).toggleLike(post, forceLike: true);
                 },
                 onMediaTap: onMediaTap,
@@ -326,7 +326,7 @@ class PostCard extends ConsumerWidget {
               ),
             ),
 
-            Divider(color: Colors.white.withOpacity(0.04), height: 12),
+            Divider(color: Colors.white.withValues(alpha: 0.04), height: 12),
 
             // Action Buttons Bar
             Row(
@@ -401,6 +401,7 @@ class PostCard extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

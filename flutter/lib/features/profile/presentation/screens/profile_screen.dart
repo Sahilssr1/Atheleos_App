@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../controllers/profile_controller.dart';
 import '../widgets/profile_loader.dart';
 
@@ -29,7 +28,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String activeId = widget.userId ?? ref.watch(loggedInUserIdProvider);
+    final String loggedInId = ref.watch(loggedInUserIdProvider);
+    final String activeId = (widget.userId != null && widget.userId!.isNotEmpty)
+        ? widget.userId!
+        : loggedInId;
+
+    final bool isViewingOther = activeId != loggedInId;
 
     // Sync activeId with currentProfileIdProvider reactively and track views
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -39,37 +43,62 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     });
 
-    final activeProfileAsync = ref.watch(activeProfileProvider);
+    // Directly watch the active profile so it immediately reflects the viewed user's data
+    final activeProfileAsync = ref.watch(universalProfileControllerProvider(activeId));
 
     // Dynamically update App Bar title based on the loaded profile's role
     final String appBarTitle = activeProfileAsync.when(
-      data: (profile) => profile != null ? '${profile.role.toUpperCase()} PROFILE' : 'ATHLETE PROFILE',
-      loading: () => 'LOADING PROFILE...',
-      error: (_, __) => 'PROFILE ERROR',
+      data: (profile) => profile != null ? '${profile.role.toUpperCase()} PROFILE' : 'PROFILE',
+      loading: () => 'PROFILE',
+      error: (_, __) => 'PROFILE',
     );
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: Text(
-          appBarTitle,
-          style: GoogleFonts.spaceGrotesk(
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1.5,
-            fontSize: 15,
-          ),
-        ),
-        actions: [
-          // Settings gear — only visible on the owner's own profile
-          if (activeId == ref.watch(loggedInUserIdProvider))
-            IconButton(
-              icon: const Icon(Icons.settings_outlined, color: Colors.white70, size: 22),
-              tooltip: 'Settings',
-              onPressed: () => context.push('/settings'),
+    return PopScope(
+      canPop: !isViewingOther || Navigator.of(context).canPop(),
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (Navigator.of(context).canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          leading: isViewingOther || Navigator.of(context).canPop()
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  tooltip: 'Back',
+                  onPressed: () {
+                    if (Navigator.of(context).canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/home');
+                    }
+                  },
+                )
+              : null,
+          title: Text(
+            appBarTitle,
+            style: GoogleFonts.spaceGrotesk(
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.5,
+              fontSize: 15,
             ),
-        ],
+          ),
+          actions: [
+            // Settings gear — only visible on the owner's own profile
+            if (!isViewingOther)
+              IconButton(
+                icon: const Icon(Icons.settings_outlined, color: Colors.white70, size: 22),
+                tooltip: 'Settings',
+                onPressed: () => context.push('/settings', extra: activeProfileAsync.valueOrNull),
+              ),
+          ],
+        ),
+        body: ProfileLoader(userId: activeId),
       ),
-      body: ProfileLoader(userId: activeId),
     );
   }
 }

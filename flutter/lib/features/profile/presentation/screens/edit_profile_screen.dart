@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,9 +8,11 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/upload_queue_coordinator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../domain/models/profile_model.dart';
 import '../../domain/models/stat_entry.dart';
 import '../controllers/profile_controller.dart';
+import '../../../../core/utils/user_facing_error.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   final ProfileModel profile;
@@ -55,7 +57,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   // Image states for Cloudinary uploads
   late String _avatarUrl;
   late String _coverUrl;
-  bool _isUploadingImage = false;
+  bool _isUploadingAvatar = false;
+  bool _isUploadingCover = false;
+  bool get _isUploadingImage => _isUploadingAvatar || _isUploadingCover;
+  bool _allowPop = false;
 
   @override
   void initState() {
@@ -124,20 +129,36 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Future<void> _pickAndUploadImage({required bool isAvatar}) async {
+    if (_isUploadingAvatar || _isUploadingCover) return;
     final picker = ImagePicker();
     try {
+      setState(() {
+        if (isAvatar) {
+          _isUploadingAvatar = true;
+        } else {
+          _isUploadingCover = true;
+        }
+      });
+
       final XFile? image = await picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 800,
-        maxHeight: 800,
+        maxWidth: isAvatar ? 800 : 1600,
+        maxHeight: isAvatar ? 800 : 900,
         imageQuality: 85,
       );
 
-      if (image == null) return;
-
-      setState(() {
-        _isUploadingImage = true;
-      });
+      if (image == null) {
+        if (mounted) {
+          setState(() {
+            if (isAvatar) {
+              _isUploadingAvatar = false;
+            } else {
+              _isUploadingCover = false;
+            }
+          });
+        }
+        return;
+      }
 
       // Prepare file data based on platform (Web uses bytes, Native platforms use file path)
       final bytes = kIsWeb ? await image.readAsBytes() : null;
@@ -179,33 +200,42 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         throw Exception('Profile image variant URL is missing.');
       }
 
-      setState(() {
-        if (isAvatar) {
-          _avatarUrl = downloadUrl;
-        } else {
-          _coverUrl = downloadUrl;
-        }
-        _isUploadingImage = false;
-      });
+      if (mounted) {
+        setState(() {
+          if (isAvatar) {
+            _avatarUrl = downloadUrl;
+            _isUploadingAvatar = false;
+          } else {
+            _coverUrl = downloadUrl;
+            _isUploadingCover = false;
+          }
+        });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              '${isAvatar ? "Profile" : "Cover"} image uploaded successfully!'),
-          backgroundColor: AppTheme.primaryColor,
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                '${isAvatar ? "Profile picture" : "Banner"} updated successfully!'),
+            backgroundColor: AppTheme.primaryColor,
+          ),
+        );
+      }
     } catch (e) {
-      setState(() {
-        _isUploadingImage = false;
-      });
-      debugPrint('Error uploading image: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to upload image: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      if (mounted) {
+        setState(() {
+          if (isAvatar) {
+            _isUploadingAvatar = false;
+          } else {
+            _isUploadingCover = false;
+          }
+        });
+        debugPrint('Error uploading image: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(UserFacingError.message(e, fallback: 'Failed to upload image. Please try again.')),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 
@@ -218,102 +248,390 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         Stack(
           clipBehavior: Clip.none,
           children: [
-            // Cover Photo
+            // Cover / Banner Container
             GestureDetector(
-              onTap: () => _pickAndUploadImage(isAvatar: false),
-              child: Container(
-                height: 120,
+              onTap: (_isUploadingAvatar || _isUploadingCover)
+                  ? null
+                  : () => _pickAndUploadImage(isAvatar: false),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                height: 130,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  image: DecorationImage(
-                    image: NetworkImage(_coverUrl.isNotEmpty
-                        ? _coverUrl
-                        : 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=800'),
-                    fit: BoxFit.cover,
+                  borderRadius: BorderRadius.circular(14),
+                  color: const Color(0xFF0F172A),
+                  border: Border.all(
+                    color: _isUploadingCover
+                        ? AppTheme.primaryColor
+                        : const Color(0xFF334155),
+                    width: 1.2,
                   ),
+                  image: _coverUrl.trim().isNotEmpty
+                      ? DecorationImage(
+                          image: NetworkImage(_coverUrl.trim()),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
                 ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Center(
-                    child:
-                        Icon(Icons.photo_camera, color: Colors.white, size: 28),
-                  ),
-                ),
+                child: _isUploadingCover
+                    ? Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Updating banner...',
+                                style: GoogleFonts.spaceGrotesk(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : (_coverUrl.trim().isEmpty
+                        ? Center(
+                            child: Icon(
+                              Icons.panorama_outlined,
+                              color: Colors.white.withValues(alpha: 0.3),
+                              size: 36,
+                            ),
+                          )
+                        : null),
               ),
             ),
             // Avatar Photo
             Positioned(
-              bottom: -30,
+              bottom: -32,
               left: 16,
               child: GestureDetector(
-                onTap: () => _pickAndUploadImage(isAvatar: true),
-                child: Stack(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.black, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primaryColor.withOpacity(0.3),
-                            blurRadius: 8,
+                onTap: (_isUploadingAvatar || _isUploadingCover)
+                    ? null
+                    : () => _pickAndUploadImage(isAvatar: true),
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: _isUploadingAvatar
+                          ? AppTheme.primaryColor
+                          : Colors.black,
+                      width: 3,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.35),
+                        blurRadius: 10,
+                      )
+                    ],
+                  ),
+                  child: CircleAvatar(
+                    radius: 38,
+                    backgroundColor: const Color(0xFF1E293B),
+                    backgroundImage: _avatarUrl.trim().isNotEmpty
+                        ? NetworkImage(_avatarUrl.trim())
+                        : null,
+                    child: _isUploadingAvatar
+                        ? Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.black.withValues(alpha: 0.65),
+                            ),
+                            child: const Center(
+                              child: SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                            ),
                           )
-                        ],
-                      ),
-                      child: CircleAvatar(
-                        radius: 36,
-                        backgroundColor: const Color(0xFF1E293B),
-                        backgroundImage: NetworkImage(_avatarUrl.isNotEmpty
-                            ? _avatarUrl
-                            : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200&h=200'),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppTheme.primaryColor,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.edit,
-                            size: 12, color: Colors.black),
-                      ),
-                    ),
-                  ],
+                        : (_avatarUrl.trim().isEmpty
+                            ? const Icon(
+                                Icons.person_outline,
+                                size: 38,
+                                color: Colors.white38,
+                              )
+                            : null),
+                  ),
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 35),
-        if (_isUploadingImage)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: AppTheme.primaryColor),
-                ),
-                SizedBox(width: 10),
-                Text('Uploading image to Firebase Storage...',
-                    style: TextStyle(color: Colors.white60, fontSize: 11)),
-              ],
+        const SizedBox(height: 48),
+
+        // Dedicated action buttons for Change Profile Pic and Change Banner
+        Row(
+          children: [
+            Expanded(
+              child: _buildImageActionButton(
+                icon: Icons.person_outline,
+                label: 'Change Profile Pic',
+                isLoading: _isUploadingAvatar,
+                onTap: () => _pickAndUploadImage(isAvatar: true),
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildImageActionButton(
+                icon: Icons.image_outlined,
+                label: 'Change Banner',
+                isLoading: _isUploadingCover,
+                onTap: () => _pickAndUploadImage(isAvatar: false),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  void _saveProfile() {
+  Widget _buildImageActionButton({
+    required IconData icon,
+    required String label,
+    required bool isLoading,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: const Color(0xFF1E293B),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: (_isUploadingAvatar || _isUploadingCover) ? null : onTap,
+        borderRadius: BorderRadius.circular(12),
+        splashColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+        highlightColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isLoading
+                  ? AppTheme.primaryColor
+                  : const Color(0xFF334155),
+              width: 1.2,
+            ),
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: isLoading
+                ? Row(
+                    key: const ValueKey('loading'),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Selecting...',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    key: const ValueKey('idle'),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(icon, size: 16, color: AppTheme.primaryColor),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          label,
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _forcePop() {
+    setState(() => _allowPop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    });
+  }
+
+  bool _areStatsEqual(List<StatEntry> a, List<StatEntry> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].id != b[i].id ||
+          a[i].name != b[i].name ||
+          a[i].value != b[i].value ||
+          a[i].type != b[i].type) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool get _hasUnsavedChanges {
+    final p = widget.profile;
+
+    if (_avatarUrl != p.avatarUrl) return true;
+    if (_coverUrl != p.coverUrl) return true;
+
+    if (_nameController.text.trim() != p.name.trim()) return true;
+    if (_usernameController.text.trim() != p.username.trim()) return true;
+    if (_bioController.text.trim() != p.bio.trim()) return true;
+    if (_sportController.text.trim() != p.sport.trim()) return true;
+    if (_positionController.text.trim() != p.primaryPosition.trim()) return true;
+    if (_clubController.text.trim() != p.clubOrAcademy.trim()) return true;
+    if (_cityController.text.trim() != p.city.trim()) return true;
+    if (_stateController.text.trim() != p.state.trim()) return true;
+    if (_countryController.text.trim() != p.country.trim()) return true;
+    if (_dateOfBirthController.text.trim() != p.dateOfBirth.trim()) return true;
+    if (_genderController.text.trim() != p.gender.trim()) return true;
+    if (_personalNotesController.text.trim() != p.personalNotes.trim()) return true;
+    if (_websiteController.text.trim() != p.website.trim()) return true;
+    if (_industryController.text.trim() != (p.industry ?? '').trim()) return true;
+    if (_organizationNameController.text.trim() != (p.organizationName ?? '').trim()) return true;
+
+    if (_height != (p.height ?? 180.0)) return true;
+    if (_weight != (p.weight ?? 75.0)) return true;
+    if (_resumeFileName != p.resumeFileName) return true;
+
+    final origIg = p.socialLinks['Instagram'] ?? '';
+    final origTw = p.socialLinks['Twitter'] ?? '';
+    final origTk = p.socialLinks['TikTok'] ?? '';
+    if (_instagramController.text.trim() != origIg.trim()) return true;
+    if (_twitterController.text.trim() != origTw.trim()) return true;
+    if (_tiktokController.text.trim() != origTk.trim()) return true;
+
+    final currentAch = _achievementsController.text
+        .split('\n')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (!listEquals(currentAch, p.achievements)) return true;
+
+    final currentCert = _certificationsController.text
+        .split('\n')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (!listEquals(currentCert, p.certifications)) return true;
+
+    if (!_areStatsEqual(_statistics, p.statistics)) return true;
+
+    return false;
+  }
+
+  Future<void> _onWillExit() async {
+    if (!_hasUnsavedChanges) {
+      _forcePop();
+      return;
+    }
+
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF334155)),
+        ),
+        title: Text(
+          'Unsaved Changes',
+          style: GoogleFonts.spaceGrotesk(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'You have unsaved changes. Do you want to save them before exiting?',
+          style: GoogleFonts.inter(
+            color: Colors.white70,
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('discard'),
+            child: const Text(
+              'Discard',
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('cancel'),
+            child: const Text(
+              'Keep Editing',
+              style: TextStyle(color: Colors.white60),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.black,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: () => Navigator.of(ctx).pop('save'),
+            child: const Text(
+              'Save & Exit',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (action == 'discard') {
+      _forcePop();
+    } else if (action == 'save') {
+      _saveProfile();
+    }
+  }
+
+  bool _saveProfile() {
     if (_isUploadingImage) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -321,7 +639,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           backgroundColor: Colors.amber,
         ),
       );
-      return;
+      return false;
     }
 
     if (_formKey.currentState!.validate()) {
@@ -386,7 +704,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           .read(universalProfileControllerProvider(updatedProfile.id).notifier)
           .syncProfile(updatedProfile);
 
-      Navigator.pop(context);
+      _forcePop();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -403,79 +721,32 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+      return true;
     }
+    return false;
   }
 
-  void _simulateResumeUpload() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1E293B),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'UPLOAD ATHLETIC RESUME',
-                style: GoogleFonts.spaceGrotesk(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: AppTheme.primaryColor,
-                  letterSpacing: 1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Select a document to represent your athletic accomplishments and academic credentials.',
-                style: TextStyle(fontSize: 12, color: Colors.white60),
-              ),
-              const SizedBox(height: 20),
-              _buildFileOption('My_Athletic_Resume_2026.pdf'),
-              _buildFileOption('Official_Academic_Transcript.pdf'),
-              _buildFileOption('Tyler_Brooks_QB_Profile.pdf'),
-              const SizedBox(height: 12),
-              TextButton.icon(
-                icon: const Icon(Icons.add, color: AppTheme.primaryColor),
-                label: const Text('Add Custom File Name',
-                    style: TextStyle(color: AppTheme.primaryColor)),
-                onPressed: () {
-                  Navigator.pop(context);
-                  _showCustomFileDialog();
-                },
-              ),
-            ],
+  Future<void> _pickResumeFile() async {
+    try {
+      final file = await FilePicker.pickFile(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx'],
+      );
+      if (file != null) {
+        setState(() {
+          _resumeFileName = file.name;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(UserFacingError.message(e, fallback: 'Failed to select document.')),
+            backgroundColor: Colors.redAccent,
           ),
         );
-      },
-    );
-  }
-
-  Widget _buildFileOption(String fileName) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        leading: const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
-        title: Text(fileName,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-        trailing: const Icon(Icons.arrow_forward_ios,
-            size: 14, color: Colors.white30),
-        onTap: () {
-          setState(() {
-            _resumeFileName = fileName;
-          });
-          Navigator.pop(context);
-        },
-      ),
-    );
+      }
+    }
   }
 
   // ── Statistics dialog ─────────────────────────────────────────────────
@@ -517,7 +788,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.15),
+                            color: AppTheme.primaryColor.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(Icons.bar_chart,
@@ -717,80 +988,39 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
   }
 
-  void _showCustomFileDialog() {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
-          title: Text(
-            'CUSTOM RESUME FILE',
-            style: GoogleFonts.spaceGrotesk(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: AppTheme.primaryColor,
-            ),
-          ),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              hintText: 'e.g. My_Custom_Resume.pdf',
-              labelText: 'File Name',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child:
-                  const Text('CANCEL', style: TextStyle(color: Colors.white60)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              ),
-              onPressed: () {
-                if (controller.text.trim().isNotEmpty) {
-                  setState(() {
-                    String name = controller.text.trim();
-                    if (!name.endsWith('.pdf')) {
-                      name += '.pdf';
-                    }
-                    _resumeFileName = name;
-                  });
-                }
-                Navigator.pop(context);
-              },
-              child:
-                  const Text('SELECT', style: TextStyle(color: Colors.black)),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     final role = widget.profile.role;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: Text(
-          'EDIT ${role.toUpperCase()} PROFILE',
-          style: GoogleFonts.spaceGrotesk(
-              fontWeight: FontWeight.w600, letterSpacing: 1),
-        ),
-        actions: [
-          IconButton(
-            icon:
-                const Icon(Icons.check, color: AppTheme.primaryColor, size: 28),
-            onPressed: _saveProfile,
+    return PopScope(
+      canPop: _allowPop,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _onWillExit();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: _onWillExit,
           ),
-        ],
-      ),
+          title: Text(
+            'EDIT ${role.toUpperCase()} PROFILE',
+            style: GoogleFonts.spaceGrotesk(
+                fontWeight: FontWeight.w600, letterSpacing: 1),
+          ),
+          actions: [
+            IconButton(
+              icon:
+                  const Icon(Icons.check, color: AppTheme.primaryColor, size: 28),
+              tooltip: 'Save Changes',
+              onPressed: _saveProfile,
+            ),
+          ],
+        ),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -928,7 +1158,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       child: TextFormField(
                         controller: _dateOfBirthController,
                         decoration: const InputDecoration(
-                            labelText: 'Date of Birth (YYYY-MM-DD)'),
+                          labelText: 'Date of Birth',
+                          hintText: 'YYYY-MM-DD',
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1039,7 +1271,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   _buildSectionHeader('ATHLETIC RESUME DOCUMENT'),
                   const SizedBox(height: 12),
                   InkWell(
-                    onTap: _simulateResumeUpload,
+                    onTap: _pickResumeFile,
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
                       padding: const EdgeInsets.all(20),
@@ -1047,7 +1279,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         color: const Color(0xFF0F172A),
                         border: Border.all(
                           color: _resumeFileName != null
-                              ? AppTheme.primaryColor.withOpacity(0.4)
+                              ? AppTheme.primaryColor.withValues(alpha: 0.4)
                               : Colors.white10,
                           style: BorderStyle.solid,
                         ),
@@ -1067,7 +1299,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           const SizedBox(height: 12),
                           Text(
                             _resumeFileName ??
-                                'Drag and drop or click to upload PDF resume',
+                                'Click to upload PDF or document resume',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: _resumeFileName != null
@@ -1081,21 +1313,38 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           ),
                           if (_resumeFileName != null) ...[
                             const SizedBox(height: 8),
-                            const Row(
+                            Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.check_circle,
+                                const Icon(Icons.check_circle,
                                     color: AppTheme.primaryColor, size: 16),
-                                SizedBox(width: 4),
-                                Text(
+                                const SizedBox(width: 4),
+                                const Text(
                                   'Ready to Save',
                                   style: TextStyle(
                                       color: AppTheme.primaryColor,
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold),
                                 ),
+                                const SizedBox(width: 12),
+                                InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _resumeFileName = null;
+                                    });
+                                  },
+                                  child: const Text(
+                                    'Remove',
+                                    style: TextStyle(
+                                      color: Colors.redAccent,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
                               ],
-                            )
+                            ),
                           ],
                         ],
                       ),
@@ -1112,7 +1361,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1E1E1E),
-                      border: Border.all(color: Colors.white.withOpacity(0.05)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Column(
@@ -1221,6 +1470,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -1236,7 +1486,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFF141414),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.06)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
             ),
             child: ReorderableListView.builder(
               shrinkWrap: true,
@@ -1305,7 +1555,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.12),
+              color: AppTheme.primaryColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
@@ -1400,7 +1650,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           decoration: BoxDecoration(
-            color: Colors.redAccent.withOpacity(0.15),
+            color: Colors.redAccent.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(4),
           ),
           child: const Text(

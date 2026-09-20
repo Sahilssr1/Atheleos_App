@@ -8,10 +8,11 @@ import '../../domain/models/stat_entry.dart';
 import '../controllers/profile_controller.dart';
 import '../screens/edit_profile_screen.dart';
 import 'profile_posts_grid.dart';
-import 'verification_dialog.dart';
+import '../screens/settings_screen.dart';
 import '../../../../core/widgets/mention_text.dart';
 import '../../../../core/services/messaging_access_service.dart';
 import 'profile_share_helper.dart';
+import '../screens/following_list_screen.dart';
 class BrandProfileWidget extends ConsumerWidget {
   final ProfileModel profile;
 
@@ -23,7 +24,7 @@ class BrandProfileWidget extends ConsumerWidget {
     final isOwner = profile.id == loggedInUserId;
 
     return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -132,7 +133,7 @@ class BrandProfileWidget extends ConsumerWidget {
                 const SizedBox(height: 20),
 
                 // 3. Stats Bar
-                _buildStatsBar(profile),
+                _buildStatsBar(context, profile),
                 const SizedBox(height: 20),
 
                 // 4. Action Buttons
@@ -205,12 +206,13 @@ class BrandProfileWidget extends ConsumerWidget {
           height: 150,
           width: double.infinity,
           decoration: BoxDecoration(
-            image: DecorationImage(
-              image: NetworkImage(profile.coverUrl.isNotEmpty
-                  ? profile.coverUrl
-                  : 'https://images.unsplash.com/photo-1541252260730-0412e8e2108e?auto=format&fit=crop&q=80&w=800'),
-              fit: BoxFit.cover,
-            ),
+            color: const Color(0xFF0F172A),
+            image: profile.coverUrl.trim().isNotEmpty
+                ? DecorationImage(
+                    image: NetworkImage(profile.coverUrl.trim()),
+                    fit: BoxFit.cover,
+                  )
+                : null,
           ),
           child: Container(
             decoration: BoxDecoration(
@@ -242,9 +244,16 @@ class BrandProfileWidget extends ConsumerWidget {
             child: CircleAvatar(
               radius: 44,
               backgroundColor: const Color(0xFF1E293B),
-              backgroundImage: NetworkImage(profile.avatarUrl.isNotEmpty
-                  ? profile.avatarUrl
-                  : 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=200&h=200'),
+              backgroundImage: profile.avatarUrl.trim().isNotEmpty
+                  ? NetworkImage(profile.avatarUrl.trim())
+                  : null,
+              child: profile.avatarUrl.trim().isEmpty
+                  ? const Icon(
+                      Icons.business_outlined,
+                      size: 48,
+                      color: Colors.white38,
+                    )
+                  : null,
             ),
           ),
         ),
@@ -252,7 +261,7 @@ class BrandProfileWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsBar(ProfileModel profile) {
+  Widget _buildStatsBar(BuildContext context, ProfileModel profile) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
       decoration: BoxDecoration(
@@ -265,8 +274,24 @@ class BrandProfileWidget extends ConsumerWidget {
         children: [
           _buildSingleStat(profile.followersCount, 'Followers'),
           _buildDivider(),
-          _buildSingleStat(profile.followingCount, 'Following'),
-          _buildDivider(),
+          if (profile.showFollowing) ...[
+            InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FollowingListScreen(
+                      userId: profile.id,
+                      userName: profile.name,
+                    ),
+                  ),
+                );
+              },
+              child: _buildSingleStat(profile.followingCount, 'Following'),
+            ),
+            _buildDivider(),
+          ],
           _buildSingleStat(profile.postsCount, 'Posts'),
         ],
       ),
@@ -307,87 +332,56 @@ class BrandProfileWidget extends ConsumerWidget {
 
   Widget _buildActionButtons(BuildContext context, ProfileModel profile, bool isOwner, WidgetRef ref) {
     if (isOwner) {
-      String verifyBtnLabel = 'APPLY FOR VERIFICATION';
-      IconData verifyBtnIcon = Icons.verified_user_outlined;
-      Color verifyBtnColor = AppTheme.primaryColor;
-      Color verifyTextColor = Colors.black;
-
-      if (profile.verificationStatus == 'pending') {
-        verifyBtnLabel = 'PENDING REVIEW';
-        verifyBtnIcon = Icons.hourglass_empty;
-        verifyBtnColor = Colors.amber;
-        verifyTextColor = Colors.black;
-      } else if (profile.verificationStatus == 'underReview') {
-        verifyBtnLabel = 'UNDER REVIEW';
-        verifyBtnIcon = Icons.search;
-        verifyBtnColor = Colors.blueAccent;
-        verifyTextColor = Colors.white;
-      } else if (profile.verificationStatus == 'moreInfoRequired') {
-        verifyBtnLabel = 'ACTION REQUIRED';
-        verifyBtnIcon = Icons.warning_amber_rounded;
-        verifyBtnColor = Colors.orangeAccent;
-        verifyTextColor = Colors.black;
-      } else if (profile.verificationStatus == 'rejected') {
-        verifyBtnLabel = 'RE-APPLY';
-        verifyBtnIcon = Icons.refresh;
-        verifyBtnColor = Colors.redAccent;
-        verifyTextColor = Colors.white;
-      } else if (profile.verificationStatus == 'approved') {
-        verifyBtnLabel = 'VERIFIED';
-        verifyBtnIcon = Icons.verified;
-        verifyBtnColor = AppTheme.primaryColor;
-        verifyTextColor = Colors.black;
-      }
-
-      return Row(
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.edit, size: 14, color: Colors.black),
-              label: const Text('EDIT PROFILE', style: TextStyle(fontSize: 11)),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => EditProfileScreen(profile: profile)),
-                );
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: verifyBtnColor,
-                foregroundColor: verifyTextColor,
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.edit, size: 14, color: Colors.black),
+                  label: const Text(
+                    'EDIT PROFILE',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => EditProfileScreen(profile: profile)),
+                    );
+                  },
+                ),
               ),
-              icon: Icon(verifyBtnIcon, size: 14),
-              label: Text(
-                verifyBtnLabel,
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(width: 8),
+              Container(
+                height: 44,
+                width: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withOpacity(0.06)),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.share_outlined, color: AppTheme.primaryColor, size: 18),
+                  onPressed: () => _shareProfileDialog(context, profile, ref),
+                ),
               ),
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => VerificationDialog(profile: profile),
-                );
-              },
-            ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Container(
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.share_outlined, color: AppTheme.primaryColor, size: 18),
-              onPressed: () => _shareProfileDialog(context, profile, ref),
-            ),
-          ),
+          const SizedBox(height: 12),
+          _buildVerificationNotice(context, profile),
         ],
       );
     } else {
@@ -460,6 +454,101 @@ class BrandProfileWidget extends ConsumerWidget {
         ],
       );
     }
+  }
+
+  Widget _buildVerificationNotice(BuildContext context, ProfileModel profile) {
+    final bool isVerified =
+        profile.verified || profile.verificationStatus == 'approved';
+    final bool isPending = profile.verificationStatus == 'pending' ||
+        profile.verificationStatus == 'underReview';
+
+    final String title;
+    final String subtitle;
+    final IconData icon;
+    final Color accentColor;
+
+    if (isVerified) {
+      title = 'Verified Profile';
+      subtitle =
+          'You can apply for next-tier badge upgrades or manage credentials in Settings.';
+      icon = Icons.verified;
+      accentColor = AppTheme.primaryColor;
+    } else if (isPending) {
+      title = 'Verification In Progress';
+      subtitle =
+          'Your application is under review. You can track your status in Settings.';
+      icon = Icons.hourglass_top_rounded;
+      accentColor = Colors.amber;
+    } else {
+      title = 'Profile Verification & Badges';
+      subtitle =
+          'You can apply for profile verification and badge upgrades from Settings.';
+      icon = Icons.verified_outlined;
+      accentColor = AppTheme.primaryColor;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => SettingsScreen(profile: profile)),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF131B2A),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: accentColor.withOpacity(0.25)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 16, color: accentColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.arrow_forward_ios,
+                  size: 11, color: Colors.white38),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _shareProfileDialog(BuildContext context, ProfileModel profile, WidgetRef ref) {

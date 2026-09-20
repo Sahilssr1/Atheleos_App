@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
-import 'package:flutter/foundation.dart' show kIsWeb, Uint8List, debugPrint;
+import 'package:flutter/foundation.dart' show Uint8List, debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -209,6 +209,7 @@ MediaType _getMediaType(String fileName) {
   if (ext == 'png') return MediaType('image', 'png');
   if (ext == 'webp') return MediaType('image', 'webp');
   if (ext == 'mp4') return MediaType('video', 'mp4');
+  if (ext == 'pdf') return MediaType('application', 'pdf');
   return MediaType('application', 'octet-stream');
 }
 

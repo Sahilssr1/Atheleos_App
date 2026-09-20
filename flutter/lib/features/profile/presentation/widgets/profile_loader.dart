@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -9,6 +10,8 @@ import 'brand_profile_widget.dart';
 import 'federation_profile_widget.dart';
 import '../controllers/settings_controller.dart';
 import '../../domain/models/profile_model.dart';
+import '../../domain/models/user_settings_model.dart';
+import '../../../../core/utils/user_facing_error.dart';
 
 class ProfileLoader extends ConsumerWidget {
   final String userId;
@@ -134,62 +137,88 @@ class ProfileLoader extends ConsumerWidget {
           );
         }
 
+        Widget buildRoleView(UserSettingsModel settings) {
+          ProfileModel displayProfile = profile;
+
+          // Mask fields if not owner
+          if (!isOwner) {
+            final p = settings.privacy;
+            displayProfile = profile.copyWith(
+              height: p.hideHeight ? null : profile.height,
+              weight: p.hideWeight ? null : profile.weight,
+              email: p.hideEmail ? '' : profile.email,
+              phoneNumber: p.hidePhone ? '' : profile.phoneNumber,
+              dateOfBirth: p.hideDob ? '' : profile.dateOfBirth,
+              personalNotes:
+                  p.hidePersonalNotes ? '' : profile.personalNotes,
+              verificationRequestDetails: p.hidePerformanceRating
+                  ? {
+                      ...profile.verificationRequestDetails,
+                      'performanceMetrics': null
+                    }
+                  : profile.verificationRequestDetails,
+            );
+          }
+
+          // Render appropriate widget based on role
+          Widget roleWidget;
+          switch (displayProfile.role) {
+            case 'Athlete':
+              roleWidget = AthleteProfileWidget(profile: displayProfile);
+              break;
+            case 'Coach':
+              roleWidget = CoachProfileWidget(profile: displayProfile);
+              break;
+            case 'Brand':
+              roleWidget = BrandProfileWidget(profile: displayProfile);
+              break;
+            case 'Federation':
+              roleWidget = FederationProfileWidget(profile: displayProfile);
+              break;
+            default:
+              roleWidget = AthleteProfileWidget(profile: displayProfile);
+          }
+
+          return RefreshIndicator(
+            color: AppTheme.primaryColor,
+            backgroundColor: const Color(0xFF0F172A),
+            onRefresh: () async {
+              HapticFeedback.lightImpact();
+              ref.invalidate(universalProfileControllerProvider(userId));
+              ref.invalidate(publicUserSettingsProvider(userId));
+            },
+            child: roleWidget,
+          );
+        }
+
         return settingsAsync.when(
-            loading: () => _buildSkeletonLoader(),
-            error: (err, stack) => _buildErrorState(err.toString(), ref),
-            data: (settings) {
-              ProfileModel displayProfile = profile;
-
-              // Mask fields if not owner
-              if (!isOwner) {
-                final p = settings.privacy;
-                displayProfile = profile.copyWith(
-                  height: p.hideHeight ? null : profile.height,
-                  weight: p.hideWeight ? null : profile.weight,
-                  email: p.hideEmail ? '' : profile.email,
-                  phoneNumber: p.hidePhone ? '' : profile.phoneNumber,
-                  dateOfBirth: p.hideDob ? '' : profile.dateOfBirth,
-                  personalNotes:
-                      p.hidePersonalNotes ? '' : profile.personalNotes,
-                  verificationRequestDetails: p.hidePerformanceRating
-                      ? {
-                          ...profile.verificationRequestDetails,
-                          'performanceMetrics': null
-                        }
-                      : profile.verificationRequestDetails,
-                );
-              }
-
-              // Render appropriate widget based on role
-              switch (displayProfile.role) {
-                case 'Athlete':
-                  return AthleteProfileWidget(profile: displayProfile);
-                case 'Coach':
-                  return CoachProfileWidget(profile: displayProfile);
-                case 'Brand':
-                  return BrandProfileWidget(profile: displayProfile);
-                case 'Federation':
-                  return FederationProfileWidget(profile: displayProfile);
-                default:
-                  return AthleteProfileWidget(profile: displayProfile);
-              }
-            });
+          loading: () => _buildSkeletonLoader(),
+          error: (err, stack) {
+            // Gracefully fall back to defaults if privacy settings cannot be retrieved
+            return buildRoleView(UserSettingsModel.defaults());
+          },
+          data: (settings) => buildRoleView(settings),
+        );
       },
     );
   }
 
-  Widget _buildErrorState(String error, WidgetRef ref) {
+  Widget _buildErrorState(dynamic error, WidgetRef ref) {
+    final friendlyMessage = UserFacingError.message(
+      error,
+      fallback: 'Unable to load profile at this time. Please check your connection and try again.',
+    );
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
-            const SizedBox(height: 12),
+            const Icon(Icons.info_outline, size: 48, color: Colors.white38),
+            const SizedBox(height: 16),
             Text(
-              'Error loading profile: $error',
-              style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+              friendlyMessage,
+              style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -203,7 +232,7 @@ class ProfileLoader extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(12)),
               ),
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('RETRY',
+              label: const Text('Try Again',
                   style: TextStyle(fontWeight: FontWeight.bold)),
               onPressed: () {
                 ref.invalidate(universalProfileControllerProvider(userId));

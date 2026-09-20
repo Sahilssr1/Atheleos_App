@@ -42,6 +42,7 @@ class ProfileModel {
   final String? industry; // For Brand/Federation
   final String? organizationName; // For Brand/Federation
   final bool isFollowing; // Whether the logged-in user follows this profile
+  final bool showFollowing; // Whether the user chooses to show who they follow on their profile
   /// Sport-agnostic statistics array. Stored as a Firestore array of
   /// {id, name, type, value} objects. Never hardcoded per sport.
   final List<StatEntry> statistics;
@@ -98,6 +99,7 @@ class ProfileModel {
     this.industry,
     this.organizationName,
     this.isFollowing = false,
+    this.showFollowing = false,
     List<StatEntry>? statistics,
     this.verificationStatus = 'none',
     this.verificationBadge = '',
@@ -146,6 +148,7 @@ class ProfileModel {
     String? industry,
     String? organizationName,
     bool? isFollowing,
+    bool? showFollowing,
     List<StatEntry>? statistics,
     String? verificationStatus,
     String? verificationBadge,
@@ -198,6 +201,7 @@ class ProfileModel {
       industry: industry ?? this.industry,
       organizationName: organizationName ?? this.organizationName,
       isFollowing: isFollowing ?? this.isFollowing,
+      showFollowing: showFollowing ?? this.showFollowing,
       statistics: statistics ?? this.statistics,
       verificationStatus: verificationStatus ?? this.verificationStatus,
       verificationBadge: verificationBadge ?? this.verificationBadge,
@@ -259,6 +263,7 @@ class ProfileModel {
       'industry': industry,
       'organizationName': organizationName,
       'isFollowing': isFollowing,
+      'showFollowing': showFollowing,
       'statistics': statistics.map((s) => s.toMap()).toList(),
       'verificationStatus': verificationStatus,
       'verificationBadge': verificationBadge,
@@ -316,6 +321,7 @@ class ProfileModel {
       industry: data['industry'] as String?,
       organizationName: data['organizationName'] as String?,
       isFollowing: data['isFollowing'] ?? false,
+      showFollowing: data['showFollowing'] ?? false,
       statistics: _parseStatistics(data['statistics']),
       verificationStatus: data['verificationStatus'] ?? 'none',
       verificationBadge: data['verificationBadge'] ?? '',

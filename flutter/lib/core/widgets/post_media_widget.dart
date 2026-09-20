@@ -63,17 +63,19 @@ class PostMediaWidget extends ConsumerStatefulWidget {
     this.onMediaTap,
   });
 
-  /// Computes the known aspect ratio from width/height metadata,
-  /// falling back to 4/5 (portrait default like Instagram) if unknown.
-  /// Clamps to avoid extremely tall or wide posts.
+  /// Computes the known aspect ratio from width/height metadata.
+  /// For vertical videos (Reels), supports down to 0.5 (~9:18 / 9:16) so vertical videos
+  /// show full-frame without cropping top and bottom in feed (like Instagram).
+  /// For images, clamps between 4:5 (0.8) and 16:9 (1.91).
   double get knownAspectRatio {
+    final isVideo = mediaType == 'video';
     if (mediaWidth != null && mediaHeight != null && mediaWidth! > 0 && mediaHeight! > 0) {
       final raw = mediaWidth! / mediaHeight!;
-      // Clamp between 4:5 (portrait) and 16:9 (landscape)
-      return raw.clamp(0.8, 1.91);
+      final minAspect = isVideo ? 0.5 : 0.8;
+      return raw.clamp(minAspect, 1.91);
     }
-    // Default fallback: 4:5 portrait (Instagram default placeholder)
-    return 4 / 5;
+    // Default fallback: 9:16 for vertical video, 4:5 for image
+    return isVideo ? 9 / 16 : 4 / 5;
   }
 
   @override
@@ -104,6 +106,17 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
   // Track last known video state to avoid unnecessary rebuilds
   bool _lastBuffering = false;
   bool _lastPlaying = false;
+
+  /// Dynamic aspect ratio: uses controller's initialized ratio if available,
+  /// otherwise falls back to widget.knownAspectRatio from metadata.
+  /// Clamps down to 0.5 so full 9:16 vertical videos (0.5625) are 100% visible
+  /// without cropping any part of the top or bottom.
+  double get _effectiveAspectRatio {
+    if (_isInitialized && _videoController != null && _videoController!.value.aspectRatio > 0) {
+      return _videoController!.value.aspectRatio.clamp(0.5, 1.91);
+    }
+    return widget.knownAspectRatio;
+  }
 
   @override
   void initState() {
@@ -472,13 +485,15 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
                   imageUrl: widget.mediaUrl,
                   width: double.infinity,
                   fit: BoxFit.cover,
+                  memCacheWidth: 1080,
+                  memCacheHeight: 1350,
                   placeholder: (context, url) => _buildShimmerPlaceholder(),
                   errorWidget: (context, url, error) => _buildErrorWidget(),
                 ),
               )
             else if (widget.mediaType == 'video')
               AspectRatio(
-                aspectRatio: widget.knownAspectRatio,
+                aspectRatio: _effectiveAspectRatio,
                 child: _hasError
                     ? _buildErrorWidget()
                     : !_isInitialized
@@ -492,6 +507,8 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
                                   imageUrl: widget.thumbnailUrl!,
                                   width: double.infinity,
                                   fit: BoxFit.cover,
+                                  memCacheWidth: 1080,
+                                  memCacheHeight: 1920,
                                   placeholder: (context, url) => _buildShimmerPlaceholder(),
                                   errorWidget: (context, url, error) => Container(color: Colors.black),
                                 )
@@ -516,14 +533,19 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
                             alignment: Alignment.center,
                             fit: StackFit.expand,
                             children: [
-                              FittedBox(
-                                fit: BoxFit.cover,
-                                child: SizedBox(
-                                  width: _videoController!.value.size.width,
-                                  height: _videoController!.value.size.height,
-                                  child: VideoPlayer(_videoController!),
-                                ),
-                              ),
+                              Builder(builder: (context) {
+                                final vAspect = _videoController!.value.aspectRatio > 0
+                                    ? _videoController!.value.aspectRatio
+                                    : widget.knownAspectRatio;
+                                return FittedBox(
+                                  fit: BoxFit.cover,
+                                  child: SizedBox(
+                                    width: vAspect * 1000,
+                                    height: 1000,
+                                    child: VideoPlayer(_videoController!),
+                                  ),
+                                );
+                              }),
                               // Buffer Loader spinner
                               if (_videoController!.value.isBuffering)
                                 const Center(

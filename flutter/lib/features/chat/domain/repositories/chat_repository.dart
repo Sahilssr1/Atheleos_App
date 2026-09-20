@@ -24,4 +24,5 @@ abstract class ChatRepository {
   Future<void> deleteMessage(String roomId, String messageId);
   Future<void> toggleMessageReaction(String roomId, String messageId, String userId, String emoji);
   Future<void> markRoomAsRead(String roomId, String userId);
+  Future<void> acceptMessageRequest(String roomId, String userId);
 }

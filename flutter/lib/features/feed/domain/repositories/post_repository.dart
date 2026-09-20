@@ -1,16 +1,17 @@
 import '../models/post_model.dart';
 
 abstract class PostRepository {
-  Future<List<PostModel>> getPosts({String? currentUserId});
-  Future<List<PostModel>> getPostsByCategory(String category, {String? currentUserId});
-  Stream<List<PostModel>> watchPosts({String? currentUserId});
-  Stream<List<PostModel>> watchPostsByCategory(String category, {String? currentUserId});
+  Future<List<PostModel>> getPosts({String? currentUserId, int limit = 12});
+  Future<List<PostModel>> getPostsByCategory(String category, {String? currentUserId, int limit = 12});
+  Stream<List<PostModel>> watchPosts({String? currentUserId, int limit = 12});
+  Stream<List<PostModel>> watchPostsByCategory(String category, {String? currentUserId, int limit = 12});
 
   Stream<List<PostModel>> watchPostsFiltered({
     required String category,
     required String sport,
     required String sortBy, // 'Latest' | 'Trending'
     String? currentUserId,
+    int limit = 12,
   });
 
   Future<List<PostModel>> getPostsFilteredPaginated({

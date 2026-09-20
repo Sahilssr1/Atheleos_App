@@ -9,11 +9,12 @@ class ChatMessage {
   final Map<String, String> reactions; // key: userId, value: emoji character
 
   // Rich messaging fields
-  final String type; // 'text', 'emoji', 'gif', 'shared_post', 'shared_reel', 'shared_profile', 'image'
+  final String type; // 'text', 'emoji', 'gif', 'shared_post', 'shared_reel', 'shared_profile', 'shared_event', 'image'
   final String? conversationId;
   final String? referencedPostId;
   final String? referencedReelId;
   final String? referencedUserId;
+  final String? referencedEventId;
   final String? gifProvider;
   final String? gifUrl;
   final String? gifId;
@@ -49,6 +50,7 @@ class ChatMessage {
     this.referencedPostId,
     this.referencedReelId,
     this.referencedUserId,
+    this.referencedEventId,
     this.gifProvider,
     this.gifUrl,
     this.gifId,
@@ -85,6 +87,7 @@ class ChatMessage {
     String? referencedPostId,
     String? referencedReelId,
     String? referencedUserId,
+    String? referencedEventId,
     String? gifProvider,
     String? gifUrl,
     String? gifId,
@@ -114,6 +117,7 @@ class ChatMessage {
       referencedPostId: referencedPostId ?? this.referencedPostId,
       referencedReelId: referencedReelId ?? this.referencedReelId,
       referencedUserId: referencedUserId ?? this.referencedUserId,
+      referencedEventId: referencedEventId ?? this.referencedEventId,
       gifProvider: gifProvider ?? this.gifProvider,
       gifUrl: gifUrl ?? this.gifUrl,
       gifId: gifId ?? this.gifId,
@@ -146,6 +150,7 @@ class ChatMessage {
       'referencedPostId': referencedPostId,
       'referencedReelId': referencedReelId,
       'referencedUserId': referencedUserId,
+      if (referencedEventId != null) 'referencedEventId': referencedEventId,
       'gifProvider': gifProvider,
       'gifUrl': gifUrl,
       'gifId': gifId,
@@ -187,6 +192,7 @@ class ChatMessage {
       referencedPostId: map['referencedPostId'],
       referencedReelId: map['referencedReelId'],
       referencedUserId: map['referencedUserId'],
+      referencedEventId: map['referencedEventId'],
       gifProvider: map['gifProvider'],
       gifUrl: map['gifUrl'],
       gifId: map['gifId'],

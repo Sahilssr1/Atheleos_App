@@ -33,16 +33,13 @@ class MessagingAccessService {
       final roomIds = [senderId, receiverId]..sort();
       final roomId = roomIds.join('_');
       final receiverRef = _firestore.collection('users').doc(receiverId);
+      final senderRef = _firestore.collection('users').doc(senderId);
       final results = await Future.wait([
         receiverRef.collection('settings').doc('preferences').get().then<DocumentSnapshot<Map<String, dynamic>>?>((d) => d).catchError((_) => null),
         receiverRef.collection('blocked_users').doc(senderId).get().then<DocumentSnapshot<Map<String, dynamic>>?>((d) => d).catchError((_) => null),
-        _firestore
-            .collection('users')
-            .doc(senderId)
-            .collection('blocked_users')
-            .doc(receiverId)
-            .get().then<DocumentSnapshot<Map<String, dynamic>>?>((d) => d).catchError((_) => null),
+        senderRef.collection('blocked_users').doc(receiverId).get().then<DocumentSnapshot<Map<String, dynamic>>?>((d) => d).catchError((_) => null),
         receiverRef.collection('followers').doc(senderId).get().then<DocumentSnapshot<Map<String, dynamic>>?>((d) => d).catchError((_) => null),
+        senderRef.collection('followers').doc(receiverId).get().then<DocumentSnapshot<Map<String, dynamic>>?>((d) => d).catchError((_) => null),
         _firestore.collection('chats').doc(roomId).get().then<DocumentSnapshot<Map<String, dynamic>>?>((d) => d).catchError((_) => null),
       ]);
 
@@ -60,8 +57,22 @@ class MessagingAccessService {
           Map<String, dynamic>.from(settingsData['messaging'] ?? const {});
       final allowedSenders = messaging['allowedSenders'] as String? ?? 'everyone';
       final allowRequests = messaging['allowMessageRequests'] as bool? ?? true;
-      final followsReceiver = results[3]?.exists ?? false;
-      final roomExists = results[4]?.exists ?? false;
+
+      // Sender follows Receiver
+      final senderFollowsReceiver = results[3]?.exists ?? false;
+      // Receiver follows Sender back
+      final receiverFollowsSender = results[4]?.exists ?? false;
+      // Mutual follow: both follow each other back
+      final isMutualFollow = senderFollowsReceiver && receiverFollowsSender;
+
+      final roomSnap = results[5];
+      final roomData = roomSnap?.data();
+      final rawReplied = roomData?['repliedUserIds'];
+      final repliedList = rawReplied is List ? rawReplied.map((e) => e.toString()).toList() : <String>[];
+      final receiverAlreadyReplied = repliedList.contains(receiverId);
+
+      // Falls directly in normal chat list if mutual followers or if receiver already replied
+      final isRequest = !isMutualFollow && !receiverAlreadyReplied;
 
       if (allowedSenders == 'nobody') {
         return const MessagingAccessResult(
@@ -69,18 +80,22 @@ class MessagingAccessService {
           reason: 'This user is not accepting messages.',
         );
       }
-      if (roomExists || followsReceiver || allowedSenders == 'everyone') {
+      if (allowedSenders == 'followers') {
+        if (!senderFollowsReceiver && !allowRequests) {
+          return const MessagingAccessResult(
+            allowed: false,
+            reason: 'Only followers can message this user.',
+          );
+        }
         return MessagingAccessResult(
           allowed: true,
-          isRequest: !roomExists && !followsReceiver && allowRequests,
+          isRequest: isRequest,
         );
       }
-      if (allowedSenders == 'followers' && allowRequests) {
-        return const MessagingAccessResult(allowed: true, isRequest: true);
-      }
-      return const MessagingAccessResult(
-        allowed: false,
-        reason: 'Only followers can message this user.',
+
+      return MessagingAccessResult(
+        allowed: true,
+        isRequest: isRequest,
       );
     } catch (_) {
       // Allow delivery if check encounters network errors

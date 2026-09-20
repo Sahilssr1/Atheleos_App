@@ -5,17 +5,25 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/sports_service.dart';
-import '../../../../core/data/dummy/sports_dummy.dart';
 import '../../../feed/domain/models/post_model.dart';
 import '../../../profile/domain/models/profile_model.dart';
 import '../../../clips/presentation/controllers/clips_controller.dart';
 import '../controllers/search_controller.dart';
 import '../../../clips/presentation/screens/clips_screen.dart';
+import '../../../../core/widgets/app_avatar.dart';
 
 import '../../../../core/services/cache_manager.dart';
 import '../../../../core/services/network_service.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
+  static const List<String> supportedStates = [
+    'All', 'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA',
+    'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY',
+    'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX',
+    'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+  ];
+
   const SearchScreen({super.key});
 
   @override
@@ -142,7 +150,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         },
                         style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
                         decoration: InputDecoration(
-                          hintText: 'Search athletes, coaches, brands...',
+                          hintText: 'Search athletes, coaches, brands, federations...',
                           hintStyle: GoogleFonts.inter(color: Colors.white30, fontSize: 14),
                           prefixIcon: Icon(
                             Icons.search_rounded,
@@ -470,6 +478,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               CachedNetworkImage(
                 imageUrl: thumbnailUrl,
                 fit: BoxFit.cover,
+                memCacheWidth: 360,
+                memCacheHeight: 360,
                 placeholder: (context, url) => Container(
                   color: const Color(0xFF0F172A),
                   child: const Center(
@@ -668,7 +678,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   isActive: filters.state != 'All',
                   onTap: () => _showFilterSheet(
                     title: 'Select State',
-                    options: dummyStates,
+                    options: SearchScreen.supportedStates,
                     selected: filters.state,
                     onSelected: (val) => ref.read(searchFiltersProvider.notifier).setStateCode(val),
                   ),
@@ -760,7 +770,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             // Save profile details to profile cache to support instant loading
             CacheManager().saveProfile(athlete.id, athlete.toMap());
 
-            context.go('/profile/${athlete.id}');
+            context.push('/profile/${athlete.id}');
           },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -772,15 +782,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             child: Row(
               children: [
                 // Avatar
-                CircleAvatar(
+                AppAvatar(
+                  imageUrl: athlete.avatarUrl,
                   radius: 24,
-                  backgroundImage: athlete.avatarUrl.isNotEmpty
-                      ? NetworkImage(athlete.avatarUrl)
-                      : null,
-                  backgroundColor: const Color(0xFF1E293B),
-                  child: athlete.avatarUrl.isEmpty
-                      ? const Icon(Icons.person, color: Colors.white24)
-                      : null,
+                  role: athlete.role,
                 ),
                 const SizedBox(width: 14),
 

@@ -19,10 +19,12 @@ class UserModel {
   final int profileCompletion;
   final bool phoneVerified;
   final bool googleVerified;
+  final String avatarUrl;
   final bool isDeleted;
   final DateTime? deletedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
+  String get email => alternateEmail.isNotEmpty ? alternateEmail : googleEmail;
 
   UserModel({
     required this.uid,
@@ -43,6 +45,7 @@ class UserModel {
     required this.profileCompletion,
     required this.phoneVerified,
     required this.googleVerified,
+    this.avatarUrl = '',
     this.isDeleted = false,
     this.deletedAt,
     required this.createdAt,
@@ -68,6 +71,7 @@ class UserModel {
     int? profileCompletion,
     bool? phoneVerified,
     bool? googleVerified,
+    String? avatarUrl,
     bool? isDeleted,
     DateTime? deletedAt,
     DateTime? createdAt,
@@ -92,6 +96,7 @@ class UserModel {
       profileCompletion: profileCompletion ?? this.profileCompletion,
       phoneVerified: phoneVerified ?? this.phoneVerified,
       googleVerified: googleVerified ?? this.googleVerified,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       isDeleted: isDeleted ?? this.isDeleted,
       deletedAt: deletedAt ?? this.deletedAt,
       createdAt: createdAt ?? this.createdAt,
@@ -109,6 +114,8 @@ class UserModel {
       'displayName': fullName,
       'fullName': fullName,
       'phoneNumber': phoneNumber,
+      'avatarUrl': avatarUrl,
+      'photoUrl': avatarUrl,
       'country': country,
       'state': state,
       'city': city,
@@ -157,6 +164,7 @@ class UserModel {
           : (map['profileCompletion'] as num?)?.toInt() ?? 0,
       phoneVerified: map['phoneVerified'] ?? false,
       googleVerified: map['googleVerified'] ?? false,
+      avatarUrl: map['avatarUrl'] ?? map['photoUrl'] ?? map['googlePhotoUrl'] ?? map['profileImageUrl'] ?? '',
       isDeleted: map['isDeleted'] ?? false,
       deletedAt: map['deletedAt'] is Timestamp
           ? (map['deletedAt'] as Timestamp).toDate()
@@ -199,7 +207,8 @@ class UserModel {
 
   int calculateCompletionPercentage() {
     int score = 0;
-    int total = 12;
+    final isOrg = role == 'Brand' || role == 'Federation';
+    final total = isOrg ? 10 : 12;
 
     if (googleEmail.isNotEmpty) score++;
     if (alternateEmail.isNotEmpty) score++;
@@ -211,8 +220,10 @@ class UserModel {
     if (city.isNotEmpty) score++;
     if (role.isNotEmpty) score++;
     if (sport.isNotEmpty) score++;
-    if (position.isNotEmpty) score++;
-    if (height.isNotEmpty) score++;
+    if (!isOrg) {
+      if (position.isNotEmpty) score++;
+      if (height.isNotEmpty) score++;
+    }
 
     return ((score / total) * 100).round();
   }

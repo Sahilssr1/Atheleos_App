@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/notification_model.dart';
+import 'follow_back_button.dart';
 
 /// A single Instagram-style notification row: sender avatar with a small
 /// type-badge, the message body, relative time, an optional media thumbnail and
@@ -56,8 +57,13 @@ class NotificationTile extends StatelessWidget {
             CircleAvatar(
               radius: 24,
               backgroundColor: Colors.white10,
-              backgroundImage:
-                  hasAvatar ? CachedNetworkImageProvider(notification.senderAvatar) : null,
+              backgroundImage: hasAvatar
+                  ? CachedNetworkImageProvider(
+                      notification.senderAvatar,
+                      maxWidth: 120,
+                      maxHeight: 120,
+                    )
+                  : null,
               child: hasAvatar
                   ? null
                   : const Icon(Icons.person, color: Colors.white38, size: 24),
@@ -114,6 +120,37 @@ class NotificationTile extends StatelessWidget {
   }
 
   Widget _trailing() {
+    final isFollowType = notification.type == NotificationType.follow ||
+        notification.type == NotificationType.followRequest ||
+        notification.type == NotificationType.followAccept;
+
+    if (isFollowType &&
+        notification.senderId.isNotEmpty &&
+        notification.senderId != 'system') {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FollowBackButton(
+            targetUserId: notification.senderId,
+            targetUserName: notification.senderName,
+            notificationId: notification.id,
+            isNotificationRead: notification.read,
+          ),
+          if (!notification.read) ...[
+            const SizedBox(width: 8),
+            Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: AppTheme.primaryColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
     final thumb = notification.thumbnailUrl;
     if (thumb != null && thumb.isNotEmpty) {
       return ClipRRect(
@@ -122,6 +159,8 @@ class NotificationTile extends StatelessWidget {
           imageUrl: thumb,
           width: 44,
           height: 44,
+          memCacheWidth: 120,
+          memCacheHeight: 120,
           fit: BoxFit.cover,
           placeholder: (_, __) => Container(width: 44, height: 44, color: Colors.white10),
           errorWidget: (_, __, ___) =>

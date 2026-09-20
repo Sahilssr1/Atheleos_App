@@ -33,7 +33,7 @@ void main() async {
 
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
-    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    cacheSizeBytes: 104857600, // 100 MB capped LRU cache to prevent phone storage crashes
   );
 
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
@@ -68,7 +68,7 @@ class _AtheleosAppState extends ConsumerState<AtheleosApp> {
     // Keep logged-in user state in sync with Firebase Auth
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user != null && user.uid.isNotEmpty) {
-        if (ref.read(loggedInUserIdProvider) != user.uid) {
+        if (ref.read(loggedInUserIdProvider).isEmpty) {
           ref.read(loggedInUserIdProvider.notifier).state = user.uid;
           ref.read(currentProfileIdProvider.notifier).state = user.uid;
         }

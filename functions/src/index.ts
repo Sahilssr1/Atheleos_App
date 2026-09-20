@@ -5,14 +5,15 @@ import * as os from "os";
 import * as fs from "fs";
 import { exec } from "child_process";
 import { promisify } from "util";
+import * as nodemailer from "nodemailer";
 
 const execPromise = promisify(exec);
 admin.initializeApp();
 const db = admin.firestore();
 
 // Worker API Configurations
-const WORKER_BASE_URL = "https://atheleos-media-worker.atheleos-media.workers.dev";
-const ADMIN_SECRET = "atheleos-admin-secret-key-12345"; // Configured as Worker secret
+const WORKER_BASE_URL = process.env.WORKER_BASE_URL || "https://atheleos-media-worker.atheleos-media.workers.dev";
+const ADMIN_SECRET = process.env.ADMIN_SECRET_KEY || "atheleos-admin-secret-key-12345";
 
 // --- 1. Video Processing HTTPS Trigger ---
 
@@ -22,22 +23,6 @@ const runtimeOpts = {
 };
 
 export const processVideoJob = functions.runWith(runtimeOpts).https.onRequest(async (req, res) => {
-  // Debug GET handler to inspect job failures
-  if (req.method === "GET" && req.query.debug === "1") {
-    res.set("Access-Control-Allow-Origin", "*");
-    try {
-      const jobsSnap = await db.collection("processing_jobs").orderBy("updatedAt", "desc").limit(5).get();
-      const jobs: any[] = [];
-      jobsSnap.forEach(doc => {
-        jobs.push({ id: doc.id, ...doc.data() });
-      });
-      res.status(200).send(jobs);
-    } catch (e: any) {
-      res.status(500).send({ error: e.message });
-    }
-    return;
-  }
-
   // Simple CORS preflight handling
   if (req.method === "OPTIONS") {
     res.set("Access-Control-Allow-Origin", "*");
@@ -121,39 +106,44 @@ async function runTranscodingPipeline(jobId: string, jobData: any, token: string
     await fs.promises.writeFile(localInputPath, buffer);
 
     // 2. Transcode and optimize with FFmpeg (Limit processing duration to 180s)
-    // - Enforce H.264 video, AAC audio, 480p resolution, maintain aspect ratio
-    // Detect dimensions & orientation using ffprobe
-    const { stdout: ffprobeOut } = await execPromise(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration,r_frame_rate,bit_rate -of json "${localInputPath}"`,
+    // Scale preserving natural aspect ratio without adding any letterbox/pillarbox padding (pad=).
+    // Cap maximum dimension to 1280 (HD tier) while ensuring both dimensions are even integers for H.264.
+    const { stdout: inProbeJson } = await execPromise(
+      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration,r_frame_rate -of json "${localInputPath}"`,
       { maxBuffer: 10 * 1024 * 1024 }
     );
-    const metadata = JSON.parse(ffprobeOut);
-    const stream = metadata.streams?.[0] || {};
-    const origWidth = parseInt(stream.width, 10) || 0;
-    const origHeight = parseInt(stream.height, 10) || 0;
-    const duration = parseFloat(stream.duration) || 0;
-    const fps = eval(stream.r_frame_rate || "30");
-    // const origBitrate = parseInt(stream.bit_rate, 10) || 0;
+    console.log(`[VIDEO JOB ${jobId}] Input Probe:`, inProbeJson.trim());
 
-    const isPortrait = origHeight > origWidth;
-    let targetWidth = 854;
-    let targetHeight = 480;
-    if (isPortrait) {
-      targetWidth = 480;
-      targetHeight = 854;
-    }
+    const scaleFilter = "scale='if(gt(iw,ih),min(1280,iw),-2)':'if(gt(iw,ih),-2,min(1280,ih))'";
 
-    // Downscale only if source is larger than 480p; maintain exact orientation
-    const scaleFilter = `scale=w='if(gt(iw,${targetWidth}),${targetWidth},-1)':h='if(gt(ih,${targetHeight}),${targetHeight},-1)':force_original_aspect_ratio=decrease,pad=${targetWidth}:${targetHeight}:(ow-iw)/2:(oh-ih)/2`;
-
-    // Transcode command (H.264 + AAC + scale to 480p limit)
-    // Run with 180 seconds timeout
-    const cmd = `ffmpeg -y -nostdin -i "${localInputPath}" -vf "${scaleFilter}" -c:v libx264 -preset fast -crf 23 -c:a aac -b:a 128k -t 180 "${localOutputPath}"`;
+    // Transcode command (H.264 + AAC + pix_fmt yuv420p + faststart)
+    const cmd = `ffmpeg -y -nostdin -i "${localInputPath}" -vf "${scaleFilter}" -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 128k -t 180 "${localOutputPath}"`;
     await execPromise(cmd, { maxBuffer: 50 * 1024 * 1024 });
 
-    // 3. Simple Thumbnail Generation (Extract frame at 1s or 30% of duration)
-    const thumbFrameTime = duration > 2 ? 1 : duration * 0.3;
-    const thumbCmd = `ffmpeg -y -nostdin -ss ${thumbFrameTime} -i "${localInputPath}" -vframes 1 -q:v 2 "${localThumbPath}"`;
+    // 3. Simple Thumbnail Generation & Probing directly from the optimized output video
+    // (guarantees matching aspect ratio, upright orientation, and zero padding)
+    const { stdout: outProbeJson } = await execPromise(
+      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration,r_frame_rate -of json "${localOutputPath}"`,
+      { maxBuffer: 10 * 1024 * 1024 }
+    );
+    console.log(`[VIDEO JOB ${jobId}] Output Probe:`, outProbeJson.trim());
+
+    const outMetadata = JSON.parse(outProbeJson);
+    const outStream = outMetadata.streams?.[0] || {};
+    const finalWidth = parseInt(outStream.width, 10) || 720;
+    const finalHeight = parseInt(outStream.height, 10) || 1280;
+    const finalDuration = parseFloat(outStream.duration) || 0;
+    let finalFps = 30;
+    try {
+      finalFps = eval(outStream.r_frame_rate || "30");
+    } catch (_) {}
+
+    const isPortrait = finalHeight >= finalWidth;
+    const finalAspectRatio = finalHeight > 0 ? finalWidth / finalHeight : (isPortrait ? 9 / 16 : 16 / 9);
+    console.log(`[VIDEO JOB ${jobId}] Parsed: width=${finalWidth}, height=${finalHeight}, isPortrait=${isPortrait}, aspect=${finalAspectRatio}`);
+
+    const thumbFrameTime = finalDuration > 2 ? 1 : (finalDuration > 0 ? finalDuration * 0.3 : 0.5);
+    const thumbCmd = `ffmpeg -y -nostdin -ss ${thumbFrameTime} -i "${localOutputPath}" -vframes 1 -q:v 2 "${localThumbPath}"`;
     await execPromise(thumbCmd, { maxBuffer: 50 * 1024 * 1024 });
 
     // 4. Upload optimized MP4 and Thumbnail back to Cloudflare Worker
@@ -217,12 +207,12 @@ async function runTranscodingPipeline(jobId: string, jobData: any, token: string
           },
         },
         videoMetadata: {
-          duration,
-          width: targetWidth,
-          height: targetHeight,
-          aspectRatio: targetWidth / targetHeight,
-          bitrate: Math.round((videoBuffer.length * 8) / duration),
-          fps,
+          duration: finalDuration,
+          width: finalWidth,
+          height: finalHeight,
+          aspectRatio: finalAspectRatio,
+          bitrate: Math.round((videoBuffer.length * 8) / (finalDuration || 1)),
+          fps: finalFps,
           codec: {
             video: "h264",
             audio: "aac",
@@ -463,18 +453,17 @@ export const dailyMediaCleanup = functions.pubsub.schedule("every 24 hours").onR
     }
   }
 
-  // B. Repair job for references count check (Recalculate only if mismatch detected)
-  const refsSnap = await db.collection("media_references").get();
-  const counts: Record<string, number> = {};
-  for (const ref of refsSnap.docs) {
-    const mId = ref.data().mediaId;
-    counts[mId] = (counts[mId] || 0) + 1;
-  }
+  // B. Repair job for references count check (inspect only media modified in last 48 hours to avoid full collection scans)
+  const twoDaysAgo = admin.firestore.Timestamp.fromDate(new Date(now.toDate().getTime() - 48 * 60 * 60 * 1000));
+  const mediaSnap = await db.collection("media")
+    .where("updatedAt", ">=", twoDaysAgo)
+    .limit(200)
+    .get();
 
-  const mediaSnap = await db.collection("media").get();
   for (const mDoc of mediaSnap.docs) {
     const mId = mDoc.id;
-    const actualRefsCount = counts[mId] || 0;
+    const refsSnap = await db.collection("media_references").where("mediaId", "==", mId).get();
+    const actualRefsCount = refsSnap.size;
     const reportedCount = mDoc.data().referenceCount || 0;
 
     if (actualRefsCount !== reportedCount) {
@@ -533,48 +522,353 @@ async function triggerVideoProcessor(videoProcessorUrl: string, jobId: string, t
   }
 }
 
-// --- 4. Scheduled Cleanup of Incomplete Registrations ---
-
+// --- 4. Scheduled Cleanup of Incomplete Registrations (DISABLED) ---
+// Kept disabled so that no accounts, test profiles, or user data are ever touched or deleted.
+/*
 export const cleanupIncompleteAccounts = functions.pubsub
   .schedule("every 1 hours")
   .onRun(async (context) => {
-    const gracePeriodHours = 2; // Delete users who registered but didn't finish onboarding in 2 hours
-    const thresholdDate = new Date(Date.now() - gracePeriodHours * 60 * 60 * 1000);
-
-    let nextPageToken: string | undefined;
-    let usersProcessed = 0;
-    let usersDeleted = 0;
-
-    do {
-      const listUsersResult: admin.auth.ListUsersResult = await admin.auth().listUsers(1000, nextPageToken);
-      
-      for (const userRecord of listUsersResult.users) {
-        usersProcessed++;
-        const creationTime = new Date(userRecord.metadata.creationTime);
-
-        // Check if account is older than grace period
-        if (creationTime < thresholdDate) {
-          const userDocRef = db.collection("users").doc(userRecord.uid);
-          const docSnap = await userDocRef.get();
-
-          if (!docSnap.exists) {
-            // Profile document does not exist -> user didn't complete onboarding
-            console.log(`Cleanup: Deleting incomplete Auth user ${userRecord.uid} (${userRecord.email || "no-email"}) created at ${userRecord.metadata.creationTime}`);
-            try {
-              await admin.auth().deleteUser(userRecord.uid);
-              usersDeleted++;
-            } catch (err) {
-              console.error(`Cleanup: Failed to delete user ${userRecord.uid}:`, err);
-            }
-          }
-        }
-      }
-
-      nextPageToken = listUsersResult.pageToken;
-    } while (nextPageToken);
-
-    console.log(`Incomplete accounts cleanup finished. Processed: ${usersProcessed}, Deleted: ${usersDeleted}`);
+    // Disabled to preserve all user accounts and data intact.
   });
+*/
+
+// --- 5. Real-Time Email OTP Dispatch (Hostinger SMTP) ---
+
+const smtpTransporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || "smtp.hostinger.com",
+  port: parseInt(process.env.SMTP_PORT || "465", 10),
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER || "contact@atheleos.in",
+    pass: process.env.SMTP_PASS || "Atheleos@5477",
+  },
+});
+
+async function dispatchOtpEmail(toEmail: string, otpCode: string): Promise<boolean> {
+  const htmlContent = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0a0a0a; color: #ffffff; padding: 40px 16px; text-align: center;">
+      <div style="max-width: 480px; margin: 0 auto; background-color: #141414; border: 1px solid #282828; border-radius: 16px; padding: 36px 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.6);">
+        <h1 style="color: #00E5FF; font-size: 26px; letter-spacing: 3px; margin: 0 0 6px 0; font-weight: 900;">ATHELEOS</h1>
+        <p style="color: #777777; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 28px 0; font-weight: 700;">Arena Verification</p>
+        
+        <div style="background: linear-gradient(180deg, #181818 0%, #101010 100%); border: 1px solid #333333; border-radius: 12px; padding: 24px 16px; margin-bottom: 24px;">
+          <p style="color: #aaaaaa; font-size: 14px; margin: 0 0 14px 0;">Use this 6-digit code to verify your email:</p>
+          <div style="font-size: 38px; font-weight: 900; letter-spacing: 10px; color: #00E5FF; font-family: monospace; padding-left: 10px;">${otpCode}</div>
+          <p style="color: #666666; font-size: 12px; margin: 14px 0 0 0;">Valid for 10 minutes &bull; Single use only</p>
+        </div>
+        
+        <p style="color: #999999; font-size: 13px; line-height: 1.5; margin: 0 0 24px 0;">
+          Enter this verification code in the Atheleos mobile application to continue setting up your athlete profile.
+        </p>
+        
+        <div style="border-top: 1px solid #222222; padding-top: 20px;">
+          <p style="color: #555555; font-size: 11px; margin: 0; line-height: 1.4;">
+            If you did not request this email, no further action is required.<br/>
+            &copy; ${new Date().getFullYear()} Atheleos Arena. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const info = await smtpTransporter.sendMail({
+    from: `"Atheleos Arena" <contact@atheleos.in>`,
+    to: toEmail,
+    subject: `${otpCode} is your Atheleos verification code`,
+    text: `Your Atheleos verification code is ${otpCode}. This code is valid for 10 minutes.`,
+    html: htmlContent,
+  });
+
+  console.log(`[Email OTP] Successfully dispatched code to ${toEmail}. Message ID: ${info.messageId}`);
+  return true;
+}
+
+// 5A. Direct HTTPS Endpoint for instant mobile dispatch
+export const sendEmailOtp = functions.https.onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return;
+  }
+
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+
+  const { email, code } = req.body || {};
+  if (!email || !code) {
+    res.status(400).json({ error: "Missing required email or code" });
+    return;
+  }
+
+  const cleanEmail = String(email).trim().toLowerCase();
+  const cleanCode = String(code).trim();
+
+  try {
+    await dispatchOtpEmail(cleanEmail, cleanCode);
+    res.status(200).json({ success: true, message: `Verification code sent to ${cleanEmail}` });
+  } catch (err: any) {
+    console.error(`[sendEmailOtp] Error sending to ${cleanEmail}:`, err);
+    res.status(500).json({ error: err.message || "Failed to send email verification code" });
+  }
+});
+
+// 5B. Firestore Document Trigger Fallback
+export const onEmailOtpWrite = functions.firestore
+  .document("email_otps/{email}")
+  .onWrite(async (change, context) => {
+    if (!change.after.exists) return null;
+
+    const data = change.after.data();
+    if (!data) return null;
+
+    // Avoid duplicate sending if already marked sent
+    if (data.status === "sent") return null;
+
+    const email = data.email || context.params.email;
+    const code = data.code;
+
+    if (!email || !code) return null;
+
+    try {
+      await dispatchOtpEmail(email, code);
+      await change.after.ref.update({
+        status: "sent",
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return true;
+    } catch (err: any) {
+      console.error(`[onEmailOtpWrite] Failed for ${email}:`, err);
+      await change.after.ref.update({
+        status: "failed",
+        error: String(err?.message || err),
+      });
+      return false;
+    }
+  });
+
+// 5C. Reset Password with Verified OTP
+export const resetPasswordWithOtp = functions.https.onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return;
+  }
+
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+
+  const { email, code, newPassword } = req.body || {};
+  if (!email || !code || !newPassword) {
+    res.status(400).json({ error: "Missing required email, code, or newPassword" });
+    return;
+  }
+
+  const cleanEmail = String(email).trim().toLowerCase();
+  const cleanCode = String(code).trim();
+  const passwordStr = String(newPassword);
+
+  if (passwordStr.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters long" });
+    return;
+  }
+  if (!/[A-Z]/.test(passwordStr)) {
+    res.status(400).json({ error: "Password must contain at least one uppercase letter (A-Z)" });
+    return;
+  }
+  if (!/[a-z]/.test(passwordStr)) {
+    res.status(400).json({ error: "Password must contain at least one lowercase letter (a-z)" });
+    return;
+  }
+  if (!/[0-9]/.test(passwordStr)) {
+    res.status(400).json({ error: "Password must contain at least one number (0-9)" });
+    return;
+  }
+  if (!/[!@#$%^&*(),.?":{}|<>_+\-=\[\]\\\/~`]/.test(passwordStr)) {
+    res.status(400).json({ error: "Password must contain at least one special character (!@#$%...)" });
+    return;
+  }
+
+  try {
+    // 1. Verify OTP in Firestore
+    const otpDoc = await admin.firestore().collection("email_otps").doc(cleanEmail).get();
+    if (!otpDoc.exists) {
+      res.status(400).json({ error: "No OTP found for this email. Please request a new code." });
+      return;
+    }
+
+    const data = otpDoc.data();
+    if (!data || String(data.code).trim() !== cleanCode) {
+      res.status(400).json({ error: "Invalid verification code. Please check and try again." });
+      return;
+    }
+
+    const expiresAt = data.expiresAt ? data.expiresAt.toDate() : null;
+    if (expiresAt && new Date() > expiresAt) {
+      res.status(400).json({ error: "Verification code has expired. Please request a new one." });
+      return;
+    }
+
+    // 2. Find Firebase Auth user
+    let userRecord: admin.auth.UserRecord | null = null;
+    try {
+      userRecord = await admin.auth().getUserByEmail(cleanEmail);
+    } catch (e: any) {
+      // Check if user has this email stored as alternateEmail
+      const userSnap = await admin.firestore().collection("users")
+        .where("alternateEmail", "==", cleanEmail)
+        .limit(1)
+        .get();
+
+      if (!userSnap.empty) {
+        const uid = userSnap.docs[0].id;
+        userRecord = await admin.auth().getUser(uid);
+      } else {
+        res.status(404).json({ error: "No registered Atheleos account found with this email." });
+        return;
+      }
+    }
+
+    if (!userRecord) {
+      res.status(404).json({ error: "User account could not be found." });
+      return;
+    }
+
+    // 3. Update the password in Firebase Authentication
+    await admin.auth().updateUser(userRecord.uid, {
+      password: passwordStr,
+    });
+
+    // 4. Mark the OTP as used
+    await otpDoc.ref.update({
+      verified: true,
+      used: true,
+      usedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log(`[resetPasswordWithOtp] Successfully updated password for user ${userRecord.uid} (${cleanEmail})`);
+    res.status(200).json({ success: true, message: "Password updated successfully" });
+  } catch (err: any) {
+    console.error(`[resetPasswordWithOtp] Error updating password for ${cleanEmail}:`, err);
+    res.status(500).json({ error: err.message || "Failed to reset password. Please try again." });
+  }
+});
+
+// 5D. Cleanup Incomplete / Orphan Registration Account
+export const cleanupIncompleteAccount = functions.https.onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return;
+  }
+
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+
+  const { email } = req.body || {};
+  if (!email) {
+    res.status(400).json({ error: "Missing required email parameter" });
+    return;
+  }
+
+  const cleanEmail = String(email).trim().toLowerCase();
+
+  try {
+    // 1. Check if user exists in Firebase Auth
+    let userRecord: admin.auth.UserRecord | null = null;
+    try {
+      userRecord = await admin.auth().getUserByEmail(cleanEmail);
+    } catch (e: any) {
+      if (e.code === "auth/user-not-found") {
+        res.status(200).json({ success: true, deletedOrphan: false, message: "No auth user found for this email." });
+        return;
+      }
+      throw e;
+    }
+
+    if (!userRecord) {
+      res.status(200).json({ success: true, deletedOrphan: false, message: "No auth user found." });
+      return;
+    }
+
+    const uid = userRecord.uid;
+
+    // 2. Check if a completed Firestore profile exists for this UID or email
+    const userDocSnap = await admin.firestore().collection("users").doc(uid).get();
+
+    const altEmailSnap = await admin.firestore().collection("users")
+      .where("alternateEmail", "==", cleanEmail)
+      .limit(1)
+      .get();
+    const primaryEmailSnap = await admin.firestore().collection("users")
+      .where("email", "==", cleanEmail)
+      .limit(1)
+      .get();
+
+    const existingDoc = userDocSnap.exists
+      ? userDocSnap
+      : (!altEmailSnap.empty ? altEmailSnap.docs[0] : (!primaryEmailSnap.empty ? primaryEmailSnap.docs[0] : null));
+
+    if (existingDoc && existingDoc.exists) {
+      const data = existingDoc.data() || {};
+      // If user has phoneVerified === true AND has role, it is a completed user!
+      if (data.phoneVerified === true && data.role && String(data.role).trim().length > 0) {
+        res.status(200).json({
+          success: false,
+          completed: true,
+          message: "This account has a completed profile.",
+        });
+        return;
+      }
+    }
+
+    // 3. Incomplete / orphan registration: Purge partial data and delete the Firebase Auth user!
+    if (existingDoc && existingDoc.exists) {
+      const data = existingDoc.data() || {};
+      if (data.username) {
+        try {
+          await admin.firestore().collection("usernames").doc(String(data.username).toLowerCase().trim()).delete();
+        } catch (_) {}
+      }
+      try {
+        await existingDoc.ref.delete();
+      } catch (_) {}
+    }
+    if (userDocSnap.exists) {
+      try {
+        await userDocSnap.ref.delete();
+      } catch (_) {}
+    }
+
+    // Delete the orphan Firebase Auth user
+    await admin.auth().deleteUser(uid);
+    console.log(`[cleanupIncompleteAccount] Successfully purged orphan user ${uid} (${cleanEmail})`);
+
+    res.status(200).json({
+      success: true,
+      deletedOrphan: true,
+      message: "Successfully deleted incomplete account.",
+    });
+  } catch (err: any) {
+    console.error(`[cleanupIncompleteAccount] Error for ${cleanEmail}:`, err);
+    res.status(500).json({ error: err.message || "Failed to cleanup incomplete account" });
+  }
+});
+
 
 
 

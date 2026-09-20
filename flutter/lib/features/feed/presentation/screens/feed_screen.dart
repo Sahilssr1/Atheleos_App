@@ -28,6 +28,9 @@ import '../../../chat/presentation/controllers/chat_controller.dart';
 import '../../../../core/widgets/post_media_widget.dart'
     show activeVideoUrlProvider, preloadedVideoUrlProvider;
 import '../../../clips/presentation/screens/clips_screen.dart';
+import '../../../../core/utils/user_facing_error.dart';
+import '../../../../core/widgets/app_avatar.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FeedScreen extends ConsumerStatefulWidget {
   const FeedScreen({super.key});
@@ -124,10 +127,14 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         ],
                         error: (err, stack) => [
                           SliverToBoxAdapter(
-                            child: Center(
-                              child: Text(
-                                'Error loading feed: $err',
-                                style: const TextStyle(color: Colors.red),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+                              child: Center(
+                                child: Text(
+                                  UserFacingError.message(err, fallback: 'Unable to load feed right now.'),
+                                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
                             ),
                           ),
@@ -186,8 +193,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                         );
                                       }
                                     }
-                                    // Smart background prefetching for media
-                                    ref.read(feedPostsProvider.notifier).prefetchMediaForIndex(index, posts);
+                                    // Smart background prefetching for media (deferred to post-frame to keep build pure)
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      if (mounted) {
+                                        ref.read(feedPostsProvider.notifier).prefetchMediaForIndex(index, posts);
+                                      }
+                                    });
                                     return _buildPostCard(context, ref, posts[index], theme);
                                   },
                                   childCount: posts.length + 1,
@@ -320,7 +331,13 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                           child: CircleAvatar(
                             radius: 25,
                             backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
-                            backgroundImage: hasValidAvatar ? CachedNetworkImageProvider(representativeStory.userAvatar) : null,
+                            backgroundImage: hasValidAvatar
+                                ? CachedNetworkImageProvider(
+                                    representativeStory.userAvatar,
+                                    maxWidth: 120,
+                                    maxHeight: 120,
+                                  )
+                                : null,
                             child: !hasValidAvatar
                                 ? Text(
                                     displayName.isNotEmpty ? displayName[0].toUpperCase() : 'A',
@@ -375,7 +392,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
   Widget _buildMyStoryButton(BuildContext context, WidgetRef ref, List<StoryModel>? myStories) {
     final userAsync = ref.watch(currentUserProvider);
-    final avatarUrl = userAsync.valueOrNull?.avatarUrl ?? 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150';
+    final userProfile = userAsync.valueOrNull;
+    final avatarUrl = (userProfile != null && userProfile.avatarUrl.trim().isNotEmpty)
+        ? userProfile.avatarUrl.trim()
+        : (FirebaseAuth.instance.currentUser?.photoURL ?? '');
     final myId = ref.watch(loggedInUserIdProvider);
 
     final bool hasUnviewed = myStories != null && myStories.any((s) => !s.viewedBy.contains(myId));
@@ -432,7 +452,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       radius: 25,
                       backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
                       backgroundImage: (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))
-                          ? CachedNetworkImageProvider(avatarUrl)
+                          ? CachedNetworkImageProvider(
+                              avatarUrl,
+                              maxWidth: 120,
+                              maxHeight: 120,
+                            )
                           : null,
                       child: !(avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))
                           ? const Icon(Icons.person, color: AppTheme.primaryColor, size: 20)
@@ -475,7 +499,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
   Future<void> _uploadStoryAction(BuildContext context, WidgetRef ref) async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1080,
+      maxHeight: 1920,
+      imageQuality: 80,
+    );
     if (pickedFile != null) {
       if (!context.mounted) return;
       showDialog(
@@ -487,6 +516,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   Widget _buildCreatePostCard(BuildContext context) {
+    final userAsync = ref.watch(currentUserProvider);
+    final userProfile = userAsync.valueOrNull;
+    final avatarUrl = (userProfile != null && userProfile.avatarUrl.trim().isNotEmpty)
+        ? userProfile.avatarUrl.trim()
+        : (FirebaseAuth.instance.currentUser?.photoURL ?? '');
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       shape: RoundedRectangleBorder(
@@ -503,8 +538,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
           padding: const EdgeInsets.all(14.0),
           child: Row(
             children: [
-              const CircleAvatar(
-                backgroundImage: NetworkImage('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150'),
+              AppAvatar(
+                imageUrl: avatarUrl,
                 radius: 18,
               ),
               const SizedBox(width: 12),
@@ -1054,7 +1089,7 @@ class _StoryViewerDialogState extends ConsumerState<StoryViewerDialog> with Sing
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send reply: $e')),
+          SnackBar(content: Text(UserFacingError.message(e, fallback: 'Failed to send reply. Please try again.'))),
         );
       }
     }
@@ -1211,10 +1246,14 @@ class _StoryViewerDialogState extends ConsumerState<StoryViewerDialog> with Sing
                         GestureDetector(
                           onTap: () {
                             Navigator.of(context).pop();
-                            context.go('/profile/${story.userId}');
+                            context.push('/profile/${story.userId}');
                           },
                           child: CircleAvatar(
-                            backgroundImage: NetworkImage(story.userAvatar),
+                            backgroundImage: CachedNetworkImageProvider(
+                              story.userAvatar,
+                              maxWidth: 120,
+                              maxHeight: 120,
+                            ),
                             radius: 18,
                           ),
                         ),
@@ -1222,7 +1261,7 @@ class _StoryViewerDialogState extends ConsumerState<StoryViewerDialog> with Sing
                         GestureDetector(
                           onTap: () {
                             Navigator.of(context).pop();
-                            context.go('/profile/${story.userId}');
+                            context.push('/profile/${story.userId}');
                           },
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1409,10 +1448,19 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
     final userAsync = ref.read(currentUserProvider);
     final user = userAsync.valueOrNull;
 
-    final userId = user?.id ?? 'user_1';
-    final username = user?.name ?? 'Jordan Vance';
-    final profileImage = user?.avatarUrl ?? 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150';
-    final verified = user?.verified ?? true;
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final userId = (user?.id != null && user!.id.isNotEmpty)
+        ? user.id
+        : (firebaseUser?.uid ?? '');
+    final username = (user?.name != null && user!.name.isNotEmpty)
+        ? user.name
+        : (firebaseUser?.displayName?.isNotEmpty == true
+            ? firebaseUser!.displayName!
+            : 'Athlete');
+    final profileImage = (user?.avatarUrl != null && user!.avatarUrl.isNotEmpty)
+        ? user.avatarUrl
+        : (firebaseUser?.photoURL ?? '');
+    final verified = user?.verified ?? false;
 
     _commentController.clear();
     _commentFocusNode.unfocus();
@@ -1427,7 +1475,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error editing comment: $e')),
+            SnackBar(content: Text(UserFacingError.message(e, fallback: 'Unable to edit comment. Please try again.'))),
           );
         }
       }
@@ -1537,7 +1585,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error adding comment: $e')),
+          SnackBar(content: Text(UserFacingError.message(e, fallback: 'Unable to add comment. Please try again.'))),
         );
       }
     }
@@ -1569,7 +1617,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error deleting comment: $e')),
+            SnackBar(content: Text(UserFacingError.message(e, fallback: 'Unable to delete comment. Please try again.'))),
           );
         }
       }
@@ -1580,7 +1628,9 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
   Widget build(BuildContext context) {
     final commentsAsync = ref.watch(commentsStreamProvider(widget.post.id));
     final userAsync = ref.watch(currentUserProvider);
-    final currentUserAvatar = userAsync.valueOrNull?.avatarUrl ?? 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150';
+    final currentUserAvatar = (userAsync.valueOrNull?.avatarUrl != null && userAsync.valueOrNull!.avatarUrl.isNotEmpty)
+        ? userAsync.valueOrNull!.avatarUrl
+        : (FirebaseAuth.instance.currentUser?.photoURL ?? '');
 
     return Container(
       decoration: const BoxDecoration(
@@ -1626,7 +1676,11 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
               error: (err, _) => Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24.0),
-                  child: Text('Error loading comments: $err', style: const TextStyle(color: Colors.red)),
+                  child: Text(
+                    UserFacingError.message(err, fallback: 'Unable to load comments right now.'),
+                    style: const TextStyle(color: Colors.white54, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
               data: (comments) {
@@ -1715,10 +1769,10 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                           GestureDetector(
                             onTap: () {
                               Navigator.pop(context);
-                              context.go('/profile/${comment.userId}');
+                              context.push('/profile/${comment.userId}');
                             },
-                            child: CircleAvatar(
-                              backgroundImage: NetworkImage(comment.profileImage),
+                            child: AppAvatar(
+                              imageUrl: comment.profileImage,
                               radius: 14,
                             ),
                           ),
@@ -1730,7 +1784,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                                 GestureDetector(
                                   onTap: () {
                                     Navigator.pop(context);
-                                    context.go('/profile/${comment.userId}');
+                                    context.push('/profile/${comment.userId}');
                                   },
                                   child: Row(
                                     children: [
@@ -1860,8 +1914,8 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                CircleAvatar(
-                  backgroundImage: NetworkImage(currentUserAvatar),
+                AppAvatar(
+                  imageUrl: currentUserAvatar,
                   radius: 16,
                 ),
                 const SizedBox(width: 12),
@@ -2046,7 +2100,7 @@ class _StoryUploadDialogState extends ConsumerState<StoryUploadDialog> {
       if (mounted) {
         setState(() => _isUploading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload story: $e')),
+          SnackBar(content: Text(UserFacingError.message(e, fallback: 'Failed to upload story. Please try again.'))),
         );
       }
     }

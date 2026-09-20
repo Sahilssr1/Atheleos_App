@@ -8,8 +8,6 @@ import '../../data/repositories/clip_repository_impl.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../feed/presentation/controllers/feed_controller.dart';
 import '../../../feed/domain/models/post_model.dart';
-import '../../../notifications/data/notification_service.dart';
-import '../../../notifications/presentation/controllers/notifications_controller.dart';
 import '../../../../core/services/cache_manager.dart';
 import '../../../feed/presentation/controllers/like_controller.dart';
 
@@ -169,7 +167,9 @@ class ClipsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
     final authUid = FirebaseAuth.instance.currentUser?.uid;
     final effectiveUserId = (authUid != null && authUid.isNotEmpty)
         ? authUid
-        : (_userId.isNotEmpty ? _userId : 'user_1');
+        : _userId;
+
+    if (effectiveUserId.isEmpty) return;
 
     if (currentlyBookmarked) {
       _bookmarkedIds.remove(clipId);

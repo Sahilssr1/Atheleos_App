@@ -41,14 +41,28 @@ class MediaItem {
     };
   }
 
+  double? get aspectRatio {
+    if (width != null && height != null && height! > 0) {
+      return width! / height!;
+    }
+    return null;
+  }
+
+  bool get isVideo =>
+      mediaType.toLowerCase().contains('video') ||
+      mediaType == 'clip' ||
+      mediaUrl.toLowerCase().contains('.mp4') ||
+      mediaUrl.toLowerCase().contains('.mov') ||
+      mediaUrl.toLowerCase().contains('/video/upload/');
+
   factory MediaItem.fromMap(Map<String, dynamic> map) {
     return MediaItem(
       mediaUrl: map['mediaUrl'] as String? ?? '',
       mediaType: map['mediaType'] as String? ?? 'image',
       thumbnailUrl: map['thumbnailUrl'] as String?,
       publicId: map['publicId'] as String?,
-      width: map['width'] as int?,
-      height: map['height'] as int?,
+      width: (map['width'] as num?)?.toInt(),
+      height: (map['height'] as num?)?.toInt(),
       duration: (map['duration'] as num?)?.toDouble(),
     );
   }
@@ -87,9 +101,9 @@ class PostModel {
   final DateTime createdAt;
   final List<MentionModel> mentions;
 
-  /// Whether this post contains any video media.
+  /// Whether this post contains any video media or is of type clip.
   /// Used to determine if this post should appear in the Clips/Reels section.
-  bool get hasVideo => media.any((m) => m.mediaType == 'video');
+  bool get hasVideo => type == 'clip' || media.any((m) => m.isVideo);
 
   const PostModel({
     required this.id,

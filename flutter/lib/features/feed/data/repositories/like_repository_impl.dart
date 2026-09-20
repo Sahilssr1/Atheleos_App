@@ -11,7 +11,7 @@ class LikeRepositoryImpl implements LikeRepository {
     final authUid = FirebaseAuth.instance.currentUser?.uid;
     final effectiveUserId = (authUid != null && authUid.isNotEmpty)
         ? authUid
-        : (userId.isNotEmpty ? userId : 'user_1');
+        : userId;
 
     if (effectiveUserId.isEmpty || postId.isEmpty) return;
 
@@ -90,7 +90,7 @@ class LikeRepositoryImpl implements LikeRepository {
   Future<bool> isPostLikedByUser(String postId, String userId) async {
     final effectiveUserId = userId.isNotEmpty
         ? userId
-        : (FirebaseAuth.instance.currentUser?.uid ?? 'user_1');
+        : (FirebaseAuth.instance.currentUser?.uid ?? '');
     if (effectiveUserId.isEmpty || postId.isEmpty) return false;
 
     try {
@@ -119,7 +119,7 @@ class LikeRepositoryImpl implements LikeRepository {
   Future<Set<String>> getUserLikedPostIds(String userId) async {
     final effectiveUserId = userId.isNotEmpty
         ? userId
-        : (FirebaseAuth.instance.currentUser?.uid ?? 'user_1');
+        : (FirebaseAuth.instance.currentUser?.uid ?? '');
     if (effectiveUserId.isEmpty) return {};
 
     try {

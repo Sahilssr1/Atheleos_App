@@ -537,7 +537,9 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
     final authUid = FirebaseAuth.instance.currentUser?.uid;
     final effectiveUserId = (authUid != null && authUid.isNotEmpty)
         ? authUid
-        : (_userId.isNotEmpty ? _userId : 'user_1');
+        : _userId;
+
+    if (effectiveUserId.isEmpty) return;
 
     final isOnline = _ref.read(networkServiceProvider).isOnline;
     if (!isOnline) {
@@ -723,10 +725,19 @@ class StoriesNotifier extends StateNotifier<AsyncValue<List<StoryModel>>> {
   Future<void> uploadStory(String filePath, {String? caption, String visibility = 'public'}) async {
     final userAsync = _ref.read(currentUserProvider);
     final user = userAsync.valueOrNull;
-    final userId = user?.id ?? 'user_1';
-    final userName = user?.name ?? 'Jordan Vance';
-    final userAvatar = user?.avatarUrl ?? 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150';
-    final verified = user?.verified ?? true;
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final userId = (user?.id != null && user!.id.isNotEmpty)
+        ? user.id
+        : (firebaseUser?.uid ?? '');
+    final userName = (user?.name != null && user!.name.isNotEmpty)
+        ? user.name
+        : (firebaseUser?.displayName?.isNotEmpty == true
+            ? firebaseUser!.displayName!
+            : 'Athlete');
+    final userAvatar = (user?.avatarUrl != null && user!.avatarUrl.isNotEmpty)
+        ? user.avatarUrl
+        : (firebaseUser?.photoURL ?? '');
+    final verified = user?.verified ?? false;
 
     final idempotencyKey = const Uuid().v4();
     final fileName = filePath.split('/').last;

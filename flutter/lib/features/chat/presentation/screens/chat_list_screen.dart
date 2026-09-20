@@ -10,6 +10,8 @@ import '../controllers/chat_controller.dart';
 import '../widgets/create_group_bottom_sheet.dart';
 import '../../../profile/domain/models/profile_model.dart';
 
+enum _ChatInboxTab { chats, requests }
+
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({super.key});
 
@@ -20,6 +22,67 @@ class ChatListScreen extends ConsumerStatefulWidget {
 class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  _ChatInboxTab _selectedTab = _ChatInboxTab.chats;
+
+  Widget _buildTabButton({
+    required String label,
+    required bool isSelected,
+    required int badgeCount,
+    required VoidCallback onTap,
+    bool isRequestTab = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF1E293B) : Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? (isRequestTab && badgeCount > 0
+                    ? AppTheme.primaryColor.withValues(alpha: 0.6)
+                    : Colors.white.withValues(alpha: 0.18))
+                : Colors.white.withValues(alpha: 0.06),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.5),
+                fontSize: 13.5,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+            if (badgeCount > 0) ...[
+              const SizedBox(width: 7),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: isRequestTab ? AppTheme.primaryColor : const Color(0xFF334155),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  badgeCount > 99 ? '99+' : '$badgeCount',
+                  style: TextStyle(
+                    color: isRequestTab ? Colors.black : Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -183,8 +246,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       }
     }
 
+    final allPrimaryRooms = chatRooms.where((r) => !r.isMessageRequestFor(myId)).toList();
+    final allRequestRooms = chatRooms.where((r) => r.isMessageRequestFor(myId)).toList();
+
+    final currentPool = _selectedTab == _ChatInboxTab.chats ? allPrimaryRooms : allRequestRooms;
+
     // Filter active chat rooms matching search criteria
-    final filteredRooms = chatRooms.where((room) {
+    final filteredRooms = currentPool.where((room) {
       if (room.isGroup) {
         final matchName = (room.name ?? 'Group Chat').toLowerCase().contains(_searchQuery.toLowerCase());
         final matchMsg = room.lastMessage.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -208,79 +276,124 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     if (isLoading || isAwaitingProfiles) {
       listContent = const _ChatListShimmerLoading();
     } else if (filteredRooms.isEmpty) {
-      listContent = Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(24),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF1E293B),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.chat_bubble_outline_rounded,
-                                color: Colors.white54,
-                                size: 40,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _searchQuery.isNotEmpty ? 'No conversations found' : 'No conversations yet',
-                          style: GoogleFonts.outfit(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Start a conversation or create a group chat!',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5),
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: () => _showNewDMModal(context, profiles, myId),
-                              icon: const Icon(Icons.add, color: Colors.black, size: 18),
-                              label: const Text(
-                                'Start Chat',
-                                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryColor,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            OutlinedButton.icon(
-                              onPressed: () => CreateGroupBottomSheet.show(context, profiles, myId),
-                              icon: const Icon(Icons.groups_rounded, color: AppTheme.primaryColor, size: 18),
-                              label: const Text(
-                                'New Group',
-                                style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: AppTheme.primaryColor),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+      if (_selectedTab == _ChatInboxTab.requests) {
+        listContent = Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E293B),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.mark_email_read_outlined,
+                  color: Colors.white54,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _searchQuery.isNotEmpty ? 'No message requests found' : 'No Message Requests',
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Text(
+                  _searchQuery.isNotEmpty
+                      ? 'No message requests match "$_searchQuery"'
+                      : 'When someone you haven\'t chatted with sends you a message, it will show up here.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 13.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      } else {
+        listContent = Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E293B),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  color: Colors.white54,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _searchQuery.isNotEmpty ? 'No conversations found' : 'No conversations yet',
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Start a conversation or create a group chat!',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => _showNewDMModal(context, profiles, myId),
+                    icon: const Icon(Icons.add, color: Colors.black, size: 18),
+                    label: const Text(
+                      'Start Chat',
+                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
                     ),
-                  );
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  OutlinedButton.icon(
+                    onPressed: () => CreateGroupBottomSheet.show(context, profiles, myId),
+                    icon: const Icon(Icons.groups_rounded, color: AppTheme.primaryColor, size: 18),
+                    label: const Text(
+                      'New Group',
+                      style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppTheme.primaryColor),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }
     } else {
       listContent = ListView.separated(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -322,16 +435,23 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                           ),
                         ),
                         confirmDismiss: (direction) async {
+                          final isRequest = room.isMessageRequestFor(myId);
                           return await showDialog<bool>(
                             context: context,
                             builder: (context) => AlertDialog(
                               backgroundColor: const Color(0xFF1E293B),
-                              title: Text(isGroup ? 'Leave or delete group?' : 'Delete chat?',
-                                  style: const TextStyle(color: Colors.white)),
+                              title: Text(
+                                isGroup
+                                    ? 'Leave or delete group?'
+                                    : (isRequest ? 'Delete message request?' : 'Delete chat?'),
+                                style: const TextStyle(color: Colors.white),
+                              ),
                               content: Text(
                                 isGroup
                                     ? 'This will remove this group conversation from your inbox.'
-                                    : 'This will delete the conversation from your inbox.',
+                                    : (isRequest
+                                        ? 'This will remove this message request from your inbox.'
+                                        : 'This will delete the conversation from your inbox.'),
                                 style: const TextStyle(color: Colors.white70),
                               ),
                               actions: [
@@ -432,6 +552,23 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                                               child: Text(
                                                 '${room.participantIds.length} members',
                                                 style: const TextStyle(
+                                                  color: AppTheme.primaryColor,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                          ] else if (room.isMessageRequestFor(myId)) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: AppTheme.primaryColor.withValues(alpha: 0.18),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: const Text(
+                                                'Request',
+                                                style: TextStyle(
                                                   color: AppTheme.primaryColor,
                                                   fontSize: 10,
                                                   fontWeight: FontWeight.bold,
@@ -608,7 +745,90 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
             ),
           ),
 
+          // Inbox Tabs: Chats vs Message Requests
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildTabButton(
+                    label: 'Chats',
+                    isSelected: _selectedTab == _ChatInboxTab.chats,
+                    badgeCount: allPrimaryRooms.where((r) => r.unreadBy.contains(myId)).length,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _selectedTab = _ChatInboxTab.chats);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildTabButton(
+                    label: 'Requests',
+                    isSelected: _selectedTab == _ChatInboxTab.requests,
+                    badgeCount: allRequestRooms.length,
+                    isRequestTab: true,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _selectedTab = _ChatInboxTab.requests);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
 
+          // Quick Notice Banner on Chats tab if pending requests exist
+          if (_selectedTab == _ChatInboxTab.chats && allRequestRooms.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    setState(() => _selectedTab = _ChatInboxTab.requests);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.mark_email_unread_outlined, color: AppTheme.primaryColor, size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            allRequestRooms.length == 1
+                                ? '1 pending message request'
+                                : '${allRequestRooms.length} pending message requests',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const Text(
+                          'View',
+                          style: TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right_rounded, color: AppTheme.primaryColor, size: 18),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
           // Chat Rooms list
           Expanded(

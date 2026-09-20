@@ -25,15 +25,23 @@ final packageInfoProvider =
 /// Real-time stream from Firestore for the current user's settings.
 final userSettingsStreamProvider = StreamProvider<UserSettingsModel>((ref) {
   final userId = ref.watch(loggedInUserIdProvider);
+  final effectiveId =
+      userId.isNotEmpty ? userId : (FirebaseAuth.instance.currentUser?.uid ?? '');
+  if (effectiveId.isEmpty) {
+    return Stream.value(UserSettingsModel.defaults());
+  }
   return _firestore
       .collection('users')
-      .doc(userId)
+      .doc(effectiveId)
       .collection('settings')
       .doc('preferences')
       .snapshots()
       .map((snap) {
     if (!snap.exists) return UserSettingsModel.defaults();
     return UserSettingsModel.fromMap(snap.data() ?? {});
+  }).handleError((err) {
+    debugPrint('[userSettingsStreamProvider] error: $err');
+    return UserSettingsModel.defaults();
   });
 });
 
@@ -57,6 +65,7 @@ String formatSettingsDateTime(DateTime value, AppPreferences preferences) {
 
 final publicUserSettingsProvider =
     StreamProvider.family<UserSettingsModel, String>((ref, userId) {
+  if (userId.isEmpty) return Stream.value(UserSettingsModel.defaults());
   return _firestore
       .collection('users')
       .doc(userId)
@@ -66,53 +75,124 @@ final publicUserSettingsProvider =
       .map((snap) {
     if (!snap.exists) return UserSettingsModel.defaults();
     return UserSettingsModel.fromMap(snap.data() ?? {});
+  }).handleError((err) {
+    debugPrint('[publicUserSettingsProvider] error for $userId: $err');
+    return UserSettingsModel.defaults();
   });
 });
 
 final blockedByUserProvider =
     FutureProvider.family<bool, String>((ref, profileId) async {
-  final viewerId = ref.watch(loggedInUserIdProvider);
-  if (viewerId.isEmpty || viewerId == profileId) return false;
-  final block = await _firestore
-      .collection('users')
-      .doc(profileId)
-      .collection('blocked_users')
-      .doc(viewerId)
-      .get();
-  return block.exists;
+  try {
+    final viewerId = ref.watch(loggedInUserIdProvider);
+    final effectiveId = viewerId.isNotEmpty
+        ? viewerId
+        : (FirebaseAuth.instance.currentUser?.uid ?? '');
+    if (effectiveId.isEmpty || effectiveId == profileId) return false;
+    final block = await _firestore
+        .collection('users')
+        .doc(profileId)
+        .collection('blocked_users')
+        .doc(effectiveId)
+        .get();
+    return block.exists;
+  } catch (err) {
+    debugPrint('[blockedByUserProvider] error: $err');
+    return false;
+  }
 });
 
 final hiddenKeywordsStreamProvider = StreamProvider<List<String>>((ref) {
   final userId = ref.watch(loggedInUserIdProvider);
+  final effectiveId =
+      userId.isNotEmpty ? userId : (FirebaseAuth.instance.currentUser?.uid ?? '');
+  if (effectiveId.isEmpty) return Stream.value(const <String>[]);
   return _firestore
       .collection('users')
-      .doc(userId)
+      .doc(effectiveId)
       .collection('hidden_keywords')
       .snapshots()
       .map((snap) => snap.docs
           .map((doc) => (doc.data()['keyword'] ?? '') as String)
           .where((k) => k.isNotEmpty)
-          .toList());
+          .toList())
+      .handleError((_) => const <String>[]);
 });
 
 final blockedUsersStreamProvider = StreamProvider<List<String>>((ref) {
   final userId = ref.watch(loggedInUserIdProvider);
+  final effectiveId =
+      userId.isNotEmpty ? userId : (FirebaseAuth.instance.currentUser?.uid ?? '');
+  if (effectiveId.isEmpty) return Stream.value(const <String>[]);
   return _firestore
       .collection('users')
-      .doc(userId)
+      .doc(effectiveId)
       .collection('blocked_users')
       .snapshots()
-      .map((snap) => snap.docs.map((doc) => doc.id).toList());
+      .map((snap) => snap.docs.map((doc) => doc.id).toList())
+      .handleError((_) => const <String>[]);
 });
 
 final mutedUsersStreamProvider = StreamProvider<List<String>>((ref) {
   final userId = ref.watch(loggedInUserIdProvider);
+  final effectiveId =
+      userId.isNotEmpty ? userId : (FirebaseAuth.instance.currentUser?.uid ?? '');
+  if (effectiveId.isEmpty) return Stream.value(const <String>[]);
+  return _firestore
+      .collection('users')
+      .doc(effectiveId)
+      .collection('muted_users')
+      .snapshots()
+      .map((snap) => snap.docs.map((doc) => doc.id).toList())
+      .handleError((_) => const <String>[]);
+});
+
+final userFollowingIdsStreamProvider =
+    StreamProvider.family<List<String>, String>((ref, userId) {
+  if (userId.isEmpty) return Stream.value(const <String>[]);
   return _firestore
       .collection('users')
       .doc(userId)
-      .collection('muted_users')
+      .collection('following')
       .snapshots()
-      .map((snap) => snap.docs.map((doc) => doc.id).toList());
+      .map((snap) => snap.docs.map((doc) => doc.id).toList())
+      .handleError((_) => const <String>[]);
+});
+
+final followingUsersStreamProvider = StreamProvider<List<String>>((ref) {
+  try {
+    final userId = ref.watch(loggedInUserIdProvider);
+    if (userId.isEmpty) return Stream.value(const <String>[]);
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('following')
+        .snapshots()
+        .map((snap) => snap.docs.map((doc) => doc.id).toList())
+        .handleError((_) => const <String>[]);
+  } catch (_) {
+    return Stream.value(const <String>[]);
+  }
+});
+
+final isUserFollowingStreamProvider =
+    StreamProvider.family<bool, String>((ref, targetUserId) {
+  try {
+    final userId = ref.watch(loggedInUserIdProvider);
+    final effectiveId =
+        userId.isNotEmpty ? userId : (FirebaseAuth.instance.currentUser?.uid ?? '');
+    if (effectiveId.isEmpty || targetUserId.isEmpty) return Stream.value(false);
+    return _firestore
+        .collection('users')
+        .doc(effectiveId)
+        .collection('following')
+        .doc(targetUserId)
+        .snapshots()
+        .map((snap) => snap.exists)
+        .handleError((_) => false);
+  } catch (_) {
+    return Stream.value(false);
+  }
 });
 
 final reportHistoryProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
@@ -173,60 +253,61 @@ class SettingsActions {
 
   SettingsActions(this._userId);
 
-  DocumentReference<Map<String, dynamic>> get _doc => _firestore
-      .collection('users')
-      .doc(_userId)
-      .collection('settings')
-      .doc('preferences');
+  String get _effectiveId {
+    if (_userId.isNotEmpty) return _userId;
+    return FirebaseAuth.instance.currentUser?.uid ?? '';
+  }
+
+  DocumentReference<Map<String, dynamic>>? get _doc {
+    final uid = _effectiveId;
+    if (uid.isEmpty) return null;
+    return _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('settings')
+        .doc('preferences');
+  }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   Future<void> _patch(Map<String, dynamic> data) async {
+    final doc = _doc;
+    if (doc == null) {
+      debugPrint('[SettingsActions] No valid user ID, cannot patch settings');
+      return;
+    }
     data['updatedAt'] = FieldValue.serverTimestamp();
-    await _doc.set(data, SetOptions(merge: true));
+    await doc.set(data, SetOptions(merge: true));
   }
 
   // ── Privacy ──────────────────────────────────────────────────────────────
 
   Future<void> updatePrivacy(String key, bool value) =>
-      _patch({'privacy.$key': value});
+      _patch({'privacy': {key: value}});
 
   // ── Messaging ────────────────────────────────────────────────────────────
 
   Future<void> updateAllowedSenders(String value) =>
-      _patch({'messaging.allowedSenders': value});
+      _patch({'messaging': {'allowedSenders': value}});
 
   Future<void> updateMessagingBool(String key, bool value) =>
-      _patch({'messaging.$key': value});
+      _patch({'messaging': {key: value}});
 
   // ── Notifications ─────────────────────────────────────────────────────────
 
   Future<void> toggleNotification(String key, bool value) =>
-      _patch({'notifications.$key': value});
-
-  // ── App Preferences ───────────────────────────────────────────────────────
-
-  Future<void> updateTheme(String theme) =>
-      _patch({'appPreferences.theme': theme});
-
-  Future<void> updateLanguage(String lang) =>
-      _patch({'appPreferences.language': lang});
-
-  Future<void> updateUnits(String units) =>
-      _patch({'appPreferences.units': units});
-
-  Future<void> updateTimeZone(String tz) =>
-      _patch({'appPreferences.timeZone': tz});
+      _patch({'notifications': {key: value}});
 
   // ── Safety — blocked / muted keywords ────────────────────────────────────
 
   Future<void> addHiddenKeyword(String keyword) async {
+    final uid = _effectiveId;
     final docId = keyword.toLowerCase().trim();
-    if (docId.isEmpty) return;
+    if (uid.isEmpty || docId.isEmpty) return;
 
     await _firestore
         .collection('users')
-        .doc(_userId)
+        .doc(uid)
         .collection('hidden_keywords')
         .doc(docId)
         .set({
@@ -236,12 +317,13 @@ class SettingsActions {
   }
 
   Future<void> removeHiddenKeyword(String keyword) async {
+    final uid = _effectiveId;
     final docId = keyword.toLowerCase().trim();
-    if (docId.isEmpty) return;
+    if (uid.isEmpty || docId.isEmpty) return;
 
     await _firestore
         .collection('users')
-        .doc(_userId)
+        .doc(uid)
         .collection('hidden_keywords')
         .doc(docId)
         .delete();
@@ -249,48 +331,58 @@ class SettingsActions {
 
   // ── Safety — block / mute users ──────────────────────────────────────────
 
-  Future<void> blockUser(String uid) async {
+  Future<void> blockUser(String targetUid) async {
+    final uid = _effectiveId;
+    if (uid.isEmpty || targetUid.isEmpty) return;
     await _firestore
         .collection('users')
-        .doc(_userId)
-        .collection('blocked_users')
         .doc(uid)
+        .collection('blocked_users')
+        .doc(targetUid)
         .set({'createdAt': FieldValue.serverTimestamp()});
   }
 
-  Future<void> unblockUser(String uid) async {
+  Future<void> unblockUser(String targetUid) async {
+    final uid = _effectiveId;
+    if (uid.isEmpty || targetUid.isEmpty) return;
     await _firestore
         .collection('users')
-        .doc(_userId)
-        .collection('blocked_users')
         .doc(uid)
+        .collection('blocked_users')
+        .doc(targetUid)
         .delete();
   }
 
-  Future<void> muteUser(String uid) async {
+  Future<void> muteUser(String targetUid) async {
+    final uid = _effectiveId;
+    if (uid.isEmpty || targetUid.isEmpty) return;
     await _firestore
         .collection('users')
-        .doc(_userId)
-        .collection('muted_users')
         .doc(uid)
+        .collection('muted_users')
+        .doc(targetUid)
         .set({'createdAt': FieldValue.serverTimestamp()});
   }
 
-  Future<void> unmuteUser(String uid) async {
+  Future<void> unmuteUser(String targetUid) async {
+    final uid = _effectiveId;
+    if (uid.isEmpty || targetUid.isEmpty) return;
     await _firestore
         .collection('users')
-        .doc(_userId)
-        .collection('muted_users')
         .doc(uid)
+        .collection('muted_users')
+        .doc(targetUid)
         .delete();
   }
 
   // ── Initialise defaults for brand-new users ───────────────────────────────
 
   Future<void> ensureDefaults() async {
-    final snap = await _doc.get();
+    final doc = _doc;
+    if (doc == null) return;
+    final snap = await doc.get();
     if (!snap.exists) {
-      await _doc.set(UserSettingsModel.defaults().toMap());
+      await doc.set(UserSettingsModel.defaults().toMap());
     }
   }
 }
@@ -628,10 +720,23 @@ class AccountSettingsActions {
 
   // ── 3. Sign Out ────────────────────────────────────────────────────────────
   Future<void> signOut() async {
-    await clearAppCache();
-    await _ref.read(authControllerProvider.notifier).signOut();
-    _ref.invalidate(userSettingsStreamProvider);
-    _ref.invalidate(profileListProvider);
-    _ref.invalidate(universalProfileControllerProvider(_userId));
+    try {
+      await clearAppCache();
+    } catch (e) {
+      debugPrint('Cache clear error on sign out: $e');
+    }
+    try {
+      await _ref.read(authControllerProvider.notifier).signOut();
+    } catch (e) {
+      debugPrint('Auth controller sign out error: $e');
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
+    }
+    try {
+      _ref.invalidate(userSettingsStreamProvider);
+      _ref.invalidate(profileListProvider);
+      _ref.invalidate(universalProfileControllerProvider(_userId));
+    } catch (_) {}
   }
 }
