@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:atheleos/features/chat/domain/models/chat_message.dart';
+import 'package:atheleos/features/chat/presentation/controllers/chat_controller.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -121,6 +122,13 @@ void main() {
       expect(reconstructed.localState, equals('SENT'));
       expect(reconstructed.deliveryState, equals('DELIVERED'));
       expect(reconstructed.isForwarded, isTrue);
+    });
+
+    test('RoomChatNotifier resolves receiverId correctly from 1-to-1 roomId', () {
+      expect(RoomChatNotifier.resolveReceiverId('alice_bob', 'alice', null), equals('bob'));
+      expect(RoomChatNotifier.resolveReceiverId('alice_bob', 'bob', null), equals('alice'));
+      expect(RoomChatNotifier.resolveReceiverId('alice_bob', 'alice', 'custom'), equals('custom'));
+      expect(RoomChatNotifier.resolveReceiverId('group_123_alice', 'alice', null), isNull);
     });
   });
 }

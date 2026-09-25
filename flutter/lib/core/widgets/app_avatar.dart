@@ -44,7 +44,7 @@ class AppAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = backgroundColor ?? const Color(0xFF1E293B);
+    final bg = backgroundColor ?? const Color(0xFF141414);
     final fg = iconColor ?? Colors.white38;
 
     Widget avatar;

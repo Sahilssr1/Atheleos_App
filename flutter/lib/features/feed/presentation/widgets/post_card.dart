@@ -68,9 +68,10 @@ class PostCard extends ConsumerWidget {
   void _showOwnerMenu(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF121212),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        side: BorderSide(color: Color(0xFF262626), width: 1),
       ),
       builder: (sheetContext) => SafeArea(
         child: Column(
@@ -125,8 +126,11 @@ class PostCard extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF0F172A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: const Color(0xFF121212),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF262626), width: 1),
+        ),
         title: const Text(
           'Delete post?',
           style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
@@ -185,11 +189,12 @@ class PostCard extends ConsumerWidget {
     return RepaintBoundary(
       child: Card(
         margin: const EdgeInsets.only(bottom: 16),
+        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
+          side: const BorderSide(color: Color(0xFF262626), width: 1),
         ),
-        color: const Color(0xFF0B1220),
+        color: Colors.black,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -326,7 +331,7 @@ class PostCard extends ConsumerWidget {
               ),
             ),
 
-            Divider(color: Colors.white.withValues(alpha: 0.04), height: 12),
+            Divider(color: const Color(0xFF1E1E1E), height: 12),
 
             // Action Buttons Bar
             Row(

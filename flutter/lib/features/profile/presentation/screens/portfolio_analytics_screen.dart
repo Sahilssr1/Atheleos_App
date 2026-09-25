@@ -57,10 +57,9 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
+                  color: const Color(0xFF141414),
                   borderRadius: BorderRadius.circular(14),
-                  border:
-                      Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
+                  border: Border.all(color: const Color(0xFF262626)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,9 +328,9 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
   Widget _contentTile(String label, int value, IconData icon) => Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
+          color: const Color(0xFF141414),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.04)),
+          border: Border.all(color: const Color(0xFF262626)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

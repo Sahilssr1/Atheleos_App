@@ -134,9 +134,10 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
           bottom: MediaQuery.of(context).viewInsets.bottom + 16,
         ),
         height: MediaQuery.of(context).size.height * 0.82,
-        decoration: const BoxDecoration(
-          color: Color(0xFF0F172A),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: const Color(0xFF121212),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: const Color(0xFF262626), width: 1),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,9 +179,9 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
             // Instagram-style message input with attached comment hint
             Container(
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.06),
+                color: const Color(0xFF181818),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                border: Border.all(color: const Color(0xFF262626), width: 1),
               ),
               child: TextField(
                 controller: _commentController,
@@ -216,10 +217,18 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
                 hintStyle: const TextStyle(color: Colors.white30, fontSize: 12),
                 prefixIcon: const Icon(Icons.search, color: Colors.white54, size: 18),
                 filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.05),
+                fillColor: const Color(0xFF181818),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                  borderSide: const BorderSide(color: Color(0xFF262626), width: 1),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF262626), width: 1),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
                 ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               ),
@@ -563,9 +572,9 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
           return Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
+              color: const Color(0xFF181818),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white10),
+              border: Border.all(color: const Color(0xFF262626), width: 1),
             ),
             child: Row(
               children: [

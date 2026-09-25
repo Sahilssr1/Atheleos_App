@@ -112,10 +112,10 @@ class _MentionAutocompleteOverlayState extends ConsumerState<MentionAutocomplete
             offset: const Offset(0, 52),
             child: Material(
               elevation: 8,
-              color: const Color(0xFF1E293B),
+              color: const Color(0xFF141414),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: Colors.white12),
+                side: const BorderSide(color: Color(0xFF262626)),
               ),
               child: Container(
                 constraints: const BoxConstraints(maxHeight: 180),

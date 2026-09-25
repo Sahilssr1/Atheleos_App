@@ -200,8 +200,8 @@ class _ProfilePostsGridState extends ConsumerState<ProfilePostsGrid> {
                       },
                       child: Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B),
-                          border: Border.all(color: Colors.white.withOpacity(0.04)),
+                          color: const Color(0xFF141414),
+                          border: Border.all(color: const Color(0xFF262626)),
                         ),
                         child: Stack(
                           fit: StackFit.expand,
@@ -212,7 +212,7 @@ class _ProfilePostsGridState extends ConsumerState<ProfilePostsGrid> {
                               memCacheWidth: 360,
                               memCacheHeight: 360,
                               placeholder: (context, url) => Container(
-                                color: const Color(0xFF0F172A),
+                                color: const Color(0xFF141414),
                                 child: const Center(
                                   child: SizedBox(
                                     width: 16,
@@ -270,12 +270,12 @@ class _ProfilePostsGridState extends ConsumerState<ProfilePostsGrid> {
           });
         }
       },
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF141414),
       selectedColor: AppTheme.primaryColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
         side: BorderSide(
-          color: isSelected ? AppTheme.primaryColor : Colors.white.withOpacity(0.05),
+          color: isSelected ? AppTheme.primaryColor : const Color(0xFF262626),
         ),
       ),
       labelStyle: TextStyle(

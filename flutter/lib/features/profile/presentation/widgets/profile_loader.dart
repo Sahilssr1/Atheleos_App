@@ -20,8 +20,8 @@ class ProfileLoader extends ConsumerWidget {
 
   Widget _buildSkeletonLoader() {
     return Shimmer.fromColors(
-      baseColor: const Color(0xFF1E293B),
-      highlightColor: const Color(0xFF334155),
+      baseColor: const Color(0xFF141414),
+      highlightColor: const Color(0xFF222222),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,7 +181,7 @@ class ProfileLoader extends ConsumerWidget {
 
           return RefreshIndicator(
             color: AppTheme.primaryColor,
-            backgroundColor: const Color(0xFF0F172A),
+            backgroundColor: const Color(0xFF141414),
             onRefresh: () async {
               HapticFeedback.lightImpact();
               ref.invalidate(universalProfileControllerProvider(userId));
@@ -257,7 +257,7 @@ class ProfileLoader extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: Colors.black,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).maybePop(),
@@ -277,8 +277,8 @@ class ProfileLoader extends ConsumerWidget {
               height: 88,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF1E293B),
-                border: Border.all(color: Colors.white12, width: 2),
+                color: const Color(0xFF141414),
+                border: Border.all(color: const Color(0xFF262626), width: 2),
               ),
               child: const Icon(Icons.person, size: 48, color: Colors.white30),
             ),

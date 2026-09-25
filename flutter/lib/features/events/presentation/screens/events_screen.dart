@@ -88,10 +88,18 @@ class EventsScreen extends ConsumerWidget {
                     : null,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                  borderSide: const BorderSide(color: Color(0xFF262626)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF262626)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppTheme.primaryColor),
                 ),
                 filled: true,
-                fillColor: const Color(0xFF0F172A),
+                fillColor: const Color(0xFF141414),
                 contentPadding: const EdgeInsets.symmetric(vertical: 8),
               ),
             ),
@@ -174,7 +182,7 @@ class EventsScreen extends ConsumerWidget {
                 DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: activeSort,
-                    dropdownColor: const Color(0xFF0F172A),
+                    dropdownColor: const Color(0xFF141414),
                     style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold, fontSize: 12),
                     items: _sortOptions.map((opt) {
                       return DropdownMenuItem(value: opt, child: Text(opt.toUpperCase()));
@@ -231,7 +239,7 @@ class EventsScreen extends ConsumerWidget {
                 if (events.isEmpty) {
                   return RefreshIndicator(
                     color: AppTheme.primaryColor,
-                    backgroundColor: const Color(0xFF0F172A),
+                    backgroundColor: const Color(0xFF141414),
                     onRefresh: () async {
                       HapticFeedback.lightImpact();
                       ref.invalidate(eventsStreamProvider);
@@ -249,9 +257,9 @@ class EventsScreen extends ConsumerWidget {
                               width: 64,
                               height: 64,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF0F172A),
+                                color: const Color(0xFF141414),
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white12),
+                                border: Border.all(color: const Color(0xFF262626)),
                               ),
                               child: const Icon(
                                 Icons.event_busy_outlined,
@@ -313,7 +321,7 @@ class EventsScreen extends ConsumerWidget {
 
                 return RefreshIndicator(
                   color: AppTheme.primaryColor,
-                  backgroundColor: const Color(0xFF0F172A),
+                  backgroundColor: const Color(0xFF141414),
                   onRefresh: () async {
                     HapticFeedback.lightImpact();
                     ref.invalidate(eventsStreamProvider);
@@ -351,10 +359,10 @@ class EventsScreen extends ConsumerWidget {
   Widget _buildEventCard(BuildContext context, EventModel event) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      color: const Color(0xFF0F172A),
+      color: Colors.black,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
+        side: const BorderSide(color: Color(0xFF262626)),
       ),
       child: InkWell(
         onTap: () {
@@ -382,7 +390,7 @@ class EventsScreen extends ConsumerWidget {
                         errorBuilder: (_, __, ___) => Container(
                           width: double.infinity,
                           height: 120,
-                          color: const Color(0xFF1E293B),
+                          color: const Color(0xFF181818),
                           child: const Icon(Icons.event, color: Colors.white24, size: 36),
                         ),
                       );
@@ -390,7 +398,7 @@ class EventsScreen extends ConsumerWidget {
                     return Container(
                       width: double.infinity,
                       height: 120,
-                      color: const Color(0xFF1E293B),
+                      color: const Color(0xFF181818),
                       child: const Icon(Icons.event, color: Colors.white24, size: 36),
                     );
                   }),
@@ -588,8 +596,8 @@ class _EventsScreenShimmerLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: const Color(0xFF1E293B),
-      highlightColor: const Color(0xFF334155),
+      baseColor: const Color(0xFF141414),
+      highlightColor: const Color(0xFF222222),
       child: ListView.builder(
         physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
@@ -597,9 +605,10 @@ class _EventsScreenShimmerLoading extends StatelessWidget {
         itemBuilder: (context, index) {
           return Card(
             margin: const EdgeInsets.only(bottom: 16),
-            color: const Color(0xFF0F172A),
+            color: Colors.black,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
+              side: const BorderSide(color: Color(0xFF262626)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -905,9 +905,10 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
   void _showOwnerMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF121212),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: Color(0xFF262626)),
       ),
       builder: (sheetContext) => SafeArea(
         child: Column(
@@ -962,8 +963,11 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF0F172A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: const Color(0xFF121212),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF262626)),
+        ),
         title: const Text(
           'Delete reel?',
           style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
@@ -1179,7 +1183,11 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: const Color(0xFF121212),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF262626)),
+        ),
         title: const Text('Delete Comment', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: const Text('Are you sure you want to delete your comment?', style: TextStyle(color: Colors.white70)),
         actions: [

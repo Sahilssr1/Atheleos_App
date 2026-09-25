@@ -21,9 +21,10 @@ class ForwardMessageModal extends ConsumerStatefulWidget {
   static Future<void> show(BuildContext context, ChatMessage message, String myId) {
     return showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF121212),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: Color(0xFF262626)),
       ),
       isScrollControlled: true,
       builder: (context) => ForwardMessageModal(
@@ -216,7 +217,7 @@ class _ForwardMessageModalState extends ConsumerState<ForwardMessageModal> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
+                color: const Color(0xFF181818),
                 borderRadius: BorderRadius.circular(10),
                 border: const Border(left: BorderSide(color: AppTheme.primaryColor, width: 3)),
               ),
@@ -242,8 +243,9 @@ class _ForwardMessageModalState extends ConsumerState<ForwardMessageModal> {
             // Search Bar
             Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
+                color: const Color(0xFF181818),
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF262626)),
               ),
               child: TextField(
                 controller: _searchController,
@@ -347,7 +349,7 @@ class _ForwardMessageModalState extends ConsumerState<ForwardMessageModal> {
               height: 48,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _selectedTargetIds.isNotEmpty ? AppTheme.primaryColor : const Color(0xFF1E293B),
+                  backgroundColor: _selectedTargetIds.isNotEmpty ? AppTheme.primaryColor : const Color(0xFF1E1E1E),
                   foregroundColor: _selectedTargetIds.isNotEmpty ? Colors.black : Colors.white38,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 0,

@@ -41,6 +41,7 @@ class MessagingAccessService {
         receiverRef.collection('followers').doc(senderId).get().then<DocumentSnapshot<Map<String, dynamic>>?>((d) => d).catchError((_) => null),
         senderRef.collection('followers').doc(receiverId).get().then<DocumentSnapshot<Map<String, dynamic>>?>((d) => d).catchError((_) => null),
         _firestore.collection('chats').doc(roomId).get().then<DocumentSnapshot<Map<String, dynamic>>?>((d) => d).catchError((_) => null),
+        senderRef.collection('following').doc(receiverId).get().then<DocumentSnapshot<Map<String, dynamic>>?>((d) => d).catchError((_) => null),
       ]);
 
       final blocked1 = results[1]?.exists ?? false;
@@ -56,10 +57,10 @@ class MessagingAccessService {
       final messaging =
           Map<String, dynamic>.from(settingsData['messaging'] ?? const {});
       final allowedSenders = messaging['allowedSenders'] as String? ?? 'everyone';
-      final allowRequests = messaging['allowMessageRequests'] as bool? ?? true;
 
-      // Sender follows Receiver
-      final senderFollowsReceiver = results[3]?.exists ?? false;
+      // Sender follows Receiver (check receiver's followers subcollection and sender's following subcollection)
+      final senderFollowsReceiver =
+          (results[3]?.exists ?? false) || (results.length > 6 && (results[6]?.exists ?? false));
       // Receiver follows Sender back
       final receiverFollowsSender = results[4]?.exists ?? false;
       // Mutual follow: both follow each other back
@@ -74,17 +75,11 @@ class MessagingAccessService {
       // Falls directly in normal chat list if mutual followers or if receiver already replied
       final isRequest = !isMutualFollow && !receiverAlreadyReplied;
 
-      if (allowedSenders == 'nobody') {
-        return const MessagingAccessResult(
-          allowed: false,
-          reason: 'This user is not accepting messages.',
-        );
-      }
-      if (allowedSenders == 'followers') {
-        if (!senderFollowsReceiver && !allowRequests) {
+      if (allowedSenders == 'followers' || allowedSenders == 'nobody') {
+        if (!senderFollowsReceiver) {
           return const MessagingAccessResult(
             allowed: false,
-            reason: 'Only followers can message this user.',
+            reason: 'Follow first to send a message.',
           );
         }
         return MessagingAccessResult(

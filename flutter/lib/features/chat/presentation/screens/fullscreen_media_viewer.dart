@@ -238,9 +238,9 @@ class _FullScreenMediaViewerState extends State<FullScreenMediaViewer> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1E293B).withValues(alpha: 0.8),
+                            color: const Color(0xFF141414).withValues(alpha: 0.8),
                             borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: Colors.white12),
+                            border: Border.all(color: const Color(0xFF262626)),
                           ),
                           child: InkWell(
                             onTap: () {

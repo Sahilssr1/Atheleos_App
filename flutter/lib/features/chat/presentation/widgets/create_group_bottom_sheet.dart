@@ -19,9 +19,10 @@ class CreateGroupBottomSheet extends ConsumerStatefulWidget {
   static Future<void> show(BuildContext context, List<ProfileModel> profiles, String myId) {
     return showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF121212),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: Color(0xFF262626)),
       ),
       isScrollControlled: true,
       builder: (context) => CreateGroupBottomSheet(
@@ -158,9 +159,9 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
             // Group Name Input
             Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
+                color: const Color(0xFF181818),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white10),
+                border: Border.all(color: const Color(0xFF262626)),
               ),
               child: TextField(
                 controller: _nameController,
@@ -246,8 +247,9 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
             // Search Members Filter
             Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
+                color: const Color(0xFF181818),
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF262626)),
               ),
               child: TextField(
                 controller: _searchController,
@@ -349,9 +351,9 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
               height: 50,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: hasSelection ? AppTheme.primaryColor : const Color(0xFF1E293B),
+                  backgroundColor: hasSelection ? AppTheme.primaryColor : const Color(0xFF1E1E1E),
                   foregroundColor: hasSelection ? Colors.black : Colors.white38,
-                  disabledBackgroundColor: const Color(0xFF1E293B),
+                  disabledBackgroundColor: const Color(0xFF1E1E1E),
                   disabledForegroundColor: Colors.white38,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   elevation: 0,

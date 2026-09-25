@@ -127,9 +127,10 @@ class ChatRepositoryImpl implements ChatRepository {
     if (isNewRoom) {
       roomUpdates['initiatorId'] = message.senderId;
       roomUpdates['createdAt'] = DateTime.now().toIso8601String();
+      roomUpdates['type'] = 'one-to-one';
     } else {
-      if (roomData?['initiatorId'] == null) {
-        roomUpdates['initiatorId'] = roomData?['lastSenderId'] ?? message.senderId;
+      if (roomData['initiatorId'] == null) {
+        roomUpdates['initiatorId'] = roomData['lastSenderId'] ?? message.senderId;
       }
     }
 
@@ -168,9 +169,26 @@ class ChatRepositoryImpl implements ChatRepository {
     final roomRef = _firestore.collection('chats').doc(roomId);
     final roomSnap = await roomRef.get();
     final roomData = roomSnap.data() ?? {};
-    final participantIds = List<String>.from(roomData['participantIds'] ?? [message.senderId, message.receiverId]);
-    final otherParticipants = participantIds.where((id) => id != message.senderId).toList();
     final isGroup = roomId.startsWith('group_') || (roomData['type'] == 'group');
+
+    List<String> participantIds = List<String>.from(roomData['participantIds'] ?? []);
+    if (participantIds.isEmpty) {
+      if (!isGroup && roomId.contains('_')) {
+        participantIds = roomId.split('_').where((id) => id.isNotEmpty).toList();
+      }
+      if (participantIds.isEmpty) {
+        participantIds = [message.senderId, message.receiverId].where((id) => id.isNotEmpty).toList();
+      }
+    }
+
+    if (message.receiverId.isEmpty && !isGroup) {
+      final other = participantIds.firstWhere((id) => id != message.senderId, orElse: () => '');
+      if (other.isNotEmpty) {
+        message = message.copyWith(receiverId: other);
+      }
+    }
+
+    final otherParticipants = participantIds.where((id) => id != message.senderId).toList();
 
     final roomUpdates = <String, dynamic>{
       'id': roomId,
@@ -189,6 +207,9 @@ class ChatRepositoryImpl implements ChatRepository {
         senderId: message.senderId,
         receiverId: otherId,
       );
+      if (!access.allowed) {
+        throw StateError(access.reason ?? 'This message cannot be sent.');
+      }
       if (!access.isRequest) {
         roomUpdates['repliedUserIds'] = FieldValue.arrayUnion([message.senderId, otherId]);
         roomUpdates['requestFor'] = FieldValue.delete();
@@ -197,6 +218,19 @@ class ChatRepositoryImpl implements ChatRepository {
       }
     } else if (roomData['requestFor'] == message.senderId) {
       roomUpdates['requestFor'] = FieldValue.delete();
+    }
+
+    final isNewRoom = !roomSnap.exists || roomData.isEmpty;
+    if (isNewRoom) {
+      roomUpdates['initiatorId'] = message.senderId;
+      roomUpdates['createdAt'] = DateTime.now().toIso8601String();
+      if (!isGroup) {
+        roomUpdates['type'] = 'one-to-one';
+      }
+    } else {
+      if (roomData['initiatorId'] == null) {
+        roomUpdates['initiatorId'] = roomData['lastSenderId'] ?? message.senderId;
+      }
     }
 
     final messageRef = roomRef.collection('messages').doc(message.id);

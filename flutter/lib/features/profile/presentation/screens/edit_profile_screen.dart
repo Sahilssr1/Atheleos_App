@@ -259,11 +259,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 width: double.infinity,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
-                  color: const Color(0xFF0F172A),
+                  color: const Color(0xFF141414),
                   border: Border.all(
                     color: _isUploadingCover
                         ? AppTheme.primaryColor
-                        : const Color(0xFF334155),
+                        : const Color(0xFF262626),
                     width: 1.2,
                   ),
                   image: _coverUrl.trim().isNotEmpty
@@ -341,7 +341,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   ),
                   child: CircleAvatar(
                     radius: 38,
-                    backgroundColor: const Color(0xFF1E293B),
+                    backgroundColor: const Color(0xFF141414),
                     backgroundImage: _avatarUrl.trim().isNotEmpty
                         ? NetworkImage(_avatarUrl.trim())
                         : null,
@@ -410,7 +410,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: const Color(0xFF1E293B),
+      color: const Color(0xFF141414),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: (_isUploadingAvatar || _isUploadingCover) ? null : onTap,
@@ -424,7 +424,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             border: Border.all(
               color: isLoading
                   ? AppTheme.primaryColor
-                  : const Color(0xFF334155),
+                  : const Color(0xFF262626),
               width: 1.2,
             ),
           ),
@@ -563,10 +563,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final action = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: const Color(0xFF121212),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFF334155)),
+          side: const BorderSide(color: Color(0xFF262626)),
         ),
         title: Text(
           'Unsaved Changes',
@@ -1276,11 +1276,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
+                        color: const Color(0xFF141414),
                         border: Border.all(
                           color: _resumeFileName != null
                               ? AppTheme.primaryColor.withValues(alpha: 0.4)
-                              : Colors.white10,
+                              : const Color(0xFF262626),
                           style: BorderStyle.solid,
                         ),
                         borderRadius: BorderRadius.circular(16),

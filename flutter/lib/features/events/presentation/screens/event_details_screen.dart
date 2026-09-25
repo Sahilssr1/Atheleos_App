@@ -37,8 +37,11 @@ class EventDetailsScreen extends ConsumerWidget {
   void _showShareOptions(BuildContext context, EventModel event, List<dynamic> profiles) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF0F172A),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: const Color(0xFF121212),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: Color(0xFF262626)),
+      ),
       builder: (context) {
         return SafeArea(
           child: Padding(
@@ -147,10 +150,10 @@ class EventDetailsScreen extends ConsumerWidget {
                         Image.network(
                           event.bannerUrl.trim(),
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(color: const Color(0xFF0F172A)),
+                          errorBuilder: (_, __, ___) => Container(color: const Color(0xFF141414)),
                         )
                       else
-                        Container(color: const Color(0xFF0F172A)),
+                        Container(color: const Color(0xFF141414)),
                       Container(
                         decoration: const BoxDecoration(
                           gradient: LinearGradient(
@@ -260,9 +263,9 @@ class EventDetailsScreen extends ConsumerWidget {
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0F172A),
+                            color: const Color(0xFF141414),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+                            border: Border.all(color: const Color(0xFF262626)),
                           ),
                           child: Row(
                             children: [
@@ -552,9 +555,9 @@ class EventDetailsScreen extends ConsumerWidget {
       margin: const EdgeInsets.symmetric(horizontal: 4),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
+        color: const Color(0xFF141414),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.02)),
+        border: Border.all(color: const Color(0xFF262626)),
       ),
       child: Row(
         children: [

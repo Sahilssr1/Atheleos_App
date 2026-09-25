@@ -53,8 +53,9 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
 
         return Container(
           decoration: const BoxDecoration(
-            color: Color(0xFF0F172A),
+            color: Color(0xFF121212),
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border(top: BorderSide(color: Color(0xFF262626))),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: SafeArea(
@@ -138,10 +139,10 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF1E293B) : Colors.white.withValues(alpha: 0.04),
+                            color: isSelected ? const Color(0xFF1E1E1E) : const Color(0xFF141414),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                              color: isSelected ? theme.accentColor : Colors.white10,
+                              color: isSelected ? theme.accentColor : const Color(0xFF262626),
                               width: isSelected ? 1.5 : 1,
                             ),
                           ),
@@ -213,7 +214,11 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: const Color(0xFF121212),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF262626)),
+        ),
         title: const Text('Edit Group Details', style: TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -284,10 +289,11 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF121212),
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: Color(0xFF262626)),
       ),
       builder: (ctx) {
         return StatefulBuilder(
@@ -333,8 +339,9 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                     const SizedBox(height: 12),
                     Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E293B),
+                        color: const Color(0xFF181818),
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF262626)),
                       ),
                       child: TextField(
                         controller: searchCtrl,
@@ -443,7 +450,11 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: const Color(0xFF121212),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF262626)),
+        ),
         title: const Text('Leave Group?', style: TextStyle(color: Colors.white)),
         content: const Text(
           'Are you sure you want to leave this group? You will no longer receive messages from this conversation.',
@@ -486,7 +497,11 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
+          backgroundColor: const Color(0xFF121212),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFF262626)),
+          ),
           title: Text('Block $userName?', style: const TextStyle(color: Colors.white)),
           content: Text(
             'They will not be able to message you or view your profile and posts on Atheleos.',
@@ -559,9 +574,9 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
     final currentTheme = ref.watch(chatThemeProvider(widget.roomId));
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0F19),
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: Colors.black,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -706,7 +721,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                                 ? NetworkImage(avatarUrl)
                                 : null,
                             onBackgroundImageError: (_, __) {},
-                            backgroundColor: const Color(0xFF1E293B),
+                            backgroundColor: const Color(0xFF141414),
                             child: (avatarUrl.isEmpty || (!avatarUrl.startsWith('http://') && !avatarUrl.startsWith('https://')))
                                 ? const Icon(Icons.person, size: 46, color: Colors.white54)
                                 : null,
@@ -731,9 +746,9 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1E293B),
+                              color: const Color(0xFF141414),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white10),
+                              border: Border.all(color: const Color(0xFF262626)),
                             ),
                             child: Text(
                               '$role • $sport',
@@ -821,9 +836,9 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: const Color(0xFF121212),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: const Color(0xFF262626)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -882,9 +897,9 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
         width: 80,
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E293B),
+          color: const Color(0xFF141414),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: const Color(0xFF262626)),
         ),
         child: Column(
           children: [
@@ -1033,7 +1048,11 @@ class _GroupMemberTile extends ConsumerWidget {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        backgroundColor: const Color(0xFF1E293B),
+                        backgroundColor: const Color(0xFF121212),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: const BorderSide(color: Color(0xFF262626)),
+                        ),
                         title: Text('Remove $name?', style: const TextStyle(color: Colors.white)),
                         content: Text(
                           'Are you sure you want to remove $name from this group?',
@@ -1100,8 +1119,9 @@ class _SharedContentGridTile extends ConsumerWidget {
     return postAsync.when(
       loading: () => Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF1E293B),
+          color: const Color(0xFF141414),
           borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF262626)),
         ),
         child: const Center(
           child: SizedBox(
@@ -1113,8 +1133,9 @@ class _SharedContentGridTile extends ConsumerWidget {
       ),
       error: (_, __) => Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF1E293B),
+          color: const Color(0xFF141414),
           borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF262626)),
         ),
         child: const Icon(Icons.broken_image, color: Colors.white24),
       ),
@@ -1122,8 +1143,9 @@ class _SharedContentGridTile extends ConsumerWidget {
         if (post == null) {
           return Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
+              color: const Color(0xFF141414),
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF262626)),
             ),
             child: const Center(
               child: Icon(Icons.info_outline, color: Colors.white24, size: 20),
@@ -1160,12 +1182,12 @@ class _SharedContentGridTile extends ConsumerWidget {
                         imageUrl: mediaUrl,
                         fit: BoxFit.cover,
                         errorWidget: (_, __, ___) => Container(
-                          color: const Color(0xFF1E293B),
+                          color: const Color(0xFF141414),
                           child: Icon(isClip ? Icons.movie_creation_outlined : Icons.image_outlined, color: Colors.white30, size: 28),
                         ),
                       )
                     : Container(
-                        color: const Color(0xFF1E293B),
+                        color: const Color(0xFF141414),
                         child: Icon(isClip ? Icons.movie_creation_outlined : Icons.image_outlined, color: Colors.white30, size: 28),
                       ),
               ),
@@ -1225,9 +1247,9 @@ class _SharedProfileListTile extends ConsumerWidget {
         return Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
+            color: const Color(0xFF121212),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white10),
+            border: Border.all(color: const Color(0xFF262626)),
           ),
           child: Row(
             children: [
@@ -1299,9 +1321,10 @@ class _EmptyTabPlaceholder extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Color(0xFF1E293B),
+              decoration: BoxDecoration(
+                color: const Color(0xFF141414),
                 shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF262626)),
               ),
               child: Icon(icon, color: Colors.white38, size: 36),
             ),
@@ -1337,7 +1360,7 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
-      color: const Color(0xFF0B0F19),
+      color: Colors.black,
       child: tabBar,
     );
   }

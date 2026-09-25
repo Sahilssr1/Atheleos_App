@@ -38,8 +38,11 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: const Color(0xFF121212),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF262626)),
+        ),
         title: Text(
           'Unfollow @${user.username.isNotEmpty ? user.username : user.name}?',
           style: GoogleFonts.spaceGrotesk(
@@ -85,7 +88,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
           SnackBar(
             content: Text('Unfollowed ${user.name}'),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: const Color(0xFF1E293B),
+            backgroundColor: const Color(0xFF141414),
             duration: const Duration(seconds: 2),
             action: SnackBarAction(
               label: 'Undo',
@@ -145,9 +148,10 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
   void _showUserOptionsMenu(ProfileModel user) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF111827),
+      backgroundColor: const Color(0xFF121212),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: Color(0xFF262626)),
       ),
       builder: (ctx) => SafeArea(
         child: Padding(
@@ -324,9 +328,9 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF111827),
+                color: const Color(0xFF141414),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white12),
+                border: Border.all(color: const Color(0xFF262626)),
               ),
               child: TextField(
                 controller: _searchController,
@@ -410,9 +414,9 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
+          color: const Color(0xFF121212),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          border: Border.all(color: const Color(0xFF262626)),
         ),
         child: Row(
           children: [
@@ -421,7 +425,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
               children: [
                 CircleAvatar(
                   radius: 24,
-                  backgroundColor: const Color(0xFF1E293B),
+                  backgroundColor: const Color(0xFF141414),
                   backgroundImage: user.avatarUrl.isNotEmpty
                       ? NetworkImage(user.avatarUrl)
                       : null,
@@ -545,7 +549,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   backgroundColor: isFollowingUser
-                      ? const Color(0xFF1E293B)
+                      ? const Color(0xFF1E1E1E)
                       : AppTheme.primaryColor,
                   foregroundColor: isFollowingUser ? Colors.white : Colors.black,
                   shape: RoundedRectangleBorder(
@@ -589,9 +593,9 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
+                color: const Color(0xFF141414),
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white10),
+                border: Border.all(color: const Color(0xFF262626)),
               ),
               child: Icon(icon, color: Colors.white38, size: 36),
             ),

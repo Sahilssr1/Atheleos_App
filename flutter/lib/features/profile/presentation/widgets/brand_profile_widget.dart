@@ -206,7 +206,7 @@ class BrandProfileWidget extends ConsumerWidget {
           height: 150,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
+            color: const Color(0xFF141414),
             image: profile.coverUrl.trim().isNotEmpty
                 ? DecorationImage(
                     image: NetworkImage(profile.coverUrl.trim()),
@@ -243,7 +243,7 @@ class BrandProfileWidget extends ConsumerWidget {
             ),
             child: CircleAvatar(
               radius: 44,
-              backgroundColor: const Color(0xFF1E293B),
+              backgroundColor: const Color(0xFF141414),
               backgroundImage: profile.avatarUrl.trim().isNotEmpty
                   ? NetworkImage(profile.avatarUrl.trim())
                   : null,
@@ -369,9 +369,9 @@ class BrandProfileWidget extends ConsumerWidget {
                 height: 44,
                 width: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
+                  color: const Color(0xFF141414),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.06)),
+                  border: Border.all(color: const Color(0xFF262626)),
                 ),
                 child: IconButton(
                   icon: const Icon(Icons.share_outlined, color: AppTheme.primaryColor, size: 18),
@@ -391,7 +391,7 @@ class BrandProfileWidget extends ConsumerWidget {
             flex: 2,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: profile.isFollowing ? const Color(0xFF1E293B) : AppTheme.primaryColor,
+                backgroundColor: profile.isFollowing ? const Color(0xFF1E1E1E) : AppTheme.primaryColor,
                 foregroundColor: profile.isFollowing ? Colors.white : Colors.black,
               ),
               icon: Icon(profile.isFollowing ? Icons.check : Icons.person_add, size: 16),
@@ -429,8 +429,17 @@ class BrandProfileWidget extends ConsumerWidget {
                 if (!access.allowed) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(access.reason ?? '${profile.name} is not accepting messages.'),
-                      backgroundColor: Colors.redAccent,
+                      content: Text(access.reason ?? 'Follow first to send a message.'),
+                      backgroundColor: const Color(0xFF1E1E1E),
+                      action: access.reason?.toLowerCase().contains('follow') == true
+                          ? SnackBarAction(
+                              label: 'FOLLOW',
+                              textColor: AppTheme.primaryColor,
+                              onPressed: () {
+                                ref.read(universalProfileControllerProvider(profile.id).notifier).toggleFollow();
+                              },
+                            )
+                          : null,
                     ),
                   );
                   return;

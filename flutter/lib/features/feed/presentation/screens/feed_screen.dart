@@ -81,7 +81,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 constraints: const BoxConstraints(maxWidth: 680),
                 child: RefreshIndicator(
                   color: AppTheme.primaryColor,
-                  backgroundColor: const Color(0xFF0F172A),
+                  backgroundColor: const Color(0xFF121212),
                   onRefresh: () async {
                     await ref.read(feedPostsProvider.notifier).refresh();
                   },
@@ -165,9 +165,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                           }
                           return [
                             SliverPadding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
+                              padding: const EdgeInsets.only(
+                                left: 16,
+                                right: 16,
+                                top: 8,
+                                bottom: 84,
                               ),
                               sliver: SliverList(
                                 delegate: SliverChildBuilderDelegate(
@@ -524,11 +526,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: Colors.white.withOpacity(0.04)),
+        side: const BorderSide(color: Color(0xFF262626), width: 1),
       ),
-      color: const Color(0xFF0F172A),
+      color: Colors.black,
       child: InkWell(
         onTap: () {
           context.go('/upload');
@@ -587,12 +590,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 HapticFeedback.selectionClick();
                 ref.read(selectedCategoryProvider.notifier).state = category;
               },
-              backgroundColor: const Color(0xFF0F172A),
+              backgroundColor: const Color(0xFF141414),
               selectedColor: AppTheme.primaryColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
                 side: BorderSide(
-                  color: isSelected ? AppTheme.primaryColor : Colors.white.withOpacity(0.05),
+                  color: isSelected ? AppTheme.primaryColor : const Color(0xFF262626),
                 ),
               ),
               labelStyle: TextStyle(
@@ -678,12 +681,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 HapticFeedback.selectionClick();
                 ref.read(selectedSportProvider.notifier).state = cat;
               },
-              backgroundColor: const Color(0xFF0F172A),
+              backgroundColor: const Color(0xFF141414),
               selectedColor: AppTheme.primaryColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
                 side: BorderSide(
-                  color: isSelected ? AppTheme.primaryColor : Colors.white.withOpacity(0.05),
+                  color: isSelected ? AppTheme.primaryColor : const Color(0xFF262626),
                 ),
               ),
               labelStyle: TextStyle(
@@ -1081,7 +1084,7 @@ class _StoryViewerDialogState extends ConsumerState<StoryViewerDialog> with Sing
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Reply sent to ${story.userName}!'),
-            backgroundColor: const Color(0xFF0F172A),
+            backgroundColor: const Color(0xFF121212),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -1291,7 +1294,11 @@ class _StoryViewerDialogState extends ConsumerState<StoryViewerDialog> with Sing
                               final confirm = await showDialog<bool>(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
-                                  backgroundColor: const Color(0xFF1E293B),
+                                  backgroundColor: const Color(0xFF121212),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    side: const BorderSide(color: Color(0xFF262626)),
+                                  ),
                                   title: const Text('Delete Story', style: TextStyle(color: Colors.white)),
                                   content: const Text('Are you sure you want to delete this story?', style: TextStyle(color: Colors.white70)),
                                   actions: [
@@ -1595,7 +1602,11 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: const Color(0xFF121212),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF262626)),
+        ),
         title: const Text('Delete Comment', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: const Text('Are you sure you want to delete your comment?', style: TextStyle(color: Colors.white70)),
         actions: [
@@ -1633,9 +1644,10 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
         : (FirebaseAuth.instance.currentUser?.photoURL ?? '');
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F172A),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121212),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        border: Border.all(color: const Color(0xFF262626), width: 1),
       ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -1970,9 +1982,10 @@ class ShareBottomSheet extends ConsumerWidget {
     ];
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F172A),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121212),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        border: Border.all(color: const Color(0xFF262626), width: 1),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -2174,7 +2187,7 @@ class _StoryUploadDialogState extends ConsumerState<StoryUploadDialog> {
                       DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _visibility,
-                          dropdownColor: const Color(0xFF1E293B),
+                          dropdownColor: const Color(0xFF141414),
                           icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
                           items: const [
                             DropdownMenuItem(value: 'public', child: Text('Public', style: TextStyle(color: Colors.white))),
@@ -2263,9 +2276,9 @@ class _FeedScreenShimmerLoadingState extends State<_FeedScreenShimmerLoading>
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF262626), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2276,7 +2289,7 @@ class _FeedScreenShimmerLoadingState extends State<_FeedScreenShimmerLoading>
                 width: 42,
                 height: 42,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF1E293B),
+                  color: Color(0xFF1E1E1E),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -2288,7 +2301,7 @@ class _FeedScreenShimmerLoadingState extends State<_FeedScreenShimmerLoading>
                     width: 120,
                     height: 14,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
+                      color: const Color(0xFF1E1E1E),
                       borderRadius: BorderRadius.circular(6),
                     ),
                   ),
@@ -2297,7 +2310,7 @@ class _FeedScreenShimmerLoadingState extends State<_FeedScreenShimmerLoading>
                     width: 80,
                     height: 10,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
+                      color: const Color(0xFF1E1E1E),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -2308,7 +2321,7 @@ class _FeedScreenShimmerLoadingState extends State<_FeedScreenShimmerLoading>
                 width: 24,
                 height: 24,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF1E293B),
+                  color: Color(0xFF1E1E1E),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -2319,7 +2332,7 @@ class _FeedScreenShimmerLoadingState extends State<_FeedScreenShimmerLoading>
             aspectRatio: 16 / 10,
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
+                color: const Color(0xFF1E1E1E),
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
@@ -2331,7 +2344,7 @@ class _FeedScreenShimmerLoadingState extends State<_FeedScreenShimmerLoading>
                 width: 32,
                 height: 32,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF1E293B),
+                  color: Color(0xFF1E1E1E),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -2340,7 +2353,7 @@ class _FeedScreenShimmerLoadingState extends State<_FeedScreenShimmerLoading>
                 width: 32,
                 height: 32,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF1E293B),
+                  color: Color(0xFF1E1E1E),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -2349,7 +2362,7 @@ class _FeedScreenShimmerLoadingState extends State<_FeedScreenShimmerLoading>
                 width: 32,
                 height: 32,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF1E293B),
+                  color: Color(0xFF1E1E1E),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -2358,7 +2371,7 @@ class _FeedScreenShimmerLoadingState extends State<_FeedScreenShimmerLoading>
                 width: 32,
                 height: 32,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF1E293B),
+                  color: Color(0xFF1E1E1E),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -2369,7 +2382,7 @@ class _FeedScreenShimmerLoadingState extends State<_FeedScreenShimmerLoading>
             width: double.infinity,
             height: 12,
             decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
+              color: const Color(0xFF1E1E1E),
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -2378,7 +2391,7 @@ class _FeedScreenShimmerLoadingState extends State<_FeedScreenShimmerLoading>
             width: 200,
             height: 12,
             decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
+              color: const Color(0xFF1E1E1E),
               borderRadius: BorderRadius.circular(4),
             ),
           ),

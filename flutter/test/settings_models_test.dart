@@ -12,6 +12,14 @@ void main() {
       expect(settings.allowedSenders, 'followers');
     });
 
+    test('migrates removed nobody messaging access to followers', () {
+      final settings = MessagingSettings.fromMap({
+        'allowedSenders': 'nobody',
+      });
+
+      expect(settings.allowedSenders, 'followers');
+    });
+
     test('privacy masking can explicitly clear nullable measurements', () {
       const profile = ProfileModel(
         id: 'user-1',

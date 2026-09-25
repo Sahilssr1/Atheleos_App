@@ -6,12 +6,16 @@ import '../../features/notifications/presentation/controllers/notifications_cont
 
 class AtheleosAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final String titleText;
+  final Widget? title;
   final bool showActions;
+  final Widget? leading;
 
   const AtheleosAppBar({
     super.key,
     this.titleText = 'ATHELEOS',
+    this.title,
     this.showActions = true,
+    this.leading,
   });
 
   @override
@@ -21,20 +25,35 @@ class AtheleosAppBar extends ConsumerWidget implements PreferredSizeWidget {
         ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
 
     return AppBar(
-      title: Text(
-        titleText,
-        style: TextStyle(
-          color: theme.colorScheme.primary,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 1.5,
-        ),
-      ),
+      backgroundColor: Colors.black,
+      surfaceTintColor: Colors.transparent,
+      scrolledUnderElevation: 0,
+      elevation: 0,
+      centerTitle: false,
+      titleSpacing: 16,
+      leading: leading,
+      title: title ??
+          (titleText == 'ATHELEOS'
+              ? Image.asset(
+                  'assets/images/atheleos_banner.png',
+                  height: 28,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.centerLeft,
+                )
+              : Text(
+                  titleText,
+                  style: TextStyle(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.5,
+                  ),
+                )),
       actions: showActions
           ? [
-              // Events Combine Button
+              // Events Combine Button (Calendar outline icon)
               IconButton(
-                tooltip: 'Combine & Events',
-                icon: const Icon(Icons.emoji_events_outlined),
+                tooltip: 'Events & Combine',
+                icon: const Icon(Icons.calendar_today_outlined),
                 onPressed: () {
                   context.push('/events');
                 },

@@ -298,7 +298,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     return RefreshIndicator(
       color: AppTheme.primaryColor,
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF141414),
       onRefresh: () async {
         await ref.read(clipsProvider.notifier).refresh();
       },
@@ -469,7 +469,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       child: Container(
         width: width,
         height: height,
-        color: const Color(0xFF0F172A),
+        color: const Color(0xFF141414),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -481,7 +481,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 memCacheWidth: 360,
                 memCacheHeight: 360,
                 placeholder: (context, url) => Container(
-                  color: const Color(0xFF0F172A),
+                  color: const Color(0xFF141414),
                   child: const Center(
                     child: SizedBox(
                       width: 16, height: 16,
@@ -492,7 +492,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ),
                 ),
                 errorWidget: (context, url, error) => Container(
-                  color: const Color(0xFF1E293B),
+                  color: const Color(0xFF181818),
                   child: const Center(
                     child: Icon(Icons.play_circle_outline, color: Colors.white24, size: 32),
                   ),
@@ -500,7 +500,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               )
             else
               Container(
-                color: const Color(0xFF1E293B),
+                color: const Color(0xFF181818),
                 child: const Center(
                   child: Icon(Icons.play_circle_outline, color: Colors.white24, size: 32),
                 ),
@@ -612,8 +612,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 },
                 child: Chip(
                   label: Text(q, style: GoogleFonts.inter(fontSize: 12, color: Colors.white)),
-                  backgroundColor: const Color(0xFF1E293B),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  backgroundColor: const Color(0xFF141414),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: const BorderSide(color: Color(0xFF262626)),
+                  ),
                 ),
               )).toList(),
             ),
@@ -775,9 +778,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
+              color: const Color(0xFF121212),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withOpacity(0.04)),
+              border: Border.all(color: const Color(0xFF262626)),
             ),
             child: Row(
               children: [
@@ -906,9 +909,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF121212),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: Color(0xFF262626)),
       ),
       builder: (_) => SafeArea(
         child: Column(

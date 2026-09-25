@@ -296,15 +296,15 @@ class SettingsWidgets {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
+            color: const Color(0xFF141414),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white10),
+            border: Border.all(color: const Color(0xFF262626)),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: items.containsKey(value) ? value : items.keys.first,
               isExpanded: true,
-              dropdownColor: const Color(0xFF0F172A),
+              dropdownColor: const Color(0xFF141414),
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 13,
@@ -412,9 +412,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF111827),
+                  color: const Color(0xFF141414),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white12),
+                  border: Border.all(color: const Color(0xFF262626)),
                 ),
                 child: TextField(
                   controller: _searchController,
@@ -551,7 +551,11 @@ Future<void> _confirmLogoutDialog(BuildContext context, WidgetRef ref) async {
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogCtx) => AlertDialog(
-      backgroundColor: const Color(0xFF1E293B),
+      backgroundColor: const Color(0xFF121212),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFF262626)),
+      ),
       title: Text(
         'Sign Out',
         style: GoogleFonts.spaceGrotesk(
@@ -644,7 +648,7 @@ class _SettingsCategoryScreenState
   }
 
   String _getAllowedSenders(String serverValue) {
-    const valid = {'everyone', 'followers', 'nobody'};
+    const valid = {'everyone', 'followers'};
     final current = _optimisticAllowedSenders ?? serverValue;
     return valid.contains(current) ? current : 'everyone';
   }
@@ -870,16 +874,16 @@ class _SettingsCategoryScreenState
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A),
+                    color: const Color(0xFF141414),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white10),
+                    border: Border.all(color: const Color(0xFF262626)),
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       value:
                           _getAllowedSenders(settings.messaging.allowedSenders),
                       isExpanded: true,
-                      dropdownColor: const Color(0xFF0F172A),
+                      dropdownColor: const Color(0xFF141414),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13,
@@ -890,8 +894,6 @@ class _SettingsCategoryScreenState
                             value: 'everyone', child: Text('Everyone')),
                         DropdownMenuItem(
                             value: 'followers', child: Text('Followers Only')),
-                        DropdownMenuItem(
-                            value: 'nobody', child: Text('Nobody')),
                       ],
                       onChanged: (v) {
                         if (v != null) _onAllowedSendersChanged(v, actions);
@@ -1164,7 +1166,11 @@ class _PhoneChangeDialogState extends ConsumerState<_PhoneChangeDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF1E293B),
+      backgroundColor: const Color(0xFF121212),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFF262626)),
+      ),
       title: Text(
         'Change Phone Number',
         style: GoogleFonts.spaceGrotesk(

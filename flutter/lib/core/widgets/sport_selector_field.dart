@@ -47,9 +47,10 @@ class _SportSelectorFieldState extends State<SportSelectorField> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1A1A1A),
+      backgroundColor: const Color(0xFF121212),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: Color(0xFF262626), width: 1),
       ),
       builder: (context) => _SportBottomSheet(
         selectedSport: _selectedSport,
@@ -79,9 +80,9 @@ class _SportSelectorFieldState extends State<SportSelectorField> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
+              color: const Color(0xFF121212),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white10),
+              border: Border.all(color: const Color(0xFF262626), width: 1),
             ),
             child: Row(
               children: [
@@ -113,18 +114,18 @@ class _SportSelectorFieldState extends State<SportSelectorField> {
               hintStyle: const TextStyle(color: Colors.white38),
               prefixIcon: const Icon(Icons.edit, color: AppTheme.primaryColor, size: 16),
               filled: true,
-              fillColor: const Color(0xFF0F172A),
+              fillColor: const Color(0xFF121212),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.white10),
+                borderSide: const BorderSide(color: Color(0xFF262626), width: 1),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.white10),
+                borderSide: const BorderSide(color: Color(0xFF262626), width: 1),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppTheme.primaryColor),
+                borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
               ),
             ),
             onChanged: (val) {
@@ -207,10 +208,14 @@ class _SportBottomSheetState extends State<_SportBottomSheet> {
                 hintStyle: const TextStyle(color: Colors.white38),
                 prefixIcon: const Icon(Icons.search, color: Colors.white54),
                 filled: true,
-                fillColor: const Color(0xFF2A2A2A),
+                fillColor: const Color(0xFF181818),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                  borderSide: const BorderSide(color: Color(0xFF262626), width: 1),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF262626), width: 1),
                 ),
                 contentPadding: EdgeInsets.zero,
               ),

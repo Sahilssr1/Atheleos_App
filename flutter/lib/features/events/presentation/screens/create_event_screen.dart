@@ -155,7 +155,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
             colorScheme: const ColorScheme.dark(
               primary: AppTheme.primaryColor,
               onPrimary: Colors.black,
-              surface: Color(0xFF1E293B),
+              surface: Color(0xFF141414),
               onSurface: Colors.white,
             ),
           ),
@@ -188,7 +188,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
             colorScheme: const ColorScheme.dark(
               primary: AppTheme.primaryColor,
               onPrimary: Colors.black,
-              surface: Color(0xFF1E293B),
+              surface: Color(0xFF141414),
               onSurface: Colors.white,
             ),
           ),
@@ -478,9 +478,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                         width: double.infinity,
                         height: 160,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0F172A),
+                          color: const Color(0xFF141414),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white10),
+                          border: Border.all(color: const Color(0xFF262626)),
                           image: _bannerFile != null
                               ? DecorationImage(
                                   image: FileImage(File(_bannerFile!.path)),
@@ -531,14 +531,14 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
+                        color: const Color(0xFF141414),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white10),
+                        border: Border.all(color: const Color(0xFF262626)),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButtonFormField<String>(
                           value: _selectedSport,
-                          dropdownColor: const Color(0xFF0F172A),
+                          dropdownColor: const Color(0xFF141414),
                           style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold),
                           decoration: const InputDecoration(border: InputBorder.none),
                           items: SportsService.supportedSports.map((sport) {
@@ -568,15 +568,15 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF0F172A),
+                                  color: const Color(0xFF141414),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white10),
+                                  border: Border.all(color: const Color(0xFF262626)),
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<String>(
                                     value: _selectedType,
                                     isExpanded: true,
-                                    dropdownColor: const Color(0xFF0F172A),
+                                    dropdownColor: const Color(0xFF141414),
                                     style: const TextStyle(color: Colors.white, fontSize: 13),
                                     underline: const SizedBox(),
                                     items: _eventTypes.map((t) {
@@ -602,15 +602,15 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF0F172A),
+                                  color: const Color(0xFF141414),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white10),
+                                  border: Border.all(color: const Color(0xFF262626)),
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<String>(
                                     value: _selectedLevel,
                                     isExpanded: true,
-                                    dropdownColor: const Color(0xFF0F172A),
+                                    dropdownColor: const Color(0xFF141414),
                                     style: const TextStyle(color: Colors.white, fontSize: 13),
                                     underline: const SizedBox(),
                                     items: _competitionLevels.map((l) {
@@ -716,11 +716,14 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                               const SizedBox(height: 6),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF0F172A),
+                                  backgroundColor: const Color(0xFF141414),
                                   foregroundColor: Colors.white,
                                   alignment: Alignment.centerLeft,
                                   minimumSize: const Size(double.infinity, 44),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: const BorderSide(color: Color(0xFF262626)),
+                                  ),
                                 ),
                                 onPressed: () => _selectDate(context, true, false),
                                 child: Text(_startDate == null ? 'Select Date' : '${_startDate!.month}/${_startDate!.day}/${_startDate!.year}'),
@@ -738,11 +741,14 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                               const SizedBox(height: 6),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF0F172A),
+                                  backgroundColor: const Color(0xFF141414),
                                   foregroundColor: Colors.white,
                                   alignment: Alignment.centerLeft,
                                   minimumSize: const Size(double.infinity, 44),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: const BorderSide(color: Color(0xFF262626)),
+                                  ),
                                 ),
                                 onPressed: () => _selectTime(context, true),
                                 child: Text(_startTime == null ? 'Select Time' : _formatTimeOfDay(_startTime)),
@@ -765,11 +771,14 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                               const SizedBox(height: 6),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF0F172A),
+                                  backgroundColor: const Color(0xFF141414),
                                   foregroundColor: Colors.white,
                                   alignment: Alignment.centerLeft,
                                   minimumSize: const Size(double.infinity, 44),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: const BorderSide(color: Color(0xFF262626)),
+                                  ),
                                 ),
                                 onPressed: () => _selectDate(context, false, false),
                                 child: Text(_endDate == null ? 'Select Date' : '${_endDate!.month}/${_endDate!.day}/${_endDate!.year}'),
@@ -787,11 +796,14 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                               const SizedBox(height: 6),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF0F172A),
+                                  backgroundColor: const Color(0xFF141414),
                                   foregroundColor: Colors.white,
                                   alignment: Alignment.centerLeft,
                                   minimumSize: const Size(double.infinity, 44),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: const BorderSide(color: Color(0xFF262626)),
+                                  ),
                                 ),
                                 onPressed: () => _selectTime(context, false),
                                 child: Text(_endTime == null ? 'Select Time' : _formatTimeOfDay(_endTime)),
@@ -816,11 +828,14 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                               const SizedBox(height: 6),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF0F172A),
+                                  backgroundColor: const Color(0xFF141414),
                                   foregroundColor: Colors.white,
                                   alignment: Alignment.centerLeft,
                                   minimumSize: const Size(double.infinity, 44),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: const BorderSide(color: Color(0xFF262626)),
+                                  ),
                                 ),
                                 onPressed: () => _selectDate(context, false, true),
                                 child: Text(_deadline == null ? 'Select Date' : '${_deadline!.month}/${_deadline!.day}/${_deadline!.year}'),
@@ -844,15 +859,15 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF0F172A),
+                                  color: const Color(0xFF141414),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white10),
+                                  border: Border.all(color: const Color(0xFF262626)),
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<String>(
                                     value: _selectedRegType,
                                     isExpanded: true,
-                                    dropdownColor: const Color(0xFF0F172A),
+                                    dropdownColor: const Color(0xFF141414),
                                     style: const TextStyle(color: Colors.white, fontSize: 13),
                                     underline: const SizedBox(),
                                     items: const [
@@ -946,15 +961,15 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
+                        color: const Color(0xFF141414),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white10),
+                        border: Border.all(color: const Color(0xFF262626)),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: _selectedStatus,
                           isExpanded: true,
-                          dropdownColor: const Color(0xFF0F172A),
+                          dropdownColor: const Color(0xFF141414),
                           style: const TextStyle(color: Colors.white, fontSize: 13),
                           underline: const SizedBox(),
                           items: _eventStatuses.map((s) {
@@ -1075,10 +1090,18 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
             hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 12.5),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+              borderSide: const BorderSide(color: Color(0xFF262626)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF262626)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.primaryColor),
             ),
             filled: true,
-            fillColor: const Color(0xFF0F172A),
+            fillColor: const Color(0xFF141414),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
         ),

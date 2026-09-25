@@ -433,9 +433,9 @@ class VerificationDashboardScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
+              color: const Color(0xFF141414),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              border: Border.all(color: const Color(0xFF262626)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -501,12 +501,12 @@ class VerificationDashboardScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               color: isUnlocked
                   ? Color(lvl['color'] as int).withValues(alpha: 0.06)
-                  : const Color(0xFF0F172A),
+                  : const Color(0xFF141414),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isUnlocked
                     ? Color(lvl['color'] as int).withValues(alpha: 0.2)
-                    : Colors.white.withValues(alpha: 0.04),
+                    : const Color(0xFF262626),
               ),
             ),
             child: Row(children: [
@@ -663,9 +663,9 @@ class VerificationDashboardScreen extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
+            color: const Color(0xFF141414),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            border: Border.all(color: const Color(0xFF262626)),
           ),
           child: Column(
             children: [
@@ -717,9 +717,9 @@ class VerificationDashboardScreen extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
+            color: const Color(0xFF141414),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            border: Border.all(color: const Color(0xFF262626)),
           ),
           child: Column(
             children: [
@@ -861,9 +861,9 @@ class VerificationDashboardScreen extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
+            color: const Color(0xFF141414),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            border: Border.all(color: const Color(0xFF262626)),
           ),
           child: Column(
             children: [
@@ -921,9 +921,9 @@ class VerificationDashboardScreen extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
+            color: const Color(0xFF141414),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            border: Border.all(color: const Color(0xFF262626)),
           ),
           child: Column(
             children: [
@@ -1064,9 +1064,9 @@ class VerificationDashboardScreen extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
+            color: const Color(0xFF141414),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            border: Border.all(color: const Color(0xFF262626)),
           ),
           child: Column(
             children: [

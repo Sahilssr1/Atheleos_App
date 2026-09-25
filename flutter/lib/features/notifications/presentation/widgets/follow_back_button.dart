@@ -104,8 +104,11 @@ class _FollowBackButtonState extends ConsumerState<FollowBackButton> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: const Color(0xFF121212),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF262626)),
+        ),
         title: Text(
           'Unfollow @$displayName?',
           style: GoogleFonts.spaceGrotesk(
@@ -217,9 +220,9 @@ class _FollowBackButtonState extends ConsumerState<FollowBackButton> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           minimumSize: Size.zero,
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          side: const BorderSide(color: Colors.white24, width: 1),
+          side: const BorderSide(color: Color(0xFF262626), width: 1),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          backgroundColor: const Color(0xFF1E293B),
+          backgroundColor: const Color(0xFF1E1E1E),
         ),
         onPressed: _isLoading ? null : () => _handleUnfollow(displayName),
         child: _isLoading

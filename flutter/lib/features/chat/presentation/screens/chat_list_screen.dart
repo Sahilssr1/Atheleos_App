@@ -37,14 +37,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF1E293B) : Colors.white.withValues(alpha: 0.03),
+          color: isSelected ? const Color(0xFF1E1E1E) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
                 ? (isRequestTab && badgeCount > 0
                     ? AppTheme.primaryColor.withValues(alpha: 0.6)
-                    : Colors.white.withValues(alpha: 0.18))
-                : Colors.white.withValues(alpha: 0.06),
+                    : const Color(0xFF333333))
+                : const Color(0xFF222222),
           ),
         ),
         child: Row(
@@ -65,7 +65,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1.5),
                 decoration: BoxDecoration(
-                  color: isRequestTab ? AppTheme.primaryColor : const Color(0xFF334155),
+                  color: isRequestTab ? AppTheme.primaryColor : const Color(0xFF262626),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -110,9 +110,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   void _showNewDMModal(BuildContext context, List<ProfileModel> profiles, String myId) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF121212),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: Color(0xFF262626), width: 1),
       ),
       isScrollControlled: true,
       builder: (context) {
@@ -283,9 +284,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(24),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF1E293B),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF141414),
                   shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF262626), width: 1),
                 ),
                 child: const Icon(
                   Icons.mark_email_read_outlined,
@@ -326,9 +328,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(24),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF1E293B),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF141414),
                   shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF262626), width: 1),
                 ),
                 child: const Icon(
                   Icons.chat_bubble_outline_rounded,
@@ -439,7 +442,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                           return await showDialog<bool>(
                             context: context,
                             builder: (context) => AlertDialog(
-                              backgroundColor: const Color(0xFF1E293B),
+                              backgroundColor: const Color(0xFF121212),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: const BorderSide(color: Color(0xFF262626)),
+                              ),
                               title: Text(
                                 isGroup
                                     ? 'Leave or delete group?'
@@ -642,9 +649,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0F19),
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: Colors.black,
         elevation: 0,
         title: Text(
           'Messages',
@@ -689,9 +696,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
             child: IconButton(
               icon: Container(
                 padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF1E293B),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF141414),
                   shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF262626), width: 1),
                 ),
                 child: const Icon(Icons.edit_note_rounded, color: Colors.white, size: 22),
               ),
@@ -711,9 +719,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
+                color: const Color(0xFF121212),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                border: Border.all(color: const Color(0xFF262626), width: 1),
               ),
               child: TextField(
                 controller: _searchController,
@@ -907,7 +915,7 @@ class _ChatListShimmerLoadingState extends State<_ChatListShimmerLoading>
                       width: 50,
                       height: 50,
                       decoration: const BoxDecoration(
-                        color: Color(0xFF1E293B),
+                        color: Color(0xFF181818),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -920,7 +928,7 @@ class _ChatListShimmerLoadingState extends State<_ChatListShimmerLoading>
                             width: 130,
                             height: 14,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1E293B),
+                              color: const Color(0xFF181818),
                               borderRadius: BorderRadius.circular(6),
                             ),
                           ),
@@ -929,7 +937,7 @@ class _ChatListShimmerLoadingState extends State<_ChatListShimmerLoading>
                             width: 200,
                             height: 11,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1E293B),
+                              color: const Color(0xFF181818),
                               borderRadius: BorderRadius.circular(6),
                             ),
                           ),
@@ -940,7 +948,7 @@ class _ChatListShimmerLoadingState extends State<_ChatListShimmerLoading>
                       width: 35,
                       height: 10,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E293B),
+                        color: const Color(0xFF181818),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),

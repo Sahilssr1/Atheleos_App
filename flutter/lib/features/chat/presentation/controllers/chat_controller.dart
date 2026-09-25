@@ -31,7 +31,7 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
   final ChatRepository _repository;
   final String _roomId;
   final String _senderId;
-  final String? _receiverId;
+  String? _receiverId;
   final Ref? _ref;
   StreamSubscription? _subscription;
   
@@ -43,10 +43,25 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
   // Stored pending attachment references for retry recovery
   final Map<String, NormalizedAttachment> _pendingAttachments = {};
 
-  RoomChatNotifier(this._repository, this._roomId, this._senderId, [this._receiverId, this._ref]) : super([]) {
+  RoomChatNotifier(this._repository, this._roomId, this._senderId, [String? receiverId, this._ref])
+      : _receiverId = resolveReceiverId(_roomId, _senderId, receiverId),
+        super([]) {
     _loadCache();
     _subscribe();
     _markRead();
+  }
+
+  static String? resolveReceiverId(String roomId, String senderId, String? explicit) {
+    if (explicit != null && explicit.isNotEmpty) return explicit;
+    if (!roomId.startsWith('group_') && roomId.contains('_')) {
+      final parts = roomId.split('_');
+      if (parts.length == 2) {
+        if (parts[0] == senderId) return parts[1];
+        if (parts[1] == senderId) return parts[0];
+        return parts[1];
+      }
+    }
+    return null;
   }
 
   void _notifyLoaded() {
@@ -238,11 +253,18 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
       return;
     }
 
-    final id = 'msg_${DateTime.now().millisecondsSinceEpoch}_$_senderId';
+    final currentSenderId = _senderId.isNotEmpty ? _senderId : (_ref?.read(loggedInUserIdProvider) ?? '');
+    String effectiveReceiverId = _receiverId ?? '';
+    if (effectiveReceiverId.isEmpty && !_roomId.startsWith('group_')) {
+      effectiveReceiverId = resolveReceiverId(_roomId, currentSenderId, null) ?? '';
+      _receiverId = effectiveReceiverId;
+    }
+
+    final id = 'msg_${DateTime.now().millisecondsSinceEpoch}_$currentSenderId';
     final message = ChatMessage(
       id: id,
-      senderId: _senderId,
-      receiverId: _receiverId ?? '',
+      senderId: currentSenderId,
+      receiverId: effectiveReceiverId,
       content: content,
       timestamp: DateTime.now(),
       storyId: storyId,
@@ -271,7 +293,7 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
       final serverMessage = message.copyWith(localState: 'SENT', messageState: 'sent');
       if (_roomId.startsWith('group_')) {
         await _repository.sendRoomMessage(_roomId, serverMessage);
-      } else if (_receiverId != null && _receiverId!.isNotEmpty) {
+      } else if (effectiveReceiverId.isNotEmpty) {
         await _repository.sendMessage(serverMessage);
       } else {
         await _repository.sendRoomMessage(_roomId, serverMessage);
@@ -280,6 +302,7 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
     } catch (e, stack) {
       debugPrint('[CHAT ERROR] Failed to send message: $e\n$stack');
       state = state.map((m) => m.id == id ? m.copyWith(localState: 'FAILED', messageState: 'failed') : m).toList();
+      rethrow;
     }
   }
 
@@ -291,7 +314,14 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
     String? replyToContent,
     required MediaUploadService uploadService,
   }) async {
-    final id = 'msg_${DateTime.now().millisecondsSinceEpoch}_$_senderId';
+    final currentSenderId = _senderId.isNotEmpty ? _senderId : (_ref?.read(loggedInUserIdProvider) ?? '');
+    String effectiveReceiverId = _receiverId ?? '';
+    if (effectiveReceiverId.isEmpty && !_roomId.startsWith('group_')) {
+      effectiveReceiverId = resolveReceiverId(_roomId, currentSenderId, null) ?? '';
+      _receiverId = effectiveReceiverId;
+    }
+
+    final id = 'msg_${DateTime.now().millisecondsSinceEpoch}_$currentSenderId';
     _pendingAttachments[id] = attachment;
 
     String localMediaUrl = attachment.remoteUrl ?? '';
@@ -304,8 +334,8 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
     final isGif = attachment.isGif;
     final optimisticMessage = ChatMessage(
       id: id,
-      senderId: _senderId,
-      receiverId: _receiverId ?? '',
+      senderId: currentSenderId,
+      receiverId: effectiveReceiverId,
       content: isGif ? 'GIF' : (attachment.isImage ? 'Photo' : 'Attachment'),
       timestamp: DateTime.now(),
       type: isGif ? 'gif' : (attachment.isImage ? 'image' : 'file'),
@@ -333,7 +363,7 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
         );
         if (_roomId.startsWith('group_')) {
           await _repository.sendRoomMessage(_roomId, serverMessage);
-        } else if (_receiverId != null && _receiverId!.isNotEmpty) {
+        } else if (effectiveReceiverId.isNotEmpty) {
           await _repository.sendMessage(serverMessage);
         } else {
           await _repository.sendRoomMessage(_roomId, serverMessage);
@@ -421,6 +451,11 @@ class RoomChatNotifier extends StateNotifier<List<ChatMessage>> {
     final msg = state[msgIndex];
 
     state = state.map((m) => m.id == messageId ? m.copyWith(localState: 'UPLOADING', messageState: 'sending') : m).toList();
+
+    final currentSenderId = _senderId.isNotEmpty ? _senderId : (_ref?.read(loggedInUserIdProvider) ?? '');
+    if ((_receiverId == null || _receiverId!.isEmpty) && !_roomId.startsWith('group_')) {
+      _receiverId = resolveReceiverId(_roomId, currentSenderId, null);
+    }
 
     // Check if we have an attachment to retry uploading
     final pendingAtt = _pendingAttachments[messageId];

@@ -72,7 +72,7 @@ class PrivacySettings {
 }
 
 /// Messaging access settings.
-/// allowedSenders: 'everyone' | 'followers' | 'nobody'
+/// allowedSenders: 'everyone' | 'followers'
 class MessagingSettings {
   final String allowedSenders;
   final bool allowMessageRequests;
@@ -104,8 +104,8 @@ class MessagingSettings {
 
   factory MessagingSettings.fromMap(Map<String, dynamic> map) {
     var rawSender = map['allowedSenders'];
-    if (rawSender == 'verified') rawSender = 'followers';
-    const validSenders = {'everyone', 'followers', 'nobody'};
+    if (rawSender == 'verified' || rawSender == 'nobody') rawSender = 'followers';
+    const validSenders = {'everyone', 'followers'};
     final allowedSenders =
         validSenders.contains(rawSender) ? (rawSender as String) : 'everyone';
     return MessagingSettings(

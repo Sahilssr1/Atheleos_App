@@ -476,10 +476,18 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                       hintStyle: GoogleFonts.inter(color: Colors.white24),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                        borderSide: const BorderSide(color: Color(0xFF262626), width: 1),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF262626), width: 1),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5),
                       ),
                       filled: true,
-                      fillColor: const Color(0xFF0F172A),
+                      fillColor: const Color(0xFF121212),
                     ),
                   ),
                 ),
@@ -525,9 +533,9 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                     width: double.infinity,
                     height: 180,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A),
+                      color: const Color(0xFF121212),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white10),
+                      border: Border.all(color: const Color(0xFF262626), width: 1),
                     ),
                     child: _pickedFile != null
                         ? Stack(
@@ -539,7 +547,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                                     ? Image.network(_pickedFile!.path, fit: BoxFit.cover)
                                     : (_isVideo
                                         ? Container(
-                                            color: const Color(0xFF1E293B),
+                                            color: const Color(0xFF141414),
                                             child: Column(
                                               mainAxisAlignment: MainAxisAlignment.center,
                                               children: [

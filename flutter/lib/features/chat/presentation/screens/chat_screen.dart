@@ -19,6 +19,7 @@ import '../../domain/models/chat_message.dart';
 import '../controllers/chat_controller.dart';
 import '../controllers/chat_theme_controller.dart';
 import 'shared_content_screen.dart';
+import '../../../../core/services/messaging_access_service.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String? receiverId;
@@ -41,6 +42,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final DateTime _creationTime = DateTime.now();
   ChatMessage? _replyingToMessage;
   String? _highlightedMessageId;
+  String? _messagingRestrictedReason;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkMessagingAccess();
+    });
+  }
+
+  Future<void> _checkMessagingAccess() async {
+    final receiverId = _effectiveReceiverId;
+    if (receiverId.isEmpty || receiverId.startsWith('group_')) return;
+    final myId = ref.read(loggedInUserIdProvider);
+    if (myId.isEmpty || myId == receiverId) return;
+
+    final access = await MessagingAccessService().check(
+      senderId: myId,
+      receiverId: receiverId,
+    );
+
+    if (mounted) {
+      setState(() {
+        _messagingRestrictedReason = access.allowed ? null : (access.reason ?? 'Follow first to send a message.');
+      });
+    }
+  }
 
   String _resolveRoomId(String myId) {
     if (widget.roomId != null && widget.roomId!.isNotEmpty) {
@@ -180,9 +208,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
+    if (_messagingRestrictedReason != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_messagingRestrictedReason!),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
     final myId = ref.read(loggedInUserIdProvider);
     final roomId = _resolveRoomId(myId);
     final receiverProfile = ref.read(userProvider(_effectiveReceiverId)).valueOrNull;
@@ -198,17 +235,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       replyToText = _getReplyContentSnippet(_replyingToMessage!);
     }
 
-    ref.read(roomChatProvider(roomId).notifier).sendMessage(
-      text,
-      replyToMessageId: replyToId,
-      replyToSenderName: replyToName,
-      replyToContent: replyToText,
-    );
-
     _messageController.clear();
     setState(() {
       _replyingToMessage = null;
     });
+
+    try {
+      await ref.read(roomChatProvider(roomId).notifier).sendMessage(
+        text,
+        replyToMessageId: replyToId,
+        replyToSenderName: replyToName,
+        replyToContent: replyToText,
+      );
+    } catch (e) {
+      if (mounted) {
+        final errorMsg = e is StateError ? e.message : 'Failed to send message. Please try again.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -225,6 +274,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final roomId = _resolveRoomId(myId);
     final isGroup = roomId.startsWith('group_');
     final receiverId = _effectiveReceiverId;
+
+    if (receiverId.isNotEmpty && !isGroup) {
+      ref.listen(universalProfileControllerProvider(receiverId), (prev, next) {
+        if (prev?.valueOrNull?.isFollowing != next.valueOrNull?.isFollowing) {
+          _checkMessagingAccess();
+        }
+      });
+    }
 
     final messages = ref.watch(roomChatProvider(roomId));
     final currentTheme = ref.watch(chatThemeProvider(roomId));
@@ -276,7 +333,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   },
                 ),
                 title: isGroup
-                    ? (roomDetailsAsync?.when(
+                    ? (roomDetailsAsync.when(
                         loading: () => const Text('Loading group...', style: TextStyle(color: Colors.white70, fontSize: 14)),
                         error: (_, __) => const Text('Group Chat', style: TextStyle(color: Colors.white, fontSize: 14)),
                         data: (room) {
@@ -819,12 +876,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 margin: const EdgeInsets.fromLTRB(14, 0, 14, 6),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
+                  color: const Color(0xFF141414),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                  border: Border.all(color: const Color(0xFF262626), width: 1),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
+                      color: Colors.black.withValues(alpha: 0.4),
                       blurRadius: 10,
                       offset: const Offset(0, -2),
                     ),
@@ -893,12 +950,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 margin: const EdgeInsets.fromLTRB(14, 0, 14, 8),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B).withValues(alpha: 0.95),
+                  color: const Color(0xFF141414),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.4)),
+                  border: Border.all(color: const Color(0xFF262626)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
+                      color: Colors.black.withValues(alpha: 0.4),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -949,7 +1006,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               final confirm = await showDialog<bool>(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
-                                  backgroundColor: const Color(0xFF1E293B),
+                                  backgroundColor: const Color(0xFF121212),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    side: const BorderSide(color: Color(0xFF262626)),
+                                  ),
                                   title: Text('Block $receiverName?', style: const TextStyle(color: Colors.white)),
                                   content: const Text(
                                     'They will not be able to message or find your profile.',
@@ -992,7 +1053,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               final confirm = await showDialog<bool>(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
-                                  backgroundColor: const Color(0xFF1E293B),
+                                  backgroundColor: const Color(0xFF121212),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    side: const BorderSide(color: Color(0xFF262626)),
+                                  ),
                                   title: const Text('Delete Message Request?', style: TextStyle(color: Colors.white)),
                                   content: const Text(
                                     'This request will be removed from your inbox.',
@@ -1051,21 +1116,73 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               ),
 
-            // Message input field OR Blocked Account Notice
+            // Message input field OR Blocked Account Notice OR Follow-First Notice
             if (isBlocked)
               SafeArea(
                 top: false,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A),
-                    border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF121212),
+                    border: Border(top: BorderSide(color: Color(0xFF262626))),
                   ),
                   alignment: Alignment.center,
                   child: const Text(
                     'You have blocked this account. You cannot send messages.',
                     style: TextStyle(color: Colors.white60, fontSize: 12),
                     textAlign: TextAlign.center,
+                  ),
+                ),
+              )
+            else if (_messagingRestrictedReason != null)
+              SafeArea(
+                top: false,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF141414),
+                    border: Border(top: BorderSide(color: Color(0xFF262626))),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person_add_outlined, color: AppTheme.primaryColor, size: 22),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _messagingRestrictedReason!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            const Text(
+                              'Follow this user to send messages.',
+                              style: TextStyle(color: Colors.white60, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () async {
+                          await ref.read(universalProfileControllerProvider(receiverId).notifier).toggleFollow();
+                          await _checkMessagingAccess();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        ),
+                        child: const Text('Follow', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ),
+                    ],
                   ),
                 ),
               )
@@ -1144,9 +1261,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _showReactionAndOptionsBottomSheet(BuildContext context, ChatMessage msg, bool isOwn, String roomId) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF121212),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: Color(0xFF262626)),
       ),
       builder: (context) {
         final chatNotifier = ref.read(roomChatProvider(roomId).notifier);
@@ -1205,7 +1323,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
-                        backgroundColor: const Color(0xFF1E293B),
+                        backgroundColor: const Color(0xFF121212),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: const BorderSide(color: Color(0xFF262626)),
+                        ),
                         title: const Text('Unsend message?', style: TextStyle(color: Colors.white)),
                         content: const Text(
                           'This will remove the message for everyone in this chat.',
@@ -1422,10 +1544,10 @@ class _SharedReelCard extends ConsumerWidget {
         width: cardWidth.clamp(220.0, 260.0),
         height: 260,
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
+          color: const Color(0xFF141414),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isOwn ? accentColor.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.12),
+            color: isOwn ? accentColor.withValues(alpha: 0.35) : const Color(0xFF262626),
             width: 1,
           ),
         ),
@@ -1441,9 +1563,9 @@ class _SharedReelCard extends ConsumerWidget {
         width: cardWidth.clamp(220.0, 260.0),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
+          color: const Color(0xFF141414),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white12, width: 1),
+          border: Border.all(color: const Color(0xFF262626), width: 1),
         ),
         child: const Center(
           child: Text('Reel unavailable', style: TextStyle(color: Colors.white38, fontSize: 12)),
@@ -1455,9 +1577,9 @@ class _SharedReelCard extends ConsumerWidget {
             width: cardWidth.clamp(220.0, 260.0),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
+              color: const Color(0xFF141414),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white12, width: 1),
+              border: Border.all(color: const Color(0xFF262626), width: 1),
             ),
             child: const Center(
               child: Text('Reel unavailable', style: TextStyle(color: Colors.white38, fontSize: 12)),
@@ -1481,10 +1603,10 @@ class _SharedReelCard extends ConsumerWidget {
           child: Container(
             width: cardWidth.clamp(220.0, 260.0),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
+              color: const Color(0xFF141414),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isOwn ? accentColor.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.12),
+                color: isOwn ? accentColor.withValues(alpha: 0.35) : const Color(0xFF262626),
                 width: 1,
               ),
               boxShadow: [
@@ -1650,10 +1772,10 @@ class _SharedPostCard extends ConsumerWidget {
         width: cardWidth.clamp(220.0, 260.0),
         height: 220,
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
+          color: const Color(0xFF141414),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isOwn ? accentColor.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.12),
+            color: isOwn ? accentColor.withValues(alpha: 0.35) : const Color(0xFF262626),
             width: 1,
           ),
         ),
@@ -1669,9 +1791,9 @@ class _SharedPostCard extends ConsumerWidget {
         width: cardWidth.clamp(220.0, 260.0),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
+          color: const Color(0xFF141414),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white12, width: 1),
+          border: Border.all(color: const Color(0xFF262626), width: 1),
         ),
         child: const Center(
           child: Text('Post unavailable', style: TextStyle(color: Colors.white38, fontSize: 12)),
@@ -1683,9 +1805,9 @@ class _SharedPostCard extends ConsumerWidget {
             width: cardWidth.clamp(220.0, 260.0),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
+              color: const Color(0xFF141414),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white12, width: 1),
+              border: Border.all(color: const Color(0xFF262626), width: 1),
             ),
             child: const Center(
               child: Text('Post unavailable', style: TextStyle(color: Colors.white38, fontSize: 12)),
@@ -1727,10 +1849,10 @@ class _SharedPostCard extends ConsumerWidget {
           child: Container(
             width: cardWidth.clamp(220.0, 260.0),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
+              color: const Color(0xFF141414),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isOwn ? accentColor.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.12),
+                color: isOwn ? accentColor.withValues(alpha: 0.35) : const Color(0xFF262626),
                 width: 1,
               ),
               boxShadow: [
@@ -1912,8 +2034,9 @@ class _SharedProfileCard extends ConsumerWidget {
             width: cardWidth.clamp(220.0, 260.0),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
+              color: const Color(0xFF141414),
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF262626)),
             ),
             child: const Center(
               child: Text('Profile unavailable', style: TextStyle(color: Colors.white38, fontSize: 11)),
@@ -1935,10 +2058,10 @@ class _SharedProfileCard extends ConsumerWidget {
             width: cardWidth.clamp(220.0, 260.0),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
+              color: const Color(0xFF141414),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isOwn ? accentColor.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.12),
+                color: isOwn ? accentColor.withValues(alpha: 0.35) : const Color(0xFF262626),
                 width: 1,
               ),
               boxShadow: [
@@ -2028,8 +2151,9 @@ class _SharedProfileCard extends ConsumerWidget {
         width: cardWidth.clamp(220.0, 260.0),
         height: 100,
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
+          color: const Color(0xFF141414),
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF262626)),
         ),
         child: Center(
           child: SizedBox(
@@ -2068,10 +2192,10 @@ class _SharedEventCard extends ConsumerWidget {
         width: cardWidth.clamp(230.0, 275.0),
         height: 240,
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
+          color: const Color(0xFF141414),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isOwn ? accentColor.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.12),
+            color: isOwn ? accentColor.withValues(alpha: 0.35) : const Color(0xFF262626),
             width: 1,
           ),
         ),
@@ -2087,9 +2211,9 @@ class _SharedEventCard extends ConsumerWidget {
         width: cardWidth.clamp(230.0, 275.0),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
+          color: const Color(0xFF141414),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white12, width: 1),
+          border: Border.all(color: const Color(0xFF262626), width: 1),
         ),
         child: const Center(
           child: Text('Event unavailable', style: TextStyle(color: Colors.white38, fontSize: 12)),
@@ -2101,9 +2225,9 @@ class _SharedEventCard extends ConsumerWidget {
             width: cardWidth.clamp(230.0, 275.0),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
+              color: const Color(0xFF141414),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white12, width: 1),
+              border: Border.all(color: const Color(0xFF262626), width: 1),
             ),
             child: const Center(
               child: Text('Event unavailable', style: TextStyle(color: Colors.white38, fontSize: 12)),
@@ -2124,10 +2248,10 @@ class _SharedEventCard extends ConsumerWidget {
           child: Container(
             width: cardWidth.clamp(230.0, 275.0),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
+              color: const Color(0xFF141414),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isOwn ? accentColor.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.12),
+                color: isOwn ? accentColor.withValues(alpha: 0.35) : const Color(0xFF262626),
                 width: 1,
               ),
               boxShadow: [
@@ -2210,14 +2334,14 @@ class _SharedEventCard extends ConsumerWidget {
                               fit: BoxFit.cover,
                               placeholder: (_, __) => Container(color: Colors.black26),
                               errorWidget: (_, __, ___) => Container(
-                                color: const Color(0xFF1E293B),
+                                color: const Color(0xFF181818),
                                 child: const Center(
                                   child: Icon(Icons.sports_rounded, color: Colors.white24, size: 36),
                                 ),
                               ),
                             )
                           : Container(
-                              color: const Color(0xFF1E293B),
+                              color: const Color(0xFF181818),
                               child: const Center(
                                 child: Icon(Icons.sports_rounded, color: Colors.white24, size: 36),
                               ),

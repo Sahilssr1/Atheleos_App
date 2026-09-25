@@ -341,9 +341,12 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
             textColor: AppTheme.primaryColor,
             onPressed: () => SystemNavigator.pop(),
           ),
-          backgroundColor: const Color(0xFF1E293B),
+          backgroundColor: const Color(0xFF141414),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: const BorderSide(color: Color(0xFF262626)),
+          ),
           duration: const Duration(seconds: 2),
           margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         ),
@@ -364,48 +367,142 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
         _handleBackPress();
       },
       child: Scaffold(
+        extendBody: true,
         body: widget.navigationShell,
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: widget.navigationShell.currentIndex,
-          onDestinationSelected: (index) {
-            if (index == 4) {
-              // Tapping the Profile tab resets the profile view to the logged-in user
-              ref.read(currentProfileIdProvider.notifier).state =
-                  ref.read(loggedInUserIdProvider);
-              context.go('/profile');
-              VisibilityDetectorController.instance.notifyNow();
-              return;
-            }
-            widget.navigationShell.goBranch(
-              index,
-              initialLocation: index == widget.navigationShell.currentIndex,
-            );
+        bottomNavigationBar: _buildFloatingBottomNavBar(context),
+      ),
+    );
+  }
+
+  Widget _buildFloatingBottomNavBar(BuildContext context) {
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final currentIndex = widget.navigationShell.currentIndex;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: (bottomInset > 0 ? bottomInset : 0) + 12,
+      ),
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 520),
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: const Color(0xFF262626), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.6),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(
+                index: 0,
+                currentIndex: currentIndex,
+                label: 'Home',
+                icon: Icons.home_outlined,
+                selectedIcon: Icons.home_rounded,
+              ),
+              _buildNavItem(
+                index: 1,
+                currentIndex: currentIndex,
+                label: 'Search',
+                icon: Icons.search_rounded,
+                selectedIcon: Icons.search_rounded,
+              ),
+              _buildNavItem(
+                index: 2,
+                currentIndex: currentIndex,
+                label: 'Upload',
+                icon: Icons.add_circle_outline_rounded,
+                selectedIcon: Icons.add_circle_rounded,
+              ),
+              _buildNavItem(
+                index: 3,
+                currentIndex: currentIndex,
+                label: 'Clips',
+                icon: Icons.play_circle_outline_rounded,
+                selectedIcon: Icons.play_circle_rounded,
+              ),
+              _buildNavItem(
+                index: 4,
+                currentIndex: currentIndex,
+                label: 'Profile',
+                icon: Icons.person_outline_rounded,
+                selectedIcon: Icons.person_rounded,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required int index,
+    required int currentIndex,
+    required String label,
+    required IconData icon,
+    required IconData selectedIcon,
+  }) {
+    final isSelected = index == currentIndex;
+
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          if (index == 4) {
+            // Tapping the Profile tab resets the profile view to the logged-in user
+            ref.read(currentProfileIdProvider.notifier).state =
+                ref.read(loggedInUserIdProvider);
+            context.go('/profile');
             VisibilityDetectorController.instance.notifyNow();
-          },
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home),
-              label: 'Home',
+            return;
+          }
+          widget.navigationShell.goBranch(
+            index,
+            initialLocation: index == widget.navigationShell.currentIndex,
+          );
+          VisibilityDetectorController.instance.notifyNow();
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              width: 58,
+              height: 32,
+              decoration: BoxDecoration(
+                color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                isSelected ? selectedIcon : icon,
+                color: isSelected ? Colors.black : Colors.white,
+                size: 22,
+              ),
             ),
-            NavigationDestination(
-              icon: Icon(Icons.search),
-              label: 'Search',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.add_circle_outline),
-              selectedIcon: Icon(Icons.add_circle),
-              label: 'Upload',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.play_circle_outline),
-              selectedIcon: Icon(Icons.play_circle),
-              label: 'Clips',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profile',
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.white60,
+                fontSize: 10.5,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                letterSpacing: 0.2,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
