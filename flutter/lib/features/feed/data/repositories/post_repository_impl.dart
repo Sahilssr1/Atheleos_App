@@ -73,7 +73,7 @@ class PostRepositoryImpl implements PostRepository {
   Stream<List<PostModel>> watchPostsFiltered({
     required String category,
     required String sport,
-    required String sortBy,
+    String sortBy = 'Latest',
     String? currentUserId,
     int limit = 12,
   }) {
@@ -109,7 +109,7 @@ class PostRepositoryImpl implements PostRepository {
   Future<List<PostModel>> getPostsFilteredPaginated({
     required String category,
     required String sport,
-    required String sortBy,
+    String sortBy = 'Latest',
     int limit = 8,
     String? lastPostId,
     String? currentUserId,

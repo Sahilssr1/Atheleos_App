@@ -71,10 +71,9 @@ final sportsHierarchyProvider = StreamProvider<Map<String, List<String>>>((ref) 
       .handleError((_) => SportsService.defaultHierarchy);
 });
 
-// Category & Sport Category & Sort filters state
+// Category & Sport Category filters state
 final selectedCategoryProvider = StateProvider<String>((ref) => 'All');
 final selectedSportProvider = StateProvider<String>((ref) => 'All');
-final feedSortProvider = StateProvider<String>((ref) => 'Latest'); // Latest | Trending
 
 // Streams of user likes & bookmarks sets
 final userLikesIdsProvider = StreamProvider<Set<String>>((ref) {
@@ -114,7 +113,6 @@ final feedPostsProvider = StateNotifierProvider<FeedNotifier, AsyncValue<List<Po
   final repository = ref.watch(postRepositoryProvider);
   final category = ref.watch(selectedCategoryProvider);
   final sport = ref.watch(selectedSportProvider);
-  final sortBy = ref.watch(feedSortProvider);
   final userId = ref.watch(loggedInUserIdProvider);
 
   // Read initial cached values synchronously to avoid cold-start flicker
@@ -123,7 +121,7 @@ final feedPostsProvider = StateNotifierProvider<FeedNotifier, AsyncValue<List<Po
   final likedIds = ref.read(userLikesIdsProvider).valueOrNull ?? cachedLiked;
   final bookmarkedIds = ref.read(userBookmarksIdsProvider).valueOrNull ?? cachedBookmarked;
 
-  final notifier = FeedNotifier(repository, category, sport, sortBy, userId, likedIds, bookmarkedIds, ref);
+  final notifier = FeedNotifier(repository, category, sport, userId, likedIds, bookmarkedIds, ref);
 
   // Manually listen to remote syncs to update UI without resetting pagination
   ref.listen(userLikesIdsProvider, (prev, next) {
@@ -141,7 +139,7 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
   final PostRepository _repository;
   final String _category;
   final String _sport;
-  final String _sortBy;
+  static const String _sortBy = 'Latest';
   final String _userId;
   Set<String> _likedIds;
   Set<String> _bookmarkedIds;
@@ -167,7 +165,6 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
     this._repository,
     this._category,
     this._sport,
-    this._sortBy,
     this._userId,
     this._likedIds,
     this._bookmarkedIds,

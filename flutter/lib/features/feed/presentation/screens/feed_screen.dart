@@ -108,10 +108,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         child: _buildCategoriesRow(context, ref, selectedCategory),
                       ),
 
-                      // Sport and Sorting Header
-                      SliverToBoxAdapter(
-                        child: _buildSortAndFilterHeader(context, ref, ref.watch(feedSortProvider)),
-                      ),
 
                       // Sport chips scroll with the page
                       SliverToBoxAdapter(
@@ -610,53 +606,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     );
   }
 
-  Widget _buildSortAndFilterHeader(BuildContext context, WidgetRef ref, String currentSort) {
-    final sortOptions = ['Latest', 'Trending'];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'FILTER BY CATEGORY',
-            style: GoogleFonts.spaceGrotesk(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.white38,
-              letterSpacing: 1.0,
-            ),
-          ),
-          Row(
-            children: sortOptions.map((opt) {
-              final isSelected = currentSort == opt;
-              return GestureDetector(
-                onTap: () {
-                  ref.read(feedSortProvider.notifier).state = opt;
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(left: 12),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isSelected ? AppTheme.primaryColor : Colors.transparent,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    opt.toUpperCase(),
-                    style: GoogleFonts.spaceGrotesk(
-                      color: isSelected ? Colors.black : Colors.white60,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 10,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildSportsRow(BuildContext context, WidgetRef ref, String selectedSport) {
     ref.watch(sportsHierarchyProvider); // Reactively rebuild if Firestore hierarchy changes
