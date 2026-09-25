@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../feed/domain/models/post_model.dart';
 import '../../domain/repositories/clip_repository.dart';
@@ -61,18 +62,43 @@ class ClipRepositoryImpl implements ClipRepository {
     query = query.orderBy('createdAt', descending: true);
 
     if (lastClipId != null && lastClipId.isNotEmpty) {
-      final lastDoc = await _firestore.collection('posts').doc(lastClipId).get();
-      if (lastDoc.exists) {
-        query = query.startAfterDocument(lastDoc);
-      }
+      try {
+        final lastDoc = await _firestore.collection('posts').doc(lastClipId).get();
+        if (lastDoc.exists) {
+          query = query.startAfterDocument(lastDoc);
+        }
+      } catch (_) {}
     }
 
     // Fetch more than the limit since we filter client-side for video content
-    query = query.limit(limit * 3);
+    query = query.limit(limit * 4);
 
-    final snapshot = await query.get();
-    final allPosts = snapshot.docs.map((doc) => _mapDocToPost(doc, currentUserId)).toList();
-    return _filterVideoOnly(allPosts).take(limit).toList();
+    try {
+      final snapshot = await query.get();
+      final allPosts = snapshot.docs.map((doc) => _mapDocToPost(doc, currentUserId)).toList();
+      final videos = _filterVideoOnly(allPosts);
+      if (videos.isNotEmpty || lastClipId != null) {
+        return videos.take(limit).toList();
+      }
+    } catch (e) {
+      debugPrint('[CLIPS QUERY] Ordered query encountered exception, falling back: $e');
+    }
+
+    // Fallback: If ordered query failed (e.g. index required or no videos found),
+    // fetch broader collection batch and filter client-side
+    try {
+      final snap = await _firestore.collection('posts').limit(60).get();
+      final allPosts = snap.docs.map((doc) => _mapDocToPost(doc, currentUserId)).toList();
+      var videos = _filterVideoOnly(allPosts);
+      if (sport != 'All') {
+        videos = videos.where((p) => p.sport.toLowerCase() == sport.toLowerCase()).toList();
+      }
+      videos.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return videos.take(limit).toList();
+    } catch (e) {
+      debugPrint('[CLIPS FALLBACK ERROR] $e');
+      return [];
+    }
   }
 
   @override

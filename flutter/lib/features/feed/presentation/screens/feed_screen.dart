@@ -175,7 +175,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                 delegate: SliverChildBuilderDelegate(
                                   (context, index) {
                                     if (index == posts.length) {
-                                      final notifier = ref.watch(feedPostsProvider.notifier);
+                                      final notifier = ref.read(feedPostsProvider.notifier);
                                       if (notifier.hasMore) {
                                         return const Padding(
                                           padding: EdgeInsets.symmetric(vertical: 24),
@@ -2025,6 +2025,7 @@ class ShareBottomSheet extends ConsumerWidget {
                       context: context,
                       backgroundColor: Colors.transparent,
                       isScrollControlled: true,
+                      useRootNavigator: true,
                       builder: (context) => ShareContentBottomSheet(
                         postId: post.id,
                         reelId: post.hasVideo ? post.id : null,

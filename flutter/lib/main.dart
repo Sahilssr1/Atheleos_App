@@ -41,6 +41,7 @@ void main() async {
   await PushNotificationService.instance.initialize();
 
   ErrorWidget.builder = (FlutterErrorDetails details) {
+    debugPrint('FLUTTER BUILD ERROR: ${details.exception}\n${details.stack}');
     return const SizedBox.shrink();
   };
 

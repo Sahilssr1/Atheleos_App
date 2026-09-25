@@ -83,6 +83,7 @@ class EventDetailsScreen extends ConsumerWidget {
                       context: context,
                       backgroundColor: Colors.transparent,
                       isScrollControlled: true,
+                      useRootNavigator: true,
                       builder: (context) => ShareContentBottomSheet(
                         eventId: event.eventId,
                         shareType: 'event',
@@ -416,6 +417,7 @@ class EventDetailsScreen extends ConsumerWidget {
                             context: context,
                             backgroundColor: Colors.transparent,
                             isScrollControlled: true,
+                            useRootNavigator: true,
                             builder: (context) => ShareContentBottomSheet(
                               eventId: event.eventId,
                               shareType: 'event',

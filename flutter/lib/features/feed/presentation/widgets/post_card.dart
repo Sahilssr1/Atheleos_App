@@ -374,26 +374,32 @@ class PostCard extends ConsumerWidget {
                 ),
 
                 // Share Action
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.share_outlined, color: Colors.white60, size: 20),
-                      onPressed: () {
-                        showModalBottomSheet(
-                          context: context,
-                          backgroundColor: Colors.transparent,
-                          isScrollControlled: true,
-                          builder: (context) => ShareContentBottomSheet(
-                            postId: post.id,
-                            reelId: post.hasVideo ? post.id : null,
-                            shareType: post.hasVideo ? 'reel' : 'post',
-                          ),
-                        );
-                      },
+                InkWell(
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: Colors.transparent,
+                      isScrollControlled: true,
+                      useRootNavigator: true,
+                      builder: (context) => ShareContentBottomSheet(
+                        postId: post.id,
+                        reelId: post.hasVideo ? post.id : null,
+                        shareType: post.hasVideo ? 'reel' : 'post',
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.share_outlined, color: Colors.white60, size: 20),
+                        const SizedBox(width: 6),
+                        const Text('Share', style: TextStyle(fontSize: 11.5, color: Colors.white60)),
+                      ],
                     ),
-                    const Text('Share', style: TextStyle(fontSize: 11.5, color: Colors.white60)),
-                  ],
+                  ),
                 ),
 
                 // Bookmark Action

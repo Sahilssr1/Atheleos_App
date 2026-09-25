@@ -90,6 +90,7 @@ void showProfileShareDialog(BuildContext context, ProfileModel profile, WidgetRe
                     context: context,
                     backgroundColor: Colors.transparent,
                     isScrollControlled: true,
+                    useRootNavigator: true,
                     builder: (context) => ShareContentBottomSheet(
                       userId: profile.id,
                       shareType: 'profile',

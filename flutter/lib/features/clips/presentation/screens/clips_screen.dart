@@ -206,6 +206,7 @@ class _ClipsScreenState extends ConsumerState<ClipsScreen> {
                         context: context,
                         backgroundColor: Colors.transparent,
                         isScrollControlled: true,
+                        useRootNavigator: true,
                         builder: (context) => ShareContentBottomSheet(
                           reelId: clip.id,
                           shareType: 'reel',
@@ -791,6 +792,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
                       context: context,
                       backgroundColor: Colors.transparent,
                       isScrollControlled: true,
+                      useRootNavigator: true,
                       builder: (context) => ShareContentBottomSheet(
                         reelId: widget.clip.id,
                         shareType: 'reel',
@@ -1667,6 +1669,7 @@ class _ReelsViewerScreenState extends ConsumerState<ReelsViewerScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useRootNavigator: true,
       builder: (context) => ShareContentBottomSheet(
         reelId: clip.id,
         shareType: 'reel',

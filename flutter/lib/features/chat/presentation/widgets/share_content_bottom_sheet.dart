@@ -126,22 +126,26 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
     return SafeArea(
       top: false,
       bottom: true,
-      child: Container(
-        padding: EdgeInsets.only(
-          top: 16,
-          left: 16,
-          right: 16,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-        ),
-        height: MediaQuery.of(context).size.height * 0.82,
-        decoration: BoxDecoration(
-          color: const Color(0xFF121212),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border.all(color: const Color(0xFF262626), width: 1),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: Material(
+        color: const Color(0xFF121212),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          padding: EdgeInsets.only(
+            top: 16,
+            left: 16,
+            right: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          ),
+          height: MediaQuery.of(context).size.height * 0.82,
+          decoration: BoxDecoration(
+            color: const Color(0xFF121212),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: const Color(0xFF262626), width: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Handle pill
             Center(
               child: Container(
@@ -282,8 +286,10 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
                       final isSelected = _selectedReceiverIds.contains(profile.id);
                       final isSent = _sentReceiverIds.contains(profile.id);
 
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      return Material(
+                        color: Colors.transparent,
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                         leading: Stack(
                           children: [
                             CircleAvatar(
@@ -420,8 +426,9 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
                             }
                           });
                         },
-                      );
-                    },
+                      ),
+                    );
+                  },
                   );
                 },
               ),
@@ -454,8 +461,9 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildContentBadge() {
     IconData icon;

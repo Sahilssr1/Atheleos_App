@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/sports_service.dart';
 import '../../../feed/domain/models/post_model.dart';
+import '../../../feed/presentation/controllers/feed_controller.dart';
 import '../../../profile/domain/models/profile_model.dart';
 import '../../../clips/presentation/controllers/clips_controller.dart';
 import '../controllers/search_controller.dart';
@@ -131,12 +132,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     child: Container(
                       height: 44,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1A1A2E),
+                        color: const Color(0xFF141414),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: _isSearchActive
-                              ? AppTheme.primaryColor.withOpacity(0.4)
-                              : Colors.white.withOpacity(0.06),
+                              ? AppTheme.primaryColor
+                              : const Color(0xFF262626),
+                          width: 1,
                         ),
                       ),
                       child: TextField(
@@ -233,19 +235,33 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       });
     }
 
-    // Fallback to cache if offline and no memory data loaded
-    if (clips.isEmpty && !isOnline) {
+    // Fallback: If clips is empty, also try to pull any video posts already loaded in feedPostsProvider or cache
+    if (clips.isEmpty) {
       try {
-        final cached = CacheManager().loadExplore();
-        clips = cached.map((map) => PostModel.fromMap(map)).toList();
-        if (clips.isNotEmpty) {
+        final feedPosts = ref.watch(feedPostsProvider).valueOrNull ?? [];
+        final videoPosts = feedPosts.where((p) => p.hasVideo).toList();
+        if (videoPosts.isNotEmpty) {
+          clips = videoPosts;
           isLoading = false;
           hasError = false;
         }
       } catch (_) {}
     }
 
-    if (isLoading) {
+    // Fallback to cache if offline and no memory data loaded
+    if (clips.isEmpty) {
+      try {
+        final cached = CacheManager().loadExplore();
+        final cachedList = cached.map((map) => PostModel.fromMap(map)).toList();
+        if (cachedList.isNotEmpty) {
+          clips = cachedList;
+          isLoading = false;
+          hasError = false;
+        }
+      } catch (_) {}
+    }
+
+    if (isLoading && clips.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(color: AppTheme.primaryColor),
       );
@@ -284,7 +300,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.explore_outlined, size: 56, color: Colors.white.withOpacity(0.15)),
+            Icon(Icons.explore_outlined, size: 56, color: Colors.white.withValues(alpha: 0.15)),
             const SizedBox(height: 16),
             Text('No clips to explore yet',
                 style: GoogleFonts.spaceGrotesk(color: Colors.white38, fontWeight: FontWeight.w600, fontSize: 15)),
@@ -325,7 +341,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             itemCount: blockCount + 1,
             itemBuilder: (context, blockIndex) {
               if (blockIndex == blockCount) {
-                final notifier = ref.watch(clipsProvider.notifier);
+                final notifier = ref.read(clipsProvider.notifier);
                 if (notifier.hasMore) {
                   return const Padding(
                     padding: EdgeInsets.symmetric(vertical: 24),
@@ -339,7 +355,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     child: Center(
                       child: Text(
                         'No more clips to explore.',
-                        style: GoogleFonts.inter(color: Colors.white.withOpacity(0.3), fontSize: 12),
+                        style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.3), fontSize: 12),
                       ),
                     ),
                   );
