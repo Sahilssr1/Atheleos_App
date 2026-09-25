@@ -165,7 +165,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                 left: 16,
                                 right: 16,
                                 top: 8,
-                                bottom: 84,
+                                bottom: 16,
                               ),
                               sliver: SliverList(
                                 delegate: SliverChildBuilderDelegate(

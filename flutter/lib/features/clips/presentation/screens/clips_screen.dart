@@ -509,6 +509,8 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
         : (storedAspect != null && storedAspect > 0 ? storedAspect : 9 / 16);
     final liveFit = determineFit(liveAspect);
     final thumbFit = determineFit(storedAspect);
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final effectiveBottom = 16.0 + (bottomInset > 0 ? bottomInset : 0);
 
     return VisibilityDetector(
       key: Key('clip_player_${widget.clip.id}'),
@@ -623,7 +625,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
 
         // 3. TITLE & AUTHOR DETAILS LEFT COLUMN
         Positioned(
-          bottom: 32,
+          bottom: effectiveBottom,
           left: 16,
           right: 90,
           child: Column(
@@ -726,7 +728,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
 
         // 4. FLOATING RIGHT NAVIGATION (INTERACTIONS)
         Positioned(
-          bottom: 32,
+          bottom: effectiveBottom,
           right: 16,
           child: Column(
             mainAxisSize: MainAxisSize.min,

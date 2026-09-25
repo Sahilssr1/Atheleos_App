@@ -367,81 +367,72 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
         _handleBackPress();
       },
       child: Scaffold(
-        extendBody: true,
+        extendBody: false,
+        backgroundColor: Colors.black,
         body: widget.navigationShell,
-        bottomNavigationBar: _buildFloatingBottomNavBar(context),
+        bottomNavigationBar: _buildBottomNavBar(context),
       ),
     );
   }
 
-  Widget _buildFloatingBottomNavBar(BuildContext context) {
+  Widget _buildBottomNavBar(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final currentIndex = widget.navigationShell.currentIndex;
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        bottom: (bottomInset > 0 ? bottomInset : 0) + 12,
-      ),
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 520),
-          decoration: BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: const Color(0xFF262626), width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.6),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                index: 0,
-                currentIndex: currentIndex,
-                label: 'Home',
-                icon: Icons.home_outlined,
-                selectedIcon: Icons.home_rounded,
-              ),
-              _buildNavItem(
-                index: 1,
-                currentIndex: currentIndex,
-                label: 'Search',
-                icon: Icons.search_rounded,
-                selectedIcon: Icons.search_rounded,
-              ),
-              _buildNavItem(
-                index: 2,
-                currentIndex: currentIndex,
-                label: 'Upload',
-                icon: Icons.add_circle_outline_rounded,
-                selectedIcon: Icons.add_circle_rounded,
-              ),
-              _buildNavItem(
-                index: 3,
-                currentIndex: currentIndex,
-                label: 'Clips',
-                icon: Icons.play_circle_outline_rounded,
-                selectedIcon: Icons.play_circle_rounded,
-              ),
-              _buildNavItem(
-                index: 4,
-                currentIndex: currentIndex,
-                label: 'Profile',
-                icon: Icons.person_outline_rounded,
-                selectedIcon: Icons.person_rounded,
-              ),
-            ],
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: Colors.black,
+        border: Border(
+          top: BorderSide(
+            color: Color(0xFF1E1E1E),
+            width: 0.8,
           ),
         ),
+      ),
+      padding: EdgeInsets.only(
+        top: 6,
+        bottom: bottomInset > 0 ? bottomInset : 8,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildNavItem(
+            index: 0,
+            currentIndex: currentIndex,
+            label: 'Home',
+            icon: Icons.home_outlined,
+            selectedIcon: Icons.home_rounded,
+          ),
+          _buildNavItem(
+            index: 1,
+            currentIndex: currentIndex,
+            label: 'Search',
+            icon: Icons.search_rounded,
+            selectedIcon: Icons.search_rounded,
+          ),
+          _buildNavItem(
+            index: 2,
+            currentIndex: currentIndex,
+            label: 'Upload',
+            icon: Icons.add_circle_outline_rounded,
+            selectedIcon: Icons.add_circle_rounded,
+          ),
+          _buildNavItem(
+            index: 3,
+            currentIndex: currentIndex,
+            label: 'Clips',
+            icon: Icons.play_circle_outline_rounded,
+            selectedIcon: Icons.play_circle_rounded,
+          ),
+          _buildNavItem(
+            index: 4,
+            currentIndex: currentIndex,
+            label: 'Profile',
+            icon: Icons.person_outline_rounded,
+            selectedIcon: Icons.person_rounded,
+          ),
+        ],
       ),
     );
   }
