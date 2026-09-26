@@ -10,8 +10,11 @@ class AppTheme {
   static const Color backgroundColor = Color(0xFF000000); // Pure Black Background
   static const Color surfaceColor = Color(0xFF121212); // Dark Charcoal Card Surface
   
+  static const Color textPrimary = Color(0xFFF8FAFC); // Tailwind slate-50
+  static const Color textSecondary = Color(0xFF94A3B8); // Tailwind slate-400
+  static const Color highlightColor = Color(0xFF10B981); // Tailwind emerald-500
   static const Color errorColor = Color(0xFFEF4444);
-  static const Color successColor = Color(0xFFE5A93B); // Align success with brand Gold or emerald if requested, gold is premium
+  static const Color successColor = Color(0xFF10B981); // Emerald-500 for success/verification
 
   // Modern Light Theme (Slate focused)
   static ThemeData get lightTheme {
@@ -26,9 +29,11 @@ class AppTheme {
         error: errorColor,
       ),
       textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme).copyWith(
-        displayLarge: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, color: const Color(0xFF121212)),
-        displayMedium: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, color: const Color(0xFF121212)),
-        titleLarge: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w600, color: const Color(0xFF121212)),
+        displayLarge: GoogleFonts.spaceGrotesk(fontSize: 36, fontWeight: FontWeight.bold, color: const Color(0xFF121212)),
+        displayMedium: GoogleFonts.spaceGrotesk(fontSize: 24, fontWeight: FontWeight.w600, color: const Color(0xFF121212)),
+        titleLarge: GoogleFonts.spaceGrotesk(fontSize: 20, fontWeight: FontWeight.w600, color: const Color(0xFF121212)),
+        bodyLarge: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.normal, color: const Color(0xFF121212)),
+        bodyMedium: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: const Color(0xFF475569)),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
@@ -60,11 +65,12 @@ class AppTheme {
         error: errorColor,
       ),
       textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
-        displayLarge: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, color: Colors.white),
-        displayMedium: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, color: Colors.white),
-        titleLarge: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w600, color: Colors.white),
-        bodyLarge: GoogleFonts.inter(color: Color(0xFFF3F4F6)),
-        bodyMedium: GoogleFonts.inter(color: Color(0xFF9CA3AF)),
+        displayLarge: GoogleFonts.spaceGrotesk(fontSize: 36, fontWeight: FontWeight.bold, color: textPrimary),
+        displayMedium: GoogleFonts.spaceGrotesk(fontSize: 24, fontWeight: FontWeight.w600, color: textPrimary),
+        titleLarge: GoogleFonts.spaceGrotesk(fontSize: 20, fontWeight: FontWeight.w600, color: textPrimary),
+        bodyLarge: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.normal, color: textPrimary),
+        bodyMedium: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textSecondary),
+        bodySmall: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.normal, color: textSecondary),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,

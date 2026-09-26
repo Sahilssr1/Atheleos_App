@@ -150,8 +150,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                       ),
                                       const SizedBox(height: 12),
                                       const Text(
-                                        'No highlights in this category yet.',
-                                        style: TextStyle(color: Colors.white38, fontSize: 13),
+                                        'No activities found.\nStart your journey by logging your first workout!',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: Colors.white38, fontSize: 13, height: 1.4),
                                       ),
                                     ],
                                   ),

@@ -572,7 +572,7 @@ class _LoginCredentialsWidgetState
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Continue directly with your saved Arena account or switch credentials.',
+                  'Welcome back! Ready to crush your goals today?',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
                     fontSize: 13,
@@ -799,7 +799,7 @@ class _LoginCredentialsWidgetState
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Sign in to access your athlete combine stats, scouting reports, and network.',
+                  'Unlock Your True Potential with Atheleos. Sign in to access your athlete combine stats, scouting reports, and network.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
                     fontSize: 13,

@@ -36,7 +36,7 @@ class AtheleosAppBar extends ConsumerWidget implements PreferredSizeWidget {
           (titleText == 'ATHELEOS'
               ? Image.asset(
                   'assets/images/atheleos_banner.png',
-                  height: 28,
+                  height: 32,
                   fit: BoxFit.contain,
                   alignment: Alignment.centerLeft,
                 )

@@ -1061,6 +1061,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Bio',
                     alignLabelWithHint: true,
+                    hintText:
+                        'Passionate athlete dedicated to continuous improvement and pushing boundaries. Always striving for the next level.',
                   ),
                 ),
                 const SizedBox(height: 24),
