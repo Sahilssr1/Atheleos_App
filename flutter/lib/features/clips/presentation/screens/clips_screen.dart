@@ -95,27 +95,29 @@ class _ClipsScreenState extends ConsumerState<ClipsScreen> {
   }
 
   Widget _buildClipsSportsRow(BuildContext context, WidgetRef ref) {
+    ref.watch(sportsHierarchyProvider); // Reactively rebuild if Firestore hierarchy changes
     final selectedSport = ref.watch(selectedClipSportProvider);
-    final sports = ['All', ...SportsService.supportedSports];
+    final categories = ['All', ...SportsService.getCategories()];
     return Container(
       height: 40,
       color: Colors.transparent,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: sports.length,
+        itemCount: categories.length,
         itemBuilder: (context, index) {
-          final sport = sports[index];
-          final isSelected = selectedSport == sport;
+          final cat = categories[index];
+          final isSelected = selectedSport == cat;
           return Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: ChoiceChip(
               showCheckmark: false,
-              label: Text(sport),
+              label: Text(cat),
               selected: isSelected,
               onSelected: (selected) {
                 if (selected) {
-                  ref.read(selectedClipSportProvider.notifier).state = sport;
+                  HapticFeedback.selectionClick();
+                  ref.read(selectedClipSportProvider.notifier).state = cat;
                 }
               },
               backgroundColor: Colors.black45,

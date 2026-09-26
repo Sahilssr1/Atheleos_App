@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../../core/services/sports_service.dart';
 import '../../../feed/domain/models/post_model.dart';
 import '../../domain/repositories/clip_repository.dart';
 
@@ -36,8 +37,19 @@ class ClipRepositoryImpl implements ClipRepository {
   @override
   Stream<List<PostModel>> watchClipsFiltered({required String sport, String? currentUserId}) {
     Query query = _firestore.collection('posts');
-    if (sport != 'All') {
-      query = query.where('sport', isEqualTo: sport);
+    if (sport.toLowerCase() != 'all') {
+      final sportsList = SportsService.getSportsForCategory(sport);
+      if (sportsList.isNotEmpty) {
+        final matchTerms = <String>{
+          sport,
+          sport.toLowerCase(),
+          ...sportsList,
+          ...sportsList.map((s) => s.toLowerCase()),
+        }.take(30).toList();
+        query = query.where('sport', whereIn: matchTerms);
+      } else {
+        query = query.where('sport', isEqualTo: sport);
+      }
     }
     query = query.orderBy('createdAt', descending: true);
     return query.snapshots().map((snapshot) {
@@ -56,8 +68,19 @@ class ClipRepositoryImpl implements ClipRepository {
     String? currentUserId,
   }) async {
     Query query = _firestore.collection('posts');
-    if (sport != 'All') {
-      query = query.where('sport', isEqualTo: sport);
+    if (sport.toLowerCase() != 'all') {
+      final sportsList = SportsService.getSportsForCategory(sport);
+      if (sportsList.isNotEmpty) {
+        final matchTerms = <String>{
+          sport,
+          sport.toLowerCase(),
+          ...sportsList,
+          ...sportsList.map((s) => s.toLowerCase()),
+        }.take(30).toList();
+        query = query.where('sport', whereIn: matchTerms);
+      } else {
+        query = query.where('sport', isEqualTo: sport);
+      }
     }
     query = query.orderBy('createdAt', descending: true);
 
@@ -90,8 +113,14 @@ class ClipRepositoryImpl implements ClipRepository {
       final snap = await _firestore.collection('posts').limit(60).get();
       final allPosts = snap.docs.map((doc) => _mapDocToPost(doc, currentUserId)).toList();
       var videos = _filterVideoOnly(allPosts);
-      if (sport != 'All') {
-        videos = videos.where((p) => p.sport.toLowerCase() == sport.toLowerCase()).toList();
+      if (sport.toLowerCase() != 'all') {
+        final sportsList = SportsService.getSportsForCategory(sport);
+        if (sportsList.isNotEmpty) {
+          final set = sportsList.map((s) => s.toLowerCase()).toSet()..add(sport.toLowerCase());
+          videos = videos.where((p) => set.contains(p.sport.toLowerCase())).toList();
+        } else {
+          videos = videos.where((p) => p.sport.toLowerCase() == sport.toLowerCase()).toList();
+        }
       }
       videos.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return videos.take(limit).toList();

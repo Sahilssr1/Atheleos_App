@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/upload_queue_coordinator.dart';
 import '../../domain/models/chat_message.dart';
 import '../../domain/models/chat_room_model.dart';
 import '../../../profile/domain/models/profile_model.dart';
@@ -30,6 +35,7 @@ class SharedContentScreen extends ConsumerStatefulWidget {
 
 class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _isUploadingIcon = false;
 
   @override
   void initState() {
@@ -207,9 +213,8 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
     );
   }
 
-  void _showEditGroupDialog(BuildContext context, ChatRoom room) {
+  void _showRenameGroupDialog(BuildContext context, ChatRoom room) {
     final nameCtrl = TextEditingController(text: room.name);
-    final iconCtrl = TextEditingController(text: room.iconUrl ?? '');
 
     showDialog(
       context: context,
@@ -219,32 +224,17 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
           borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: Color(0xFF262626)),
         ),
-        title: const Text('Edit Group Details', style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: 'Group Name',
-                labelStyle: TextStyle(color: AppTheme.primaryColor),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.primaryColor)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: iconCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: 'Group Icon URL (optional)',
-                labelStyle: TextStyle(color: AppTheme.primaryColor),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.primaryColor)),
-              ),
-            ),
-          ],
+        title: const Text('Rename Group', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            labelText: 'Group Name',
+            labelStyle: TextStyle(color: AppTheme.primaryColor),
+            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppTheme.primaryColor)),
+          ),
         ),
         actions: [
           TextButton(
@@ -258,18 +248,16 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
             ),
             onPressed: () async {
               final newName = nameCtrl.text.trim();
-              final newIcon = iconCtrl.text.trim();
               if (newName.isNotEmpty) {
                 await ref.read(chatRepositoryProvider).updateGroupDetails(
                   widget.roomId,
                   name: newName,
-                  iconUrl: newIcon.isNotEmpty ? newIcon : null,
                 );
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Group details updated!'),
+                      content: Text('Group name updated!'),
                       backgroundColor: AppTheme.primaryColor,
                     ),
                   );
@@ -281,6 +269,202 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
         ],
       ),
     );
+  }
+
+  void _showGroupIconPicker(BuildContext context, ChatRoom room) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF141414),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        side: BorderSide(color: Color(0xFF262626)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Change Group Icon',
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.camera_alt_rounded, color: AppTheme.primaryColor, size: 20),
+                ),
+                title: const Text('Take Photo', style: TextStyle(color: Colors.white, fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndUploadGroupIcon(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.photo_library_rounded, color: AppTheme.primaryColor, size: 20),
+                ),
+                title: const Text('Choose from Gallery', style: TextStyle(color: Colors.white, fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndUploadGroupIcon(ImageSource.gallery);
+                },
+              ),
+              if (room.iconUrl?.isNotEmpty == true)
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                  ),
+                  title: const Text('Remove Group Icon', style: TextStyle(color: Colors.redAccent, fontSize: 14)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _removeGroupIcon();
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadGroupIcon(ImageSource source) async {
+    if (_isUploadingIcon) return;
+    final picker = ImagePicker();
+    try {
+      final XFile? image = await picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (image == null) return;
+
+      if (mounted) {
+        setState(() {
+          _isUploadingIcon = true;
+        });
+      }
+
+      final bytes = kIsWeb ? await image.readAsBytes() : null;
+      final filePath = kIsWeb ? null : image.path;
+      final fileName = 'group_${widget.roomId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final idempotencyKey = const Uuid().v4();
+
+      final queue = ref.read(uploadQueueProvider.notifier);
+      final taskId = await queue.addTask(
+        bytes: bytes,
+        filePath: filePath,
+        fileName: fileName,
+        ownerType: 'chat',
+        idempotencyKey: idempotencyKey,
+      );
+
+      UploadTask? completedTask;
+      await for (final tasks in ref.read(uploadQueueProvider.notifier).stream) {
+        final t = tasks.where((task) => task.id == taskId).firstOrNull;
+        if (t == null) break;
+        if (t.status == UploadStatus.completed) {
+          completedTask = t;
+          break;
+        }
+        if (t.status == UploadStatus.failed || t.status == UploadStatus.cancelled) {
+          throw Exception(t.errorMessage ?? 'Upload failed');
+        }
+      }
+
+      if (completedTask == null || completedTask.mediaId == null) {
+        throw Exception('Group photo task failed to return media ID');
+      }
+
+      final doc = await FirebaseFirestore.instance.collection('media').doc(completedTask.mediaId).get();
+      final urls = doc.data()?['urls'] as Map?;
+      final downloadUrl = urls?['original'] as String? ?? urls?['thumbnail'] as String?;
+      if (downloadUrl == null) {
+        throw Exception('Group icon URL is missing.');
+      }
+
+      await ref.read(chatRepositoryProvider).updateGroupDetails(
+        widget.roomId,
+        iconUrl: downloadUrl,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Group icon updated successfully!'),
+            backgroundColor: AppTheme.primaryColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update group icon: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingIcon = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _removeGroupIcon() async {
+    try {
+      await ref.read(chatRepositoryProvider).updateGroupDetails(
+        widget.roomId,
+        iconUrl: '',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Group icon removed'),
+            backgroundColor: AppTheme.primaryColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to remove icon: $e')),
+        );
+      }
+    }
   }
 
   void _showAddMembersModal(BuildContext context, ChatRoom room) {
@@ -602,21 +786,42 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                 // Top Center Profile / Group Header
                 if (isGroup) ...[
                   GestureDetector(
-                    onTap: isAdmin && roomDetails != null ? () => _showEditGroupDialog(context, roomDetails) : null,
+                    onTap: isAdmin && roomDetails != null && !_isUploadingIcon
+                        ? () => _showGroupIconPicker(context, roomDetails)
+                        : null,
                     child: Stack(
                       alignment: Alignment.bottomRight,
                       children: [
                         CircleAvatar(
                           radius: 46,
                           backgroundImage: (roomDetails?.iconUrl?.isNotEmpty == true)
-                              ? NetworkImage(roomDetails!.iconUrl!)
+                              ? CachedNetworkImageProvider(roomDetails!.iconUrl!)
                               : null,
                           backgroundColor: currentTheme.accentColor.withValues(alpha: 0.15),
                           child: (roomDetails?.iconUrl == null || roomDetails!.iconUrl!.isEmpty)
                               ? Icon(Icons.groups_rounded, size: 46, color: currentTheme.accentColor)
                               : null,
                         ),
-                        if (isAdmin)
+                        if (_isUploadingIcon)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (isAdmin && !_isUploadingIcon)
                           Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
@@ -647,7 +852,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                       if (isAdmin && roomDetails != null) ...[
                         const SizedBox(width: 6),
                         GestureDetector(
-                          onTap: () => _showEditGroupDialog(context, roomDetails),
+                          onTap: () => _showRenameGroupDialog(context, roomDetails),
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(

@@ -324,11 +324,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           const double spacing = 2.0;
           // Width of standard 1-column cell
           final double itemWidth = (totalWidth - (spacing * 2)) / 3;
-          // Height of standard 1-column cell (slightly vertical for reels aspect)
-          final double itemHeight = itemWidth * 1.3;
+          // Height of standard 1-column cell (1:1 square like Instagram explore)
+          final double itemHeight = itemWidth;
           // Large cell width spans 2 columns
           final double largeWidth = (itemWidth * 2) + spacing;
-          // Large cell height spans 2 standard rows
+          // Large cell height spans 2 standard rows (2x2 square)
           final double largeHeight = (itemHeight * 2) + spacing;
 
           final int totalClips = clips.length;
@@ -486,97 +486,98 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         width: width,
         height: height,
         color: const Color(0xFF141414),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Thumbnail
-            if (thumbnailUrl.isNotEmpty)
-              CachedNetworkImage(
-                imageUrl: thumbnailUrl,
-                fit: BoxFit.cover,
-                memCacheWidth: 360,
-                memCacheHeight: 360,
-                placeholder: (context, url) => Container(
-                  color: const Color(0xFF141414),
-                  child: const Center(
-                    child: SizedBox(
-                      width: 16, height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2, color: AppTheme.primaryColor,
+        child: ClipRect(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Thumbnail
+              if (thumbnailUrl.isNotEmpty)
+                CachedNetworkImage(
+                  imageUrl: thumbnailUrl,
+                  fit: BoxFit.cover,
+                  memCacheWidth: 600,
+                  placeholder: (context, url) => Container(
+                    color: const Color(0xFF141414),
+                    child: const Center(
+                      child: SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppTheme.primaryColor,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                errorWidget: (context, url, error) => Container(
+                  errorWidget: (context, url, error) => Container(
+                    color: const Color(0xFF181818),
+                    child: const Center(
+                      child: Icon(Icons.play_circle_outline, color: Colors.white24, size: 32),
+                    ),
+                  ),
+                )
+              else
+                Container(
                   color: const Color(0xFF181818),
                   child: const Center(
                     child: Icon(Icons.play_circle_outline, color: Colors.white24, size: 32),
                   ),
                 ),
-              )
-            else
-              Container(
-                color: const Color(0xFF181818),
-                child: const Center(
-                  child: Icon(Icons.play_circle_outline, color: Colors.white24, size: 32),
-                ),
-              ),
 
-            // Bottom gradient overlay
-            Positioned(
-              bottom: 0, left: 0, right: 0,
-              child: Container(
-                height: 48,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [Colors.black87, Colors.transparent],
-                  ),
-                ),
-              ),
-            ),
-
-            // Play icon + views count
-            Positioned(
-              bottom: 6, left: 6,
-              child: Row(
-                children: [
-                  const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16),
-                  const SizedBox(width: 2),
-                  Text(
-                    _formatCount(clip.views),
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Sport tag (top right)
-            if (clip.sport.isNotEmpty)
+              // Bottom gradient overlay
               Positioned(
-                top: 6, right: 6,
+                bottom: 0, left: 0, right: 0,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    clip.sport,
-                    style: GoogleFonts.inter(
-                      color: Colors.white70,
-                      fontSize: 8,
-                      fontWeight: FontWeight.w600,
+                  height: 48,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [Colors.black87, Colors.transparent],
                     ),
                   ),
                 ),
               ),
-          ],
+
+              // Play icon + views count
+              Positioned(
+                bottom: 6, left: 6,
+                child: Row(
+                  children: [
+                    const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16),
+                    const SizedBox(width: 2),
+                    Text(
+                      _formatCount(clip.views),
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Sport tag (top right)
+              if (clip.sport.isNotEmpty)
+                Positioned(
+                  top: 6, right: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      clip.sport,
+                      style: GoogleFonts.inter(
+                        color: Colors.white70,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -731,7 +732,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.person_search_outlined, size: 48, color: Colors.white.withOpacity(0.15)),
+                      Icon(Icons.person_search_outlined, size: 48, color: Colors.white.withValues(alpha: 0.15)),
                       const SizedBox(height: 12),
                       Text('No profiles found',
                           style: GoogleFonts.inter(color: Colors.white38, fontSize: 14)),
@@ -852,7 +853,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.12),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -885,10 +886,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? AppTheme.primaryColor.withOpacity(0.15) : const Color(0xFF1A1A2E),
+          color: isActive ? AppTheme.primaryColor.withValues(alpha: 0.15) : const Color(0xFF1A1A2E),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isActive ? AppTheme.primaryColor.withOpacity(0.5) : Colors.white.withOpacity(0.08),
+            color: isActive ? AppTheme.primaryColor.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.08),
           ),
         ),
         child: Row(
@@ -908,7 +909,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
             if (!isActive && icon == null) ...[
               const SizedBox(width: 4),
-              Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.white.withOpacity(0.3)),
+              Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.white.withValues(alpha: 0.3)),
             ],
           ],
         ),
