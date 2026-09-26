@@ -1752,7 +1752,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                                     children: [
                                       Text(
                                         comment.username,
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: Colors.white70),
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: Colors.white),
                                       ),
                                       if (comment.verified) ...[
                                         const SizedBox(width: 4),

@@ -230,7 +230,11 @@ class PostCard extends ConsumerWidget {
                             children: [
                               Text(
                                 displayName,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13.5,
+                                  color: Colors.white,
+                                ),
                               ),
                               if (post.verified) ...[
                                 const SizedBox(width: 4),

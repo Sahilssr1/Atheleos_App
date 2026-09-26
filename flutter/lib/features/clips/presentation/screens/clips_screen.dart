@@ -1378,7 +1378,7 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 12,
-                                            color: Colors.white70,
+                                            color: Colors.white,
                                           ),
                                         ),
                                         if (comment.verified) ...[

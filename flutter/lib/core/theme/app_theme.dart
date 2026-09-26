@@ -10,7 +10,7 @@ class AppTheme {
   static const Color backgroundColor = Color(0xFF000000); // Pure Black Background
   static const Color surfaceColor = Color(0xFF121212); // Dark Charcoal Card Surface
   
-  static const Color textPrimary = Color(0xFFF8FAFC); // Tailwind slate-50
+  static const Color textPrimary = Colors.white; // Pure White for classic matching and aesthetic
   static const Color textSecondary = Color(0xFF94A3B8); // Tailwind slate-400
   static const Color highlightColor = Color(0xFF10B981); // Tailwind emerald-500
   static const Color errorColor = Color(0xFFEF4444);
@@ -69,7 +69,7 @@ class AppTheme {
         displayMedium: GoogleFonts.spaceGrotesk(fontSize: 24, fontWeight: FontWeight.w600, color: textPrimary),
         titleLarge: GoogleFonts.spaceGrotesk(fontSize: 20, fontWeight: FontWeight.w600, color: textPrimary),
         bodyLarge: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.normal, color: textPrimary),
-        bodyMedium: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textSecondary),
+        bodyMedium: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500, color: textPrimary),
         bodySmall: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.normal, color: textSecondary),
       ),
       appBarTheme: const AppBarTheme(
