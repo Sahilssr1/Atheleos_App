@@ -21,6 +21,7 @@ class EventModel {
   final String city;
   final String state;
   final String country;
+  final String? locationUrl;
   final double? latitude;
   final double? longitude;
   final DateTime startDate;
@@ -62,6 +63,7 @@ class EventModel {
     required this.city,
     required this.state,
     required this.country,
+    this.locationUrl,
     this.latitude,
     this.longitude,
     required this.startDate,
@@ -87,6 +89,18 @@ class EventModel {
   bool get isFull => currentParticipants >= maxParticipants;
   bool get isExternal => registrationType == 'external';
 
+  /// Returns a launchable Google Maps navigation / search URL
+  String get googleMapsUrl {
+    if (locationUrl != null && locationUrl!.trim().isNotEmpty) {
+      return locationUrl!.trim();
+    }
+    if (latitude != null && longitude != null) {
+      return 'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
+    }
+    final query = [venue, city, state, country].where((s) => s.trim().isNotEmpty).join(', ');
+    return 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(query)}';
+  }
+
   EventModel copyWith({
     String? eventId,
     String? organizerUid,
@@ -108,6 +122,7 @@ class EventModel {
     String? city,
     String? state,
     String? country,
+    String? locationUrl,
     double? latitude,
     double? longitude,
     DateTime? startDate,
@@ -149,6 +164,7 @@ class EventModel {
       city: city ?? this.city,
       state: state ?? this.state,
       country: country ?? this.country,
+      locationUrl: locationUrl ?? this.locationUrl,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       startDate: startDate ?? this.startDate,
@@ -194,6 +210,7 @@ class EventModel {
       'city': city,
       'state': state,
       'country': country,
+      'locationUrl': locationUrl,
       'latitude': latitude,
       'longitude': longitude,
       'startDate': Timestamp.fromDate(startDate),
@@ -248,6 +265,7 @@ class EventModel {
       city: map['city'] as String? ?? '',
       state: map['state'] as String? ?? '',
       country: map['country'] as String? ?? '',
+      locationUrl: map['locationUrl'] as String?,
       latitude: (map['latitude'] as num?)?.toDouble(),
       longitude: (map['longitude'] as num?)?.toDouble(),
       startDate: parseDate(map['startDate'] ?? map['eventDate']),

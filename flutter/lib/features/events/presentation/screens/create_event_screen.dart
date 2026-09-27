@@ -33,8 +33,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   final _cityController = TextEditingController();
   final _stateController = TextEditingController();
   final _countryController = TextEditingController(text: 'India');
-  final _latController = TextEditingController();
-  final _lngController = TextEditingController();
+  final _mapLinkController = TextEditingController();
   final _maxParticipantsController = TextEditingController(text: '100');
   final _entryFeeController = TextEditingController(text: '0.00');
   final _contactPersonController = TextEditingController();
@@ -112,8 +111,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     _cityController.dispose();
     _stateController.dispose();
     _countryController.dispose();
-    _latController.dispose();
-    _lngController.dispose();
+    _mapLinkController.dispose();
     _maxParticipantsController.dispose();
     _entryFeeController.dispose();
     _contactPersonController.dispose();
@@ -217,6 +215,24 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   }
 
   // Cloudinary event banner thumbnail helper removed. R2 generated thumbnails are used directly.
+
+  double? _extractLat(String url) {
+    if (url.isEmpty) return null;
+    final atMatch = RegExp(r'@(-?\d+\.\d+),(-?\d+\.\d+)').firstMatch(url);
+    if (atMatch != null) return double.tryParse(atMatch.group(1)!);
+    final qMatch = RegExp(r'[?&](?:q|query)=(-?\d+\.\d+),(-?\d+\.\d+)').firstMatch(url);
+    if (qMatch != null) return double.tryParse(qMatch.group(1)!);
+    return null;
+  }
+
+  double? _extractLng(String url) {
+    if (url.isEmpty) return null;
+    final atMatch = RegExp(r'@(-?\d+\.\d+),(-?\d+\.\d+)').firstMatch(url);
+    if (atMatch != null) return double.tryParse(atMatch.group(2)!);
+    final qMatch = RegExp(r'[?&](?:q|query)=(-?\d+\.\d+),(-?\d+\.\d+)').firstMatch(url);
+    if (qMatch != null) return double.tryParse(qMatch.group(2)!);
+    return null;
+  }
 
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -343,8 +359,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         city: _cityController.text.trim(),
         state: _stateController.text.trim(),
         country: _countryController.text.trim(),
-        latitude: double.tryParse(_latController.text),
-        longitude: double.tryParse(_lngController.text),
+        locationUrl: _mapLinkController.text.trim().isNotEmpty ? _mapLinkController.text.trim() : null,
+        latitude: _extractLat(_mapLinkController.text.trim()),
+        longitude: _extractLng(_mapLinkController.text.trim()),
         startDate: startDateComplete,
         endDate: endDateComplete,
         registrationDeadline: _deadline!,
@@ -681,26 +698,11 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                       ],
                     ),
 
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _latController,
-                            label: 'Latitude (Optional)',
-                            hint: 'e.g. 28.6139',
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _lngController,
-                            label: 'Longitude (Optional)',
-                            hint: 'e.g. 77.2090',
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                      ],
+                    _buildTextField(
+                      controller: _mapLinkController,
+                      label: 'Google Maps Link (Optional)',
+                      hint: 'e.g. https://maps.app.goo.gl/... or place link',
+                      keyboardType: TextInputType.url,
                     ),
 
                     // --- Dates and Times ---

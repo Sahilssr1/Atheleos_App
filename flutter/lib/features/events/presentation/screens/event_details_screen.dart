@@ -317,16 +317,75 @@ class EventDetailsScreen extends ConsumerWidget {
                           Expanded(child: _buildStatItem('VENUE', event.venue, Icons.location_on_outlined)),
                         ],
                       ),
-                      if (event.latitude != null && event.longitude != null) ...[
-                        const SizedBox(height: 10),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Text(
-                            'Coordinates: Lat ${event.latitude}, Lng ${event.longitude}',
-                            style: const TextStyle(color: Colors.white38, fontSize: 10),
+                      // Venue Maps Action Tile
+                      const SizedBox(height: 12),
+                      InkWell(
+                        onTap: () => _launchExternalUrl(context, event.googleMapsUrl),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF161616),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFF262626)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.location_on_rounded, color: AppTheme.primaryColor, size: 16),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'VENUE LOCATION',
+                                      style: GoogleFonts.spaceGrotesk(
+                                        color: AppTheme.primaryColor,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${event.venue}, ${event.city}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white10,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Open Maps',
+                                      style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Icon(Icons.open_in_new, color: Colors.white70, size: 11),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                       const SizedBox(height: 24),
 
                       // Join / Register Action Button
