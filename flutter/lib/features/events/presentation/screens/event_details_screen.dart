@@ -306,8 +306,8 @@ class EventDetailsScreen extends ConsumerWidget {
                       // Event Stats Grid
                       Row(
                         children: [
-                          Expanded(child: _buildStatItem('FEE', event.isFree ? 'Free' : '\$${event.entryFee.toStringAsFixed(2)}', Icons.monetization_on_outlined)),
-                          Expanded(child: _buildStatItem('DATE', '${event.startDate.month}/${event.startDate.day}/${event.startDate.year}', Icons.calendar_today_outlined)),
+                          Expanded(child: _buildStatItem('FEE', event.isFree ? 'Free' : '₹${event.entryFee % 1 == 0 ? event.entryFee.toInt() : event.entryFee.toStringAsFixed(2)}', Icons.currency_rupee_rounded)),
+                          Expanded(child: _buildStatItem('DATE', '${event.startDate.day}/${event.startDate.month}/${event.startDate.year}', Icons.calendar_today_outlined)),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -451,7 +451,7 @@ class EventDetailsScreen extends ConsumerWidget {
                                   children: [
                                     const TextSpan(text: 'Registration Deadline: ', style: TextStyle(fontWeight: FontWeight.bold)),
                                     TextSpan(
-                                      text: '${event.registrationDeadline.month}/${event.registrationDeadline.day}/${event.registrationDeadline.year}',
+                                      text: '${event.registrationDeadline.day}/${event.registrationDeadline.month}/${event.registrationDeadline.year}',
                                       style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
                                     ),
                                   ],

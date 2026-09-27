@@ -1186,7 +1186,7 @@ class _PhoneChangeDialogState extends ConsumerState<_PhoneChangeDialog> {
             enabled: !_otpSent && !_isLoading,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
-              hintText: '+1 (555) 000-0000',
+              hintText: '+91 98765 43210',
               hintStyle: const TextStyle(color: Colors.white38),
               filled: true,
               fillColor: Colors.white10,

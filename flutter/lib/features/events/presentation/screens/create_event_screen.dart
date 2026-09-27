@@ -32,7 +32,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   final _venueController = TextEditingController();
   final _cityController = TextEditingController();
   final _stateController = TextEditingController();
-  final _countryController = TextEditingController(text: 'United States');
+  final _countryController = TextEditingController(text: 'India');
   final _latController = TextEditingController();
   final _lngController = TextEditingController();
   final _maxParticipantsController = TextEditingController(text: '100');
@@ -520,7 +520,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                     _buildTextField(
                       controller: _titleController,
                       label: 'Event Title',
-                      hint: 'e.g. Texas Gridiron Elite Combine',
+                      hint: 'e.g. National Athletics Championship',
                       validator: (v) => v == null || v.isEmpty ? 'Title is required' : null,
                     ),
 
@@ -642,7 +642,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                     _buildTextField(
                       controller: _venueController,
                       label: 'Venue Address',
-                      hint: 'e.g. AT&T Stadium, Gate 4 Entrance',
+                      hint: 'e.g. Jawaharlal Nehru Stadium, Gate 2',
                       validator: (v) => v == null || v.isEmpty ? 'Venue address is required' : null,
                     ),
 
@@ -652,7 +652,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                           child: _buildTextField(
                             controller: _cityController,
                             label: 'City',
-                            hint: 'e.g. Dallas',
+                            hint: 'e.g. New Delhi',
                             validator: (v) => v == null || v.isEmpty ? 'City is required' : null,
                           ),
                         ),
@@ -661,7 +661,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                           child: _buildTextField(
                             controller: _stateController,
                             label: 'State',
-                            hint: 'e.g. TX',
+                            hint: 'e.g. Delhi',
                             validator: (v) => v == null || v.isEmpty ? 'State is required' : null,
                           ),
                         ),
@@ -674,7 +674,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                           child: _buildTextField(
                             controller: _countryController,
                             label: 'Country',
-                            hint: 'e.g. United States',
+                            hint: 'e.g. India',
                             validator: (v) => v == null || v.isEmpty ? 'Country is required' : null,
                           ),
                         ),
@@ -687,7 +687,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                           child: _buildTextField(
                             controller: _latController,
                             label: 'Latitude (Optional)',
-                            hint: 'e.g. 32.7473',
+                            hint: 'e.g. 28.6139',
                             keyboardType: TextInputType.number,
                           ),
                         ),
@@ -696,7 +696,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                           child: _buildTextField(
                             controller: _lngController,
                             label: 'Longitude (Optional)',
-                            hint: 'e.g. -97.0945',
+                            hint: 'e.g. 77.2090',
                             keyboardType: TextInputType.number,
                           ),
                         ),
@@ -726,7 +726,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                   ),
                                 ),
                                 onPressed: () => _selectDate(context, true, false),
-                                child: Text(_startDate == null ? 'Select Date' : '${_startDate!.month}/${_startDate!.day}/${_startDate!.year}'),
+                                child: Text(_startDate == null ? 'Select Date' : '${_startDate!.day}/${_startDate!.month}/${_startDate!.year}'),
                               ),
                             ],
                           ),
@@ -781,7 +781,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                   ),
                                 ),
                                 onPressed: () => _selectDate(context, false, false),
-                                child: Text(_endDate == null ? 'Select Date' : '${_endDate!.month}/${_endDate!.day}/${_endDate!.year}'),
+                                child: Text(_endDate == null ? 'Select Date' : '${_endDate!.day}/${_endDate!.month}/${_endDate!.year}'),
                               ),
                             ],
                           ),
@@ -838,7 +838,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                                   ),
                                 ),
                                 onPressed: () => _selectDate(context, false, true),
-                                child: Text(_deadline == null ? 'Select Date' : '${_deadline!.month}/${_deadline!.day}/${_deadline!.year}'),
+                                child: Text(_deadline == null ? 'Select Date' : '${_deadline!.day}/${_deadline!.month}/${_deadline!.year}'),
                               ),
                             ],
                           ),
@@ -891,7 +891,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                       _buildTextField(
                         controller: _externalUrlController,
                         label: 'Registration Website Link',
-                        hint: 'https://mysportsplatform.com/events/texas-combine/register',
+                        hint: 'https://mysportsplatform.com/events/register',
                         validator: (v) => _selectedRegType == 'external' && (v == null || v.isEmpty)
                             ? 'External registration link is required'
                             : null,
@@ -913,7 +913,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                         Expanded(
                           child: _buildTextField(
                             controller: _entryFeeController,
-                            label: 'Entry Fee amount (\$) (0 for Free)',
+                            label: 'Entry Fee amount (₹) (0 for Free)',
                             hint: '0.00',
                             keyboardType: TextInputType.number,
                             validator: (v) => v == null || double.tryParse(v) == null ? 'Must be a valid fee amount' : null,
@@ -949,7 +949,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                     _buildTextField(
                       controller: _skillLevelController,
                       label: 'Skill Level / Qualification Requirement',
-                      hint: 'e.g. Open, Intermediate, Varsity, Division 1 prospects only',
+                      hint: 'e.g. Open, District Level, State Level, National',
                       validator: (v) => v == null || v.isEmpty ? 'Required field' : null,
                     ),
 
@@ -988,7 +988,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                     _buildTextField(
                       controller: _contactPersonController,
                       label: 'Contact Person Name',
-                      hint: 'e.g. Sarah Connor',
+                      hint: 'e.g. Rahul Sharma',
                       validator: (v) => v == null || v.isEmpty ? 'Contact person is required' : null,
                     ),
                     Row(
@@ -997,7 +997,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                           child: _buildTextField(
                             controller: _contactNumberController,
                             label: 'Contact Phone Number',
-                            hint: '+1 (555) 123-4567',
+                            hint: '+91 98765 43210',
                             validator: (v) => v == null || v.isEmpty ? 'Phone number is required' : null,
                           ),
                         ),
@@ -1006,7 +1006,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                           child: _buildTextField(
                             controller: _contactEmailController,
                             label: 'Contact Email',
-                            hint: 'event@mysports.com',
+                            hint: 'event@atheleos.com',
                             keyboardType: TextInputType.emailAddress,
                             validator: (v) => v == null || v.isEmpty || !v.contains('@') ? 'Enter a valid email' : null,
                           ),
@@ -1016,7 +1016,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                     _buildTextField(
                       controller: _websiteController,
                       label: 'Official Website link (Optional)',
-                      hint: 'https://lonestarcombine.com',
+                      hint: 'https://atheleos.com/events',
                     ),
 
                     const SizedBox(height: 32),

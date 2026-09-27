@@ -2419,7 +2419,7 @@ class _SharedEventCard extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            event.isFree ? 'FREE' : '\$${event.entryFee.toStringAsFixed(0)}',
+                            event.isFree ? 'FREE' : '₹${event.entryFee.toStringAsFixed(0)}',
                             style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 10),
                           ),
                         ],

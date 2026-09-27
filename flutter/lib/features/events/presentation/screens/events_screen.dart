@@ -507,7 +507,7 @@ class EventsScreen extends ConsumerWidget {
                           const Text('START DATE', style: TextStyle(fontSize: 8, color: Colors.white38, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 2),
                           Text(
-                            '${event.startDate.month}/${event.startDate.day}/${event.startDate.year}',
+                            '${event.startDate.day}/${event.startDate.month}/${event.startDate.year}',
                             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white70),
                           ),
                         ],
@@ -518,7 +518,7 @@ class EventsScreen extends ConsumerWidget {
                           const Text('ENTRY FEE', style: TextStyle(fontSize: 8, color: Colors.white38, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 2),
                           Text(
-                            event.isFree ? 'FREE' : '\$${event.entryFee.toStringAsFixed(2)}',
+                            event.isFree ? 'FREE' : '₹${event.entryFee % 1 == 0 ? event.entryFee.toInt() : event.entryFee.toStringAsFixed(2)}',
                             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
                           ),
                         ],

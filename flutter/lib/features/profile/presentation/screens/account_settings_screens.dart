@@ -291,7 +291,7 @@ class _PhoneVerificationScreenState
     final phone = _phoneController.text.replaceAll(RegExp(r'[\s()-]'), '');
     if (!RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(phone)) {
       _showError(
-          context, 'Use international format, for example +14155552671.');
+          context, 'Use international format, for example +919876543210.');
       return;
     }
     setState(() => _loading = true);
@@ -354,7 +354,7 @@ class _PhoneVerificationScreenState
           keyboardType: TextInputType.phone,
           decoration: const InputDecoration(
             labelText: 'Phone number',
-            hintText: '+14155552671',
+            hintText: '+919876543210',
           ),
         ),
         if (codeSent) ...[
