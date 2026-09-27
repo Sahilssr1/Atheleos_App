@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/upload_queue_coordinator.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../domain/models/chat_message.dart';
 import '../../domain/models/chat_room_model.dart';
 import '../../../profile/domain/models/profile_model.dart';
@@ -430,7 +431,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update group icon: $e'),
+            content: Text(UserFacingError.message(e, fallback: 'Failed to update group icon. Please try again.')),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -461,7 +462,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to remove icon: $e')),
+          SnackBar(content: Text(UserFacingError.message(e, fallback: 'Failed to remove icon. Please try again.'))),
         );
       }
     }

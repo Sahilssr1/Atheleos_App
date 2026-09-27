@@ -108,5 +108,24 @@ void main() {
         'Unable to access this information right now. Please try again.',
       );
     });
+
+    test('sanitizes cloud functions, firestore rules, and backend permission errors', () {
+      expect(
+        UserFacingError.message('Cloud functions error occurred'),
+        'Something went wrong. Please try again.',
+      );
+      expect(
+        UserFacingError.message('FirebaseFunctionsException: [firebase_functions/internal] INTERNAL'),
+        'Something went wrong. Please try again.',
+      );
+      expect(
+        UserFacingError.message('Your firestore is not allowing you to write'),
+        'Unable to access this information right now. Please try again.',
+      );
+      expect(
+        UserFacingError.message('Firebase rules are not allowing this operation'),
+        'Unable to access this information right now. Please try again.',
+      );
+    });
   });
 }

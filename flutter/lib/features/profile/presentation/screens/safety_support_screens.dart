@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../core/services/upload_queue_coordinator.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../controllers/profile_controller.dart';
 import '../controllers/settings_controller.dart';
 
@@ -52,7 +53,16 @@ class _SafetyUsersScreenState extends ConsumerState<SafetyUsersScreen> {
           Expanded(
             child: idsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => Center(child: Text('$error')),
+              error: (error, _) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Text(
+                    UserFacingError.message(error, fallback: 'Unable to load list. Please try again.'),
+                    style: const TextStyle(color: Colors.white70),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
               data: (ids) {
                 final filteredIds = ids.where((id) {
                   final profile =
@@ -175,7 +185,16 @@ class _HiddenKeywordsScreenState extends ConsumerState<HiddenKeywordsScreen> {
             Expanded(
               child: keywordsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => Center(child: Text('$error')),
+                error: (error, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Text(
+                      UserFacingError.message(error, fallback: 'Unable to load keywords. Please try again.'),
+                      style: const TextStyle(color: Colors.white70),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
                 data: (keywords) {
                   final filtered = keywords
                       .where(
@@ -234,7 +253,16 @@ class ReportHistoryScreen extends ConsumerWidget {
           title: const Text('REPORT HISTORY'), backgroundColor: Colors.black),
       body: reportsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('$error')),
+        error: (error, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Text(
+              UserFacingError.message(error, fallback: 'Unable to load report history. Please try again.'),
+              style: const TextStyle(color: Colors.white70),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
         data: (reports) {
           if (reports.isEmpty) {
             return const Center(
@@ -344,7 +372,7 @@ class _ReportProblemScreenState extends ConsumerState<ReportProblemScreen> {
       if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Screenshot upload failed: $error')),
+        SnackBar(content: Text(UserFacingError.message(error, fallback: 'Screenshot upload failed. Please try again.'))),
       );
     }
   }
@@ -379,7 +407,7 @@ class _ReportProblemScreenState extends ConsumerState<ReportProblemScreen> {
       if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$error'), backgroundColor: Colors.redAccent),
+        SnackBar(content: Text(UserFacingError.message(error, fallback: 'Failed to submit report. Please try again.'))),
       );
     }
   }

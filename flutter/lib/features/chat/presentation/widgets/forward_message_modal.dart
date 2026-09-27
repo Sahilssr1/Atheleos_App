@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../domain/models/chat_message.dart';
 import '../../../profile/domain/models/profile_model.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
@@ -104,7 +105,7 @@ class _ForwardMessageModalState extends ConsumerState<ForwardMessageModal> {
         setState(() => _isSending = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to forward message: $e'),
+            content: Text(UserFacingError.message(e, fallback: 'Failed to forward message. Please try again.')),
             backgroundColor: Colors.redAccent,
           ),
         );

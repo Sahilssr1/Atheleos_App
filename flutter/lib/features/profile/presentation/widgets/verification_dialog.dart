@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../../../core/services/media_upload_service.dart';
 import '../../domain/models/profile_model.dart';
 import '../controllers/profile_controller.dart';
@@ -637,7 +638,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to attach document: $e'),
+            content: Text(UserFacingError.message(e, fallback: 'Failed to attach document. Please try again.')),
             backgroundColor: Colors.redAccent,
           ),
         );

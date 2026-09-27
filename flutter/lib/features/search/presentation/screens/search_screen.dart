@@ -15,6 +15,7 @@ import '../../../../core/widgets/app_avatar.dart';
 
 import '../../../../core/services/cache_manager.dart';
 import '../../../../core/services/network_service.dart';
+import '../../../../core/utils/user_facing_error.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   static const List<String> supportedStates = [
@@ -790,7 +791,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               child: CircularProgressIndicator(color: AppTheme.primaryColor),
             ),
             error: (err, stack) => Center(
-              child: Text('Error: $err', style: const TextStyle(color: Colors.redAccent)),
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Text(
+                  UserFacingError.message(err, fallback: 'Unable to load profiles right now. Please try again.'),
+                  style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
             data: (users) {
               if (users.isEmpty) {

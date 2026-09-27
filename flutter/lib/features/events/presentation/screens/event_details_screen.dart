@@ -124,7 +124,16 @@ class EventDetailsScreen extends ConsumerWidget {
       backgroundColor: Colors.black,
       body: eventsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
-        error: (err, _) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red))),
+        error: (err, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Text(
+              UserFacingError.message(err, fallback: 'Unable to load event details. Please try again.'),
+              style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
         data: (events) {
           final event = events.firstWhere(
             (e) => e.eventId == eventId,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../../profile/domain/models/profile_model.dart';
 import '../controllers/chat_controller.dart';
 
@@ -83,7 +84,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
         setState(() => _isCreating = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to create group: $e'),
+            content: Text(UserFacingError.message(e, fallback: 'Failed to create group. Please try again.')),
             backgroundColor: Colors.redAccent,
           ),
         );

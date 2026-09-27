@@ -1,5 +1,6 @@
 /// Utility for sanitizing and converting backend errors, Firebase exceptions,
-/// and network failures into clear, conversational layman language.
+/// Cloud Functions failures, database rules, and network errors into clear,
+/// formal, user-friendly language.
 class UserFacingError {
   /// Converts any raw error, exception, or error string into a user-friendly sentence.
   static String message(dynamic error, {String fallback = 'Something went wrong. Please try again.'}) {
@@ -78,13 +79,40 @@ class UserFacingError {
       return 'The verification code has expired. Please request a new one.';
     }
 
-    // 4. Firestore & Permissions
+    // 4. Firestore, Database & Security Rules & Permissions
     if (lower.contains('permission-denied') ||
         lower.contains('permission denied') ||
-        lower.contains('caller does not have permission')) {
+        lower.contains('caller does not have permission') ||
+        lower.contains('insufficient permissions') ||
+        lower.contains('not allowing') ||
+        lower.contains('security rules') ||
+        lower.contains('firebase rules') ||
+        lower.contains('rules') ||
+        lower.contains('firestore') ||
+        lower.contains('cloud_firestore')) {
       return 'Unable to access this information right now. Please try again.';
     }
 
+    // 5. Cloud Functions & Backend Server Failures
+    if (lower.contains('cloud function') ||
+        lower.contains('cloud functions') ||
+        lower.contains('cloud_functions') ||
+        lower.contains('firebase_functions') ||
+        lower.contains('firebasefunctions') ||
+        lower.contains('httpscallable') ||
+        lower.contains('internal') ||
+        lower.contains('unavailable') ||
+        lower.contains('unauthenticated') ||
+        lower.contains('unauthorized') ||
+        lower.contains('grpc') ||
+        lower.contains('server error') ||
+        lower.contains('failed precondition') ||
+        lower.contains('aborted') ||
+        lower.contains('data-loss')) {
+      return fallback;
+    }
+
+    // 6. Account & Profile Status
     if (lower.contains('not-found') || lower.contains('profile not found') || lower.contains('document does not exist')) {
       return 'This profile or content could not be found.';
     }
@@ -97,26 +125,61 @@ class UserFacingError {
       return 'This username is already taken. Please choose another.';
     }
 
-    // 5. Clean up readable custom exceptions
+    // 7. Clean up readable custom exceptions
     String cleaned = raw
         .replaceAll(RegExp(r'^Exception:\s*', caseSensitive: false), '')
         .replaceAll(RegExp(r'^Error:\s*', caseSensitive: false), '')
         .replaceAll(RegExp(r'\[.*?\]'), '')
         .trim();
 
-    // If cleaned string contains technical symbols/stack trace words, use fallback
+    // If cleaned string contains technical backend symbols or keywords, never show it
     final cleanedLower = cleaned.toLowerCase();
-    if (cleanedLower.contains('cloud_firestore') ||
-        cleanedLower.contains('firebase_auth') ||
-        cleanedLower.contains('platformexception') ||
-        cleanedLower.contains('nosuchmethoderror') ||
-        cleanedLower.contains('null check') ||
-        cleanedLower.contains('nullcheck') ||
-        cleanedLower.contains('typeerror') ||
-        cleanedLower.contains('formatexception') ||
-        cleanedLower.contains('assertion') ||
-        cleanedLower.contains('stack trace') ||
-        cleanedLower.contains('http/')) {
+    const technicalKeywords = [
+      'firebase',
+      'firestore',
+      'cloud',
+      'function',
+      'rule',
+      'permission',
+      'insufficient',
+      'platformexception',
+      'nosuchmethod',
+      'null check',
+      'nullcheck',
+      'typeerror',
+      'formatexception',
+      'stateerror',
+      'rangeerror',
+      'assertion',
+      'stack trace',
+      'stacktrace',
+      'http/',
+      'https/',
+      'bad state',
+      'channel-error',
+      'channel error',
+      'backend',
+      'database',
+      'server',
+      'endpoint',
+      'token',
+      'jwt',
+      'uid',
+    ];
+
+    for (final kw in technicalKeywords) {
+      if (cleanedLower.contains(kw)) {
+        return fallback;
+      }
+    }
+
+    // If cleaned string has technical syntax symbols like brackets, braces, or slashes, reject it
+    if (cleaned.contains('{') ||
+        cleaned.contains('}') ||
+        cleaned.contains('[') ||
+        cleaned.contains(']') ||
+        cleaned.contains('=>') ||
+        cleaned.contains('::')) {
       return fallback;
     }
 

@@ -1009,31 +1009,7 @@ class _LoginCredentialsWidgetState
                           ),
                         ),
 
-                        // Google Password Manager Assistant Hint
-                        Container(
-                          margin: const EdgeInsets.only(top: 14),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.04),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.white10),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.vpn_key_outlined,
-                                  color: AppTheme.primaryColor, size: 16),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Google Password Manager automatically suggests and prompts to save your credentials securely.',
-                                  style: GoogleFonts.inter(
-                                      fontSize: 11, color: Colors.white54),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+
                       ],
                     ),
                   ),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../domain/models/profile_model.dart';
 import '../controllers/profile_controller.dart';
 import '../controllers/settings_controller.dart';
@@ -111,7 +112,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
           _locallyUnfollowedIds.remove(user.id);
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to unfollow: $e')),
+          SnackBar(content: Text(UserFacingError.message(e, fallback: 'Failed to unfollow. Please try again.'))),
         );
       }
     }
@@ -363,8 +364,14 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
                 child: CircularProgressIndicator(color: AppTheme.primaryColor),
               ),
               error: (err, _) => Center(
-                child: Text('Error loading followings: $err',
-                    style: const TextStyle(color: Colors.white54)),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Text(
+                    UserFacingError.message(err, fallback: 'Unable to load followings. Please try again.'),
+                    style: const TextStyle(color: Colors.white54),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ),
               data: (_) {
                 if (followedUsers.isEmpty) {

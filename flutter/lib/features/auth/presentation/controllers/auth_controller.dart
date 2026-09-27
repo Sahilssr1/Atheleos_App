@@ -553,7 +553,7 @@ class AuthController extends StateNotifier<AuthState> {
       state = state.copyWith(isLoading: false, errorMessage: null);
       return null;
     } catch (e) {
-      final msg = e.toString().replaceAll('Exception:', '').trim();
+      final msg = _friendlyAuthError(e);
       state = state.copyWith(isLoading: false, errorMessage: msg);
       return msg;
     }

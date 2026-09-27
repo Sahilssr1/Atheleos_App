@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../controllers/chat_controller.dart';
 
@@ -249,7 +250,14 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
               child: profilesAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
                 error: (err, _) => Center(
-                  child: Text('Error loading contacts: $err', style: const TextStyle(color: Colors.redAccent)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Text(
+                      UserFacingError.message(err, fallback: 'Unable to load contacts. Please try again.'),
+                      style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
                 data: (profiles) {
                   final list = profiles.where((p) => p.id != myId).toList();

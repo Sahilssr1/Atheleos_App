@@ -23,6 +23,7 @@ import '../../../feed/presentation/controllers/post_delete_controller.dart';
 import 'dart:io';
 import '../../../../core/services/cache_manager.dart';
 import '../../../../core/services/network_service.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../../../feed/presentation/controllers/like_controller.dart';
 import '../../../chat/presentation/widgets/share_content_bottom_sheet.dart';
@@ -156,7 +157,14 @@ class _ClipsScreenState extends ConsumerState<ClipsScreen> {
             children: [
               const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
               const SizedBox(height: 12),
-              Text('Error loading clips: $err', style: const TextStyle(color: Colors.redAccent)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Text(
+                  UserFacingError.message(err, fallback: 'Unable to load clips. Please try again.'),
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+              ),
               const SizedBox(height: 16),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
@@ -1095,7 +1103,7 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error editing comment: $e')),
+            SnackBar(content: Text(UserFacingError.message(e, fallback: 'Unable to edit comment. Please try again.'))),
           );
         }
       }
@@ -1179,7 +1187,7 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error adding comment: $e')),
+          SnackBar(content: Text(UserFacingError.message(e, fallback: 'Unable to add comment. Please try again.'))),
         );
       }
     }
@@ -1215,7 +1223,7 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error deleting comment: $e')),
+            SnackBar(content: Text(UserFacingError.message(e, fallback: 'Unable to delete comment. Please try again.'))),
           );
         }
       }
@@ -1268,7 +1276,16 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
               constraints: const BoxConstraints(maxHeight: 350),
               child: commentsStream.when(
                 loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor)),
-                error: (err, _) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red))),
+                error: (err, _) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Text(
+                      UserFacingError.message(err, fallback: 'Unable to load comments right now. Please try again.'),
+                      style: const TextStyle(color: Colors.white54, fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
                 data: (comments) {
                   if (comments.isEmpty) {
                     return Center(

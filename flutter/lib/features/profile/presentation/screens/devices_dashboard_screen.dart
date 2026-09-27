@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/user_facing_error.dart';
 import '../controllers/profile_controller.dart';
 
 final currentDeviceSessionProvider =
@@ -64,7 +65,16 @@ class DevicesDashboardScreen extends ConsumerWidget {
       body: sessionAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) =>
-            Center(child: Text('Unable to load device: $error')),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Text(
+                  UserFacingError.message(error, fallback: 'Unable to load device details. Please try again.'),
+                  style: const TextStyle(color: Colors.white70),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
         data: (session) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
