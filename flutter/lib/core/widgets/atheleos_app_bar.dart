@@ -35,13 +35,13 @@ class AtheleosAppBar extends ConsumerWidget implements PreferredSizeWidget {
       title: title ??
           (titleText == 'ATHELEOS'
               ? ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 32),
+                  constraints: const BoxConstraints(maxHeight: 27),
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Image.asset(
                       'assets/images/atheleos_banner.png',
-                      height: 32,
+                      height: 27,
                       fit: BoxFit.contain,
                       alignment: Alignment.centerLeft,
                     ),
