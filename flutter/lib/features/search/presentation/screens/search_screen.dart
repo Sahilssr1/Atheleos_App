@@ -52,7 +52,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     });
     _exploreScrollController.addListener(() {
       if (_exploreScrollController.position.pixels >= _exploreScrollController.position.maxScrollExtent - 200) {
-        ref.read(clipsProvider.notifier).loadMore();
+        if (ref.read(clipsHasMoreProvider) && !ref.read(clipsLoadingMoreProvider)) {
+          ref.read(clipsProvider.notifier).loadMore();
+        }
       }
     });
   }
@@ -341,25 +343,89 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             itemCount: blockCount + 1,
             itemBuilder: (context, blockIndex) {
               if (blockIndex == blockCount) {
-                final notifier = ref.read(clipsProvider.notifier);
-                if (notifier.hasMore) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(
-                      child: CircularProgressIndicator(color: AppTheme.primaryColor),
-                    ),
-                  );
-                } else {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 32),
-                    child: Center(
-                      child: Text(
-                        'No more clips to explore.',
-                        style: GoogleFonts.inter(color: Colors.white.withValues(alpha: 0.3), fontSize: 12),
-                      ),
-                    ),
-                  );
-                }
+                return Consumer(
+                  builder: (context, ref, _) {
+                    final hasMore = ref.watch(clipsHasMoreProvider);
+                    final isLoadingMore = ref.watch(clipsLoadingMoreProvider);
+
+                    if (isLoadingMore) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 28),
+                        child: Center(
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (!hasMore) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 28),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                height: 1,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.transparent,
+                                      Colors.white.withValues(alpha: 0.12),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.check_circle_outline_rounded,
+                                    size: 14,
+                                    color: Colors.white.withValues(alpha: 0.35),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    "You're all caught up",
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white.withValues(alpha: 0.45),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                height: 1,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.white.withValues(alpha: 0.12),
+                                      Colors.transparent,
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return const SizedBox(height: 28);
+                  },
+                );
               }
 
               final int baseIdx = blockIndex * 6;

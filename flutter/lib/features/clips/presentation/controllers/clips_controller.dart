@@ -17,6 +17,9 @@ final clipRepositoryProvider = Provider<ClipRepository>((ref) {
 
 final selectedClipSportProvider = StateProvider<String>((ref) => 'All');
 
+final clipsHasMoreProvider = StateProvider<bool>((ref) => true);
+final clipsLoadingMoreProvider = StateProvider<bool>((ref) => false);
+
 class ClipsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
   final ClipRepository _repository;
   final String _userId;
@@ -60,24 +63,33 @@ class ClipsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
       state = AsyncValue.data(mapped);
       _ref.read(sharedLikeStateProvider.notifier).registerPosts(mapped);
       _hasMore = clips.length >= 8;
+      _ref.read(clipsHasMoreProvider.notifier).state = _hasMore;
+      _ref.read(clipsLoadingMoreProvider.notifier).state = false;
     } catch (err, stack) {
       state = AsyncValue.error(err, stack);
+      _hasMore = false;
+      _ref.read(clipsHasMoreProvider.notifier).state = false;
+      _ref.read(clipsLoadingMoreProvider.notifier).state = false;
     }
   }
 
   Future<void> refresh() async {
     _hasMore = true;
     _isLoadingMore = false;
+    _ref.read(clipsHasMoreProvider.notifier).state = true;
+    _ref.read(clipsLoadingMoreProvider.notifier).state = false;
     await _loadFirstPage();
   }
 
   Future<void> loadMore() async {
     if (_isLoadingMore || !_hasMore) return;
     _isLoadingMore = true;
+    _ref.read(clipsLoadingMoreProvider.notifier).state = true;
 
     final currentClips = state.valueOrNull ?? [];
     if (currentClips.isEmpty) {
       _isLoadingMore = false;
+      _ref.read(clipsLoadingMoreProvider.notifier).state = false;
       return;
     }
 
@@ -93,7 +105,7 @@ class ClipsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
 
       if (clips.isEmpty) {
         _hasMore = false;
-        _isLoadingMore = false;
+        _ref.read(clipsHasMoreProvider.notifier).state = false;
         return;
       }
 
@@ -108,13 +120,21 @@ class ClipsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
       final existingIds = currentClips.map((c) => c.id).toSet();
       final newClips = mapped.where((c) => !existingIds.contains(c.id)).toList();
 
+      if (newClips.isEmpty) {
+        _hasMore = false;
+        _ref.read(clipsHasMoreProvider.notifier).state = false;
+        return;
+      }
+
       state = AsyncValue.data([...currentClips, ...newClips]);
       _ref.read(sharedLikeStateProvider.notifier).registerPosts(newClips);
       _hasMore = clips.length >= 8;
+      _ref.read(clipsHasMoreProvider.notifier).state = _hasMore;
     } catch (err) {
       debugPrint('Error loading more clips: $err');
     } finally {
       _isLoadingMore = false;
+      _ref.read(clipsLoadingMoreProvider.notifier).state = false;
     }
   }
 
