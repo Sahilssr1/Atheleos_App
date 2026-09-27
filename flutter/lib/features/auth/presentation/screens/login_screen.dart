@@ -3246,27 +3246,30 @@ class _RoleDetailsWidgetState extends State<_RoleDetailsWidget> {
                   controller: _positionController,
                   style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(
-                    hintText: 'e.g. Quarterback, Point Guard, Striker',
+                    hintText: 'e.g. Batsman, Bowler, Striker, Raider, Defender',
                     prefixIcon: Icon(Icons.star, color: AppTheme.primaryColor, size: 16),
                   ),
                 ),
                 const SizedBox(height: 16),
 
-                // Recruitment Status (Optional)
-                const Text('Recruitment Status (Optional)', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                // Playing / Athlete Level (Optional)
+                const Text('Playing / Athlete Level (Optional)', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   value: _recruitmentStatus,
-                  dropdownColor: const Color(0xFF121212),
-                  style: const TextStyle(color: Colors.white),
+                  hint: const Text('Select your playing level', style: TextStyle(color: Colors.white38, fontSize: 13)),
+                  dropdownColor: const Color(0xFF141414),
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
                   decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.how_to_reg, color: AppTheme.primaryColor, size: 16),
+                    prefixIcon: Icon(Icons.military_tech_outlined, color: AppTheme.primaryColor, size: 18),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'Uncommitted', child: Text('Uncommitted High School Prospect')),
-                    DropdownMenuItem(value: 'Committed', child: Text('Committed College Athlete')),
-                    DropdownMenuItem(value: 'Seeking Offers', child: Text('Seeking Scouting Offers')),
-                    DropdownMenuItem(value: 'Professional', child: Text('Professional Agent Certified')),
+                    DropdownMenuItem(value: 'School / Grassroots', child: Text('School / Grassroots / Club Level')),
+                    DropdownMenuItem(value: 'District Level', child: Text('District Level Player')),
+                    DropdownMenuItem(value: 'State Level', child: Text('State Level Player')),
+                    DropdownMenuItem(value: 'University / College', child: Text('University / College Player')),
+                    DropdownMenuItem(value: 'National Level', child: Text('National Level Player')),
+                    DropdownMenuItem(value: 'Professional / International', child: Text('Professional / International Athlete')),
                   ],
                   onChanged: (val) {
                     setState(() {
