@@ -27,13 +27,27 @@ class _SportSelectorFieldState extends State<SportSelectorField> {
   @override
   void initState() {
     super.initState();
-    _selectedSport = widget.initialSport;
+    _initSelection(widget.initialSport);
+  }
+
+  void _initSelection(String? sport) {
+    _selectedSport = sport;
     if (_selectedSport != null && _selectedSport!.isNotEmpty) {
       if (!SportsService.supportedSports.contains(_selectedSport)) {
         _isOtherSelected = true;
         _otherController.text = _selectedSport!;
         _selectedSport = 'Other';
+      } else {
+        _isOtherSelected = false;
       }
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant SportSelectorField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialSport != oldWidget.initialSport) {
+      _initSelection(widget.initialSport);
     }
   }
 
@@ -53,13 +67,18 @@ class _SportSelectorFieldState extends State<SportSelectorField> {
         side: BorderSide(color: Color(0xFF262626), width: 1),
       ),
       builder: (context) => _SportBottomSheet(
-        selectedSport: _selectedSport,
-        onSelected: (sport) {
+        selectedSport: _isOtherSelected ? 'Other' : _selectedSport,
+        onSelected: (sport, [customSport]) {
           setState(() {
             _selectedSport = sport;
             if (sport == 'Other') {
               _isOtherSelected = true;
-              widget.onSportChanged(_otherController.text.trim());
+              if (customSport != null && customSport.isNotEmpty) {
+                _otherController.text = customSport;
+                widget.onSportChanged(customSport);
+              } else {
+                widget.onSportChanged(_otherController.text.trim());
+              }
             } else {
               _isOtherSelected = false;
               widget.onSportChanged(sport);
@@ -72,6 +91,14 @@ class _SportSelectorFieldState extends State<SportSelectorField> {
 
   @override
   Widget build(BuildContext context) {
+    final displayText = _isOtherSelected
+        ? (_otherController.text.trim().isNotEmpty
+            ? _otherController.text.trim()
+            : 'Other (Custom Sport)')
+        : ((_selectedSport == null || _selectedSport!.isEmpty)
+            ? widget.hintText
+            : _selectedSport!);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -80,41 +107,42 @@ class _SportSelectorFieldState extends State<SportSelectorField> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: const Color(0xFF121212),
+              color: const Color(0xFF141414),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFF262626), width: 1),
             ),
             child: Row(
               children: [
-                const Icon(Icons.show_chart, color: AppTheme.primaryColor, size: 16),
+                const Icon(Icons.sports, color: AppTheme.primaryColor, size: 18),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    (_selectedSport == null || _selectedSport!.isEmpty) 
-                        ? widget.hintText 
-                        : _selectedSport!,
+                    displayText,
                     style: GoogleFonts.inter(
-                      color: (_selectedSport == null || _selectedSport!.isEmpty) ? Colors.white38 : Colors.white,
+                      color: (_selectedSport == null || _selectedSport!.isEmpty)
+                          ? Colors.white38
+                          : Colors.white,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
-                const Icon(Icons.arrow_drop_down, color: Colors.white54),
+                const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white54),
               ],
             ),
           ),
         ),
         if (_isOtherSelected) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           TextFormField(
             controller: _otherController,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
-              hintText: 'Type your custom sport...',
+              labelText: 'Custom Sport Name',
+              hintText: 'e.g. Pickleball, Kho-Kho, Roller Hockey...',
               hintStyle: const TextStyle(color: Colors.white38),
-              prefixIcon: const Icon(Icons.edit, color: AppTheme.primaryColor, size: 16),
+              prefixIcon: const Icon(Icons.edit_outlined, color: AppTheme.primaryColor, size: 16),
               filled: true,
-              fillColor: const Color(0xFF121212),
+              fillColor: const Color(0xFF141414),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: Color(0xFF262626), width: 1),
@@ -129,6 +157,7 @@ class _SportSelectorFieldState extends State<SportSelectorField> {
               ),
             ),
             onChanged: (val) {
+              setState(() {});
               widget.onSportChanged(val.trim());
             },
           ),
@@ -140,7 +169,7 @@ class _SportSelectorFieldState extends State<SportSelectorField> {
 
 class _SportBottomSheet extends StatefulWidget {
   final String? selectedSport;
-  final ValueChanged<String> onSelected;
+  final void Function(String sport, [String? customSport]) onSelected;
 
   const _SportBottomSheet({
     this.selectedSport,
@@ -181,8 +210,12 @@ class _SportBottomSheetState extends State<_SportBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final query = _searchController.text.trim();
+    final showCustomPrompt = query.isNotEmpty &&
+        !_filteredSports.any((s) => s.toLowerCase() == query.toLowerCase());
+
     return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
+      height: MediaQuery.of(context).size.height * 0.72,
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
@@ -204,7 +237,7 @@ class _SportBottomSheetState extends State<_SportBottomSheet> {
               onChanged: _filter,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                hintText: 'Search sport...',
+                hintText: 'Search 50+ sports...',
                 hintStyle: const TextStyle(color: Colors.white38),
                 prefixIcon: const Icon(Icons.search, color: Colors.white54),
                 filled: true,
@@ -217,19 +250,55 @@ class _SportBottomSheetState extends State<_SportBottomSheet> {
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: Color(0xFF262626), width: 1),
                 ),
-                contentPadding: EdgeInsets.zero,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               ),
             ),
           ),
           Expanded(
             child: ListView.builder(
-              itemCount: _filteredSports.length + 1, // +1 for Other
+              itemCount: _filteredSports.length + (showCustomPrompt ? 2 : 1),
               itemBuilder: (context, index) {
-                if (index == _filteredSports.length) {
+                // If user typed a sport not in standard list, show quick-add banner at the top
+                if (showCustomPrompt && index == 0) {
+                  return Container(
+                    margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.4)),
+                    ),
+                    child: ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.add_circle, color: AppTheme.primaryColor),
+                      title: Text(
+                        'Add "$query"',
+                        style: GoogleFonts.inter(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        'Tap to set as custom sport',
+                        style: TextStyle(color: Colors.white60, fontSize: 11),
+                      ),
+                      trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.primaryColor),
+                      onTap: () {
+                        widget.onSelected('Other', query);
+                        Navigator.pop(context);
+                      },
+                    ),
+                  );
+                }
+
+                final effectiveIndex = showCustomPrompt ? index - 1 : index;
+
+                // Last item is always "Other (Type custom)"
+                if (effectiveIndex == _filteredSports.length) {
                   final isSelected = widget.selectedSport == 'Other';
                   return ListTile(
                     leading: Icon(
-                      Icons.add_circle_outline,
+                      Icons.edit_note_rounded,
                       color: isSelected ? AppTheme.primaryColor : Colors.white54,
                     ),
                     title: Text(
@@ -239,15 +308,19 @@ class _SportBottomSheetState extends State<_SportBottomSheet> {
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
+                    subtitle: const Text(
+                      'Enter any sport not listed above',
+                      style: TextStyle(color: Colors.white38, fontSize: 11),
+                    ),
                     trailing: isSelected ? const Icon(Icons.check, color: AppTheme.primaryColor) : null,
                     onTap: () {
-                      widget.onSelected('Other');
+                      widget.onSelected('Other', query.isNotEmpty ? query : null);
                       Navigator.pop(context);
                     },
                   );
                 }
 
-                final sport = _filteredSports[index];
+                final sport = _filteredSports[effectiveIndex];
                 final isSelected = sport == widget.selectedSport;
 
                 return ListTile(

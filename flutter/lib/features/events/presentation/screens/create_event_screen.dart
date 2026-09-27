@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/sports_service.dart';
 import '../../../../core/services/upload_queue_coordinator.dart';
+import '../../../../core/widgets/sport_selector_field.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../domain/models/event_model.dart';
 import '../../domain/repositories/events_repository.dart';
@@ -236,6 +237,13 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
 
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_selectedSport.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select or specify a sport for the event.')),
+      );
+      return;
+    }
 
     if (_startDate == null || _startTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -545,30 +553,14 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                     Text('Sport (Mandatory)',
                         style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white60)),
                     const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF141414),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF262626)),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedSport,
-                          dropdownColor: const Color(0xFF141414),
-                          style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold),
-                          decoration: const InputDecoration(border: InputBorder.none),
-                          items: SportsService.supportedSports.map((sport) {
-                            return DropdownMenuItem<String>(
-                              value: sport,
-                              child: Text(sport),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) setState(() { _selectedSport = val; });
-                          },
-                        ),
-                      ),
+                    SportSelectorField(
+                      initialSport: _selectedSport,
+                      hintText: 'Search or Select Sport',
+                      onSportChanged: (sport) {
+                        setState(() {
+                          _selectedSport = sport;
+                        });
+                      },
                     ),
                     const SizedBox(height: 20),
 

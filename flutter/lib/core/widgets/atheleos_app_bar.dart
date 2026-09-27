@@ -34,11 +34,18 @@ class AtheleosAppBar extends ConsumerWidget implements PreferredSizeWidget {
       leading: leading,
       title: title ??
           (titleText == 'ATHELEOS'
-              ? Image.asset(
-                  'assets/images/atheleos_banner.png',
-                  height: 36,
-                  fit: BoxFit.contain,
-                  alignment: Alignment.centerLeft,
+              ? ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 32),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Image.asset(
+                      'assets/images/atheleos_banner.png',
+                      height: 32,
+                      fit: BoxFit.contain,
+                      alignment: Alignment.centerLeft,
+                    ),
+                  ),
                 )
               : Text(
                   titleText,
@@ -52,6 +59,8 @@ class AtheleosAppBar extends ConsumerWidget implements PreferredSizeWidget {
           ? [
               // Events Combine Button (Calendar outline icon)
               IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 tooltip: 'Events & Combine',
                 icon: const Icon(Icons.calendar_today_outlined),
                 onPressed: () {
@@ -60,6 +69,8 @@ class AtheleosAppBar extends ConsumerWidget implements PreferredSizeWidget {
               ),
               // Notifications Alerts Button with live unread badge
               IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 tooltip: 'Alerts & Notifications',
                 icon: _NotificationBell(count: unreadCount),
                 onPressed: () {
@@ -68,6 +79,8 @@ class AtheleosAppBar extends ConsumerWidget implements PreferredSizeWidget {
               ),
               // Chat Message Button
               IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 tooltip: 'Direct Messages',
                 icon: const Icon(Icons.chat_bubble_outline_rounded),
                 onPressed: () {

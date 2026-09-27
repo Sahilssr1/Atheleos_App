@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../domain/models/profile_model.dart';
 import '../../domain/models/stat_entry.dart';
+import '../../../../core/widgets/sport_selector_field.dart';
 import '../controllers/profile_controller.dart';
 import '../../../../core/utils/user_facing_error.dart';
 
@@ -1071,29 +1072,26 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 if (role == 'Athlete' || role == 'Coach') ...[
                   _buildSectionHeader('ATHLETIC DETAILS'),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _sportController,
-                          decoration: const InputDecoration(labelText: 'Sport'),
-                          validator: (val) => val == null || val.isEmpty
-                              ? 'Sport cannot be empty'
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _positionController,
-                          decoration: InputDecoration(
-                            labelText: role == 'Athlete'
-                                ? 'Primary Position'
-                                : 'Coaching Title',
-                          ),
-                        ),
-                      ),
-                    ],
+                  Text('Sport (Search or Custom)',
+                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white70)),
+                  const SizedBox(height: 6),
+                  SportSelectorField(
+                    initialSport: _sportController.text,
+                    hintText: 'Search or Select Sport',
+                    onSportChanged: (val) {
+                      setState(() {
+                        _sportController.text = val;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _positionController,
+                    decoration: InputDecoration(
+                      labelText: role == 'Athlete'
+                          ? 'Primary Position'
+                          : 'Coaching Title',
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(

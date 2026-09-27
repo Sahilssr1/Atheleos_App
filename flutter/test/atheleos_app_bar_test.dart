@@ -77,5 +77,29 @@ void main() {
       expect(find.text('5'), findsOneWidget);
       expect(find.byIcon(Icons.notifications), findsOneWidget);
     });
+
+    testWidgets('renders without overflow on narrow screens (320px width)', (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            unreadNotificationsCountProvider.overrideWith((ref) => Stream.value(0)),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              appBar: AtheleosAppBar(),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(Image), findsOneWidget);
+      expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsOneWidget);
+    });
   });
 }
