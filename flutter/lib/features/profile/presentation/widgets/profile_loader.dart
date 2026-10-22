@@ -4,14 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../controllers/profile_controller.dart';
-import 'athlete_profile_widget.dart';
-import 'coach_profile_widget.dart';
-import 'brand_profile_widget.dart';
-import 'federation_profile_widget.dart';
+import 'website_profile_view.dart';
 import '../controllers/settings_controller.dart';
 import '../../domain/models/profile_model.dart';
 import '../../domain/models/user_settings_model.dart';
 import '../../../../core/utils/user_facing_error.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class ProfileLoader extends ConsumerWidget {
   final String userId;
@@ -160,24 +158,7 @@ class ProfileLoader extends ConsumerWidget {
             );
           }
 
-          // Render appropriate widget based on role
-          Widget roleWidget;
-          switch (displayProfile.role) {
-            case 'Athlete':
-              roleWidget = AthleteProfileWidget(profile: displayProfile);
-              break;
-            case 'Coach':
-              roleWidget = CoachProfileWidget(profile: displayProfile);
-              break;
-            case 'Brand':
-              roleWidget = BrandProfileWidget(profile: displayProfile);
-              break;
-            case 'Federation':
-              roleWidget = FederationProfileWidget(profile: displayProfile);
-              break;
-            default:
-              roleWidget = AthleteProfileWidget(profile: displayProfile);
-          }
+          final roleWidget = WebsiteProfileView(profile: displayProfile);
 
           return RefreshIndicator(
             color: AppTheme.primaryColor,
@@ -214,7 +195,7 @@ class ProfileLoader extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.info_outline, size: 48, color: Colors.white38),
+            const Icon(AthIcons.informationCircle, size: 48, color: Colors.white38),
             const SizedBox(height: 16),
             Text(
               friendlyMessage,
@@ -231,7 +212,7 @@ class ProfileLoader extends ConsumerWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              icon: const Icon(Icons.refresh, size: 18),
+              icon: const Icon(AthIcons.arrowPath, size: 18),
               label: const Text('Try Again',
                   style: TextStyle(fontWeight: FontWeight.bold)),
               onPressed: () {
@@ -259,7 +240,7 @@ class ProfileLoader extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(AthIcons.arrowLeft, color: Colors.white),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
@@ -280,7 +261,7 @@ class ProfileLoader extends ConsumerWidget {
                 color: const Color(0xFF141414),
                 border: Border.all(color: const Color(0xFF262626), width: 2),
               ),
-              child: const Icon(Icons.person, size: 48, color: Colors.white30),
+              child: const Icon(AthIcons.userSolid, size: 48, color: Colors.white30),
             ),
             const SizedBox(height: 14),
 
@@ -341,7 +322,7 @@ class ProfileLoader extends ConsumerWidget {
 
             // Instagram-Style Restriction Card
             Icon(
-              hasBlocked ? Icons.block_flipped : Icons.lock_outline_rounded,
+              hasBlocked ? AthIcons.noSymbol : AthIcons.lockClosed,
               color: Colors.white30,
               size: 48,
             ),

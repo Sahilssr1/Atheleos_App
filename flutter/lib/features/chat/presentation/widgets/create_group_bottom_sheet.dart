@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/user_facing_error.dart';
 import '../../../profile/domain/models/profile_model.dart';
 import '../controllers/chat_controller.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class CreateGroupBottomSheet extends ConsumerStatefulWidget {
   final List<ProfileModel> availableProfiles;
@@ -150,7 +151,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white70),
+                  icon: const Icon(AthIcons.xMark, color: Colors.white70),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -171,7 +172,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
                 decoration: const InputDecoration(
                   hintText: 'Enter group name (optional)...',
                   hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
-                  prefixIcon: Icon(Icons.groups_rounded, color: AppTheme.primaryColor),
+                  prefixIcon: Icon(AthIcons.userGroup, color: AppTheme.primaryColor),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 12),
                 ),
@@ -203,7 +204,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
                               backgroundColor: Colors.white10,
                               child: (profile.avatarUrl.isEmpty ||
                                       (!profile.avatarUrl.startsWith('http://') && !profile.avatarUrl.startsWith('https://')))
-                                  ? const Icon(Icons.person, size: 20, color: Colors.white54)
+                                  ? const Icon(AthIcons.userSolid, size: 20, color: Colors.white54)
                                   : null,
                             ),
                             const SizedBox(height: 4),
@@ -233,7 +234,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
                                 color: Colors.redAccent,
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.close, size: 12, color: Colors.white),
+                              child: const Icon(AthIcons.xMark, size: 12, color: Colors.white),
                             ),
                           ),
                         ),
@@ -259,7 +260,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
                 decoration: const InputDecoration(
                   hintText: 'Search followers & athletes...',
                   hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
-                  prefixIcon: Icon(Icons.search, color: Colors.white38, size: 18),
+                  prefixIcon: Icon(AthIcons.search, color: Colors.white38, size: 18),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(vertical: 10),
                 ),
@@ -294,7 +295,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
                             backgroundColor: Colors.white10,
                             child: (profile.avatarUrl.isEmpty ||
                                     (!profile.avatarUrl.startsWith('http://') && !profile.avatarUrl.startsWith('https://')))
-                                ? const Icon(Icons.person, size: 18, color: Colors.white54)
+                                ? const Icon(AthIcons.userSolid, size: 18, color: Colors.white54)
                                 : null,
                           ),
                           title: Row(
@@ -308,7 +309,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
                               ),
                               if (profile.verified) ...[
                                 const SizedBox(width: 4),
-                                const Icon(Icons.verified, color: Colors.blue, size: 13),
+                                const Icon(AthIcons.checkBadgeSolid, color: Colors.blue, size: 13),
                               ],
                             ],
                           ),
@@ -328,7 +329,7 @@ class _CreateGroupBottomSheetState extends ConsumerState<CreateGroupBottomSheet>
                               ),
                             ),
                             child: isSelected
-                                ? const Icon(Icons.check, size: 16, color: Colors.black)
+                                ? const Icon(AthIcons.check, size: 16, color: Colors.black)
                                 : null,
                           ),
                           onTap: () {

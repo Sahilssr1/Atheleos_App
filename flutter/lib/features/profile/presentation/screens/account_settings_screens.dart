@@ -13,6 +13,7 @@ import '../controllers/profile_controller.dart';
 import '../controllers/settings_controller.dart';
 import 'edit_profile_screen.dart';
 import '../../../../core/utils/user_facing_error.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class EditProfileSettingsRoute extends ConsumerWidget {
   const EditProfileSettingsRoute({super.key});
@@ -138,7 +139,7 @@ class _ChangeUsernameScreenState extends ConsumerState<ChangeUsernameScreen> {
                 : _message.isEmpty
                     ? null
                     : Icon(
-                        _available ? Icons.check_circle : Icons.error_outline,
+                        _available ? AthIcons.checkCircleSolid : AthIcons.exclamationCircle,
                         color:
                             _available ? Colors.greenAccent : Colors.redAccent,
                       ),
@@ -532,7 +533,7 @@ class _AlternateEmailScreenState extends ConsumerState<AlternateEmailScreen> {
         if ((recovery?['alternateEmail'] as String? ?? '').isNotEmpty) ...[
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.verified, color: Colors.greenAccent),
+            leading: const Icon(AthIcons.checkBadgeSolid, color: Colors.greenAccent),
             title: Text(recovery!['alternateEmail'] as String),
             subtitle: const Text('Verified backup email'),
           ),
@@ -638,13 +639,13 @@ class _ConnectedAccountScreenState
                 ? null
                 : NetworkImage(google!.photoURL!),
             child: google?.photoURL == null
-                ? const Icon(Icons.account_circle)
+                ? const Icon(AthIcons.userCircle)
                 : null,
           ),
           title: Text(google?.displayName ?? 'Google account'),
           subtitle: Text(google?.email ?? 'Not connected'),
           trailing: Icon(
-            google == null ? Icons.link_off : Icons.verified,
+            google == null ? AthIcons.link : AthIcons.checkBadgeSolid,
             color: google == null ? Colors.white38 : Colors.greenAccent,
           ),
         ),
@@ -717,7 +718,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
     return _SettingsFormScaffold(
       title: 'DELETE ACCOUNT',
       children: [
-        const Icon(Icons.warning_amber_rounded,
+        const Icon(AthIcons.exclamationTriangle,
             color: Colors.redAccent, size: 48),
         const SizedBox(height: 16),
         const Text(
@@ -832,8 +833,8 @@ class _PasswordFieldState extends State<_PasswordField> {
           tooltip: _obscure ? 'Show password' : 'Hide password',
           onPressed: () => setState(() => _obscure = !_obscure),
           icon: Icon(_obscure
-              ? Icons.visibility_outlined
-              : Icons.visibility_off_outlined),
+              ? AthIcons.eye
+              : AthIcons.eyeSlash),
         ),
       ),
     );

@@ -111,7 +111,7 @@ class _FollowBackButtonState extends ConsumerState<FollowBackButton> {
         ),
         title: Text(
           'Unfollow @$displayName?',
-          style: GoogleFonts.spaceGrotesk(
+          style: GoogleFonts.outfit(
             color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 16,
@@ -119,7 +119,7 @@ class _FollowBackButtonState extends ConsumerState<FollowBackButton> {
         ),
         content: Text(
           'Their posts and updates will no longer appear in your personal feed.',
-          style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+          style: GoogleFonts.outfit(color: Colors.white70, fontSize: 13),
         ),
         actions: [
           TextButton(
@@ -236,7 +236,7 @@ class _FollowBackButtonState extends ConsumerState<FollowBackButton> {
               )
             : Text(
                 'Following',
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   color: Colors.white,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -267,7 +267,7 @@ class _FollowBackButtonState extends ConsumerState<FollowBackButton> {
             )
           : Text(
               'Follow back',
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                 color: Colors.black,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,

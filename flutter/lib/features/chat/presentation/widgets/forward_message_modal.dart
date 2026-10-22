@@ -8,6 +8,7 @@ import '../../../profile/domain/models/profile_model.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../controllers/chat_list_controller.dart';
 import '../controllers/chat_controller.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class ForwardMessageModal extends ConsumerStatefulWidget {
   final ChatMessage message;
@@ -207,7 +208,7 @@ class _ForwardMessageModalState extends ConsumerState<ForwardMessageModal> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white70),
+                  icon: const Icon(AthIcons.xMark, color: Colors.white70),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -224,7 +225,7 @@ class _ForwardMessageModalState extends ConsumerState<ForwardMessageModal> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.reply_all_rounded, color: AppTheme.primaryColor, size: 18),
+                  const Icon(AthIcons.arrowUturnLeft, color: AppTheme.primaryColor, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -255,7 +256,7 @@ class _ForwardMessageModalState extends ConsumerState<ForwardMessageModal> {
                 decoration: const InputDecoration(
                   hintText: 'Search chats & athletes...',
                   hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
-                  prefixIcon: Icon(Icons.search, color: Colors.white38, size: 18),
+                  prefixIcon: Icon(AthIcons.search, color: Colors.white38, size: 18),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(vertical: 10),
                 ),
@@ -289,7 +290,7 @@ class _ForwardMessageModalState extends ConsumerState<ForwardMessageModal> {
                             child: (target.avatarUrl.isEmpty ||
                                     (!target.avatarUrl.startsWith('http://') && !target.avatarUrl.startsWith('https://')))
                                 ? Icon(
-                                    target.isGroup ? Icons.groups_rounded : Icons.person,
+                                    target.isGroup ? AthIcons.userGroup : AthIcons.userSolid,
                                     size: 18,
                                     color: target.isGroup ? AppTheme.primaryColor : Colors.white54,
                                   )
@@ -306,7 +307,7 @@ class _ForwardMessageModalState extends ConsumerState<ForwardMessageModal> {
                               ),
                               if (target.isVerified) ...[
                                 const SizedBox(width: 4),
-                                const Icon(Icons.verified, color: Colors.blue, size: 13),
+                                const Icon(AthIcons.checkBadgeSolid, color: Colors.blue, size: 13),
                               ],
                             ],
                           ),
@@ -326,7 +327,7 @@ class _ForwardMessageModalState extends ConsumerState<ForwardMessageModal> {
                               ),
                             ),
                             child: isSelected
-                                ? const Icon(Icons.check, size: 16, color: Colors.black)
+                                ? const Icon(AthIcons.check, size: 16, color: Colors.black)
                                 : null,
                           ),
                           onTap: () {

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/sports_service.dart';
 import '../../../feed/domain/models/post_model.dart';
@@ -12,10 +11,13 @@ import '../../../clips/presentation/controllers/clips_controller.dart';
 import '../controllers/search_controller.dart';
 import '../../../clips/presentation/screens/clips_screen.dart';
 import '../../../../core/widgets/app_avatar.dart';
+import '../../../../core/widgets/app_media_thumbnail.dart';
+import '../../../feed/presentation/screens/user_posts_viewer_screen.dart';
 
 import '../../../../core/services/cache_manager.dart';
 import '../../../../core/services/network_service.dart';
 import '../../../../core/utils/user_facing_error.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   static const List<String> supportedStates = [
@@ -96,23 +98,36 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   void _onClipTap(PostModel clip) {
     if (clip.media.isNotEmpty) {
-      final currentClips = ref.read(clipsProvider).valueOrNull ?? [];
-      final mediaClips = currentClips.where((c) => c.media.isNotEmpty).toList();
-      int initialIndex = mediaClips.indexWhere((c) => c.id == clip.id);
-      if (initialIndex == -1) {
-        initialIndex = 0;
-        mediaClips.insert(0, clip);
-      }
+      if (clip.hasVideo) {
+        final currentClips = ref.read(clipsProvider).valueOrNull ?? [];
+        final mediaClips = currentClips.where((c) => c.media.isNotEmpty).toList();
+        int initialIndex = mediaClips.indexWhere((c) => c.id == clip.id);
+        if (initialIndex == -1) {
+          initialIndex = 0;
+          mediaClips.insert(0, clip);
+        }
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ReelsViewerScreen(
-            clips: mediaClips,
-            initialIndex: initialIndex,
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ReelsViewerScreen(
+              clips: mediaClips,
+              initialIndex: initialIndex,
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => UserPostsViewerScreen.forPosts(
+              posts: [clip],
+              initialPostId: clip.id,
+              title: 'Explore',
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -153,12 +168,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                             _isSearchActive = val.isNotEmpty || _searchFocusNode.hasFocus;
                           });
                         },
-                        style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                        style: GoogleFonts.outfit(color: Colors.white, fontSize: 14),
                         decoration: InputDecoration(
                           hintText: 'Search athletes, coaches, brands, federations...',
-                          hintStyle: GoogleFonts.inter(color: Colors.white30, fontSize: 14),
+                          hintStyle: GoogleFonts.outfit(color: AppTheme.textTertiary, fontSize: 13),
                           prefixIcon: Icon(
-                            Icons.search_rounded,
+                            AthIcons.search,
                             color: _isSearchActive ? AppTheme.primaryColor : Colors.white30,
                             size: 22,
                           ),
@@ -169,7 +184,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                     ref.read(searchFiltersProvider.notifier).setQuery('');
                                     setState(() { _isSearchActive = _searchFocusNode.hasFocus; });
                                   },
-                                  child: const Icon(Icons.close_rounded, color: Colors.white38, size: 20),
+                                  child: const Icon(AthIcons.xMark, color: Colors.white38, size: 20),
                                 )
                               : null,
                           border: InputBorder.none,
@@ -189,7 +204,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       },
                       child: Text(
                         'Cancel',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.outfit(
                           color: AppTheme.primaryColor,
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
@@ -216,7 +231,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   // ═══════════════════════════════════════════════════════════════════
-  // EXPLORE GRID — Instagram-style grid of video clip thumbnails
+  // EXPLORE GRID — Instagram-style grid of photo & video clip thumbnails
   // ═══════════════════════════════════════════════════════════════════
   Widget _buildExploreGrid(AsyncValue<List<PostModel>> clipsAsync, bool isOnline) {
     List<PostModel> clips = [];
@@ -229,73 +244,81 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       data: (data) => clips = data,
     );
 
+    // Merge in feed posts that have media (both images and clips)
+    final feedPosts = (ref.watch(feedPostsProvider).valueOrNull ?? [])
+        .where((p) => p.media.isNotEmpty)
+        .toList();
+
+    final Map<String, PostModel> exploreMap = {};
+    for (final c in clips) {
+      exploreMap[c.id] = c;
+    }
+    for (final p in feedPosts) {
+      exploreMap[p.id] = p;
+    }
+    List<PostModel> exploreItems = exploreMap.values.toList();
+    exploreItems.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    // Fallback to cache if offline and no memory data loaded
+    if (exploreItems.isEmpty) {
+      try {
+        final cached = CacheManager().loadExplore();
+        final cachedList = cached
+            .map((map) => PostModel.fromMap(map))
+            .where((p) => p.media.isNotEmpty)
+            .toList();
+        if (cachedList.isNotEmpty) {
+          exploreItems = cachedList;
+          isLoading = false;
+          hasError = false;
+        }
+      } catch (_) {}
+    }
+
     // Cache Explore data when online
-    if (isOnline && clips.isNotEmpty) {
+    if (isOnline && exploreItems.isNotEmpty) {
       Future.microtask(() {
         try {
-          CacheManager().saveExplore(clips.map((c) => c.toMap()).toList());
+          CacheManager().saveExplore(exploreItems.map((c) => c.toMap()).toList());
         } catch (_) {}
       });
     }
 
-    // Fallback: If clips is empty, also try to pull any video posts already loaded in feedPostsProvider or cache
-    if (clips.isEmpty) {
-      try {
-        final feedPosts = ref.watch(feedPostsProvider).valueOrNull ?? [];
-        final videoPosts = feedPosts.where((p) => p.hasVideo).toList();
-        if (videoPosts.isNotEmpty) {
-          clips = videoPosts;
-          isLoading = false;
-          hasError = false;
-        }
-      } catch (_) {}
-    }
-
-    // Fallback to cache if offline and no memory data loaded
-    if (clips.isEmpty) {
-      try {
-        final cached = CacheManager().loadExplore();
-        final cachedList = cached.map((map) => PostModel.fromMap(map)).toList();
-        if (cachedList.isNotEmpty) {
-          clips = cachedList;
-          isLoading = false;
-          hasError = false;
-        }
-      } catch (_) {}
-    }
-
-    if (isLoading && clips.isEmpty) {
+    if (isLoading && exploreItems.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(color: AppTheme.primaryColor),
       );
     }
 
-    if (hasError && clips.isEmpty) {
+    if (hasError && exploreItems.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, color: Colors.white24, size: 48),
+            const Icon(AthIcons.exclamationCircle, color: Colors.white24, size: 48),
             const SizedBox(height: 12),
-            Text('Could not load content', style: GoogleFonts.inter(color: Colors.white38, fontSize: 13)),
-            const SizedBox(height: 16),
-            GestureDetector(
-              onTap: () => ref.invalidate(clipsProvider),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text('Retry', style: GoogleFonts.inter(color: Colors.black, fontWeight: FontWeight.bold)),
+            Text(
+              'Unable to load explore grid',
+              style: GoogleFonts.outfit(color: Colors.white70, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: () => ref.read(clipsProvider.notifier).refresh(),
+              icon: const Icon(AthIcons.arrowPath, size: 16),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.black,
               ),
             ),
           ],
         ),
       );
     }
-    return _buildExploreGridContent(clips);
+
+    return _buildExploreGridContent(exploreItems);
   }
+
 
   Widget _buildExploreGridContent(List<PostModel> clips) {
     if (clips.isEmpty) {
@@ -303,13 +326,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.explore_outlined, size: 56, color: Colors.white.withValues(alpha: 0.15)),
+            Icon(AthIcons.globeAlt, size: 56, color: Colors.white.withValues(alpha: 0.15)),
             const SizedBox(height: 16),
             Text('No clips to explore yet',
-                style: GoogleFonts.spaceGrotesk(color: Colors.white38, fontWeight: FontWeight.w600, fontSize: 15)),
+                style: GoogleFonts.outfit(color: Colors.white38, fontWeight: FontWeight.w600, fontSize: 15)),
             const SizedBox(height: 6),
             Text('Upload a video to get started!',
-                style: GoogleFonts.inter(color: Colors.white24, fontSize: 12)),
+                style: GoogleFonts.outfit(color: Colors.white24, fontSize: 12)),
           ],
         ),
       );
@@ -389,14 +412,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    Icons.check_circle_outline_rounded,
+                                    AthIcons.checkCircle,
                                     size: 14,
                                     color: Colors.white.withValues(alpha: 0.35),
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
                                     "You're all caught up",
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.outfit(
                                       color: Colors.white.withValues(alpha: 0.45),
                                       fontSize: 12,
                                       fontWeight: FontWeight.w500,
@@ -546,7 +569,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   // ── Explore Grid Item Builder ─────────────────────────────────────
   Widget _buildGridItem(PostModel clip, double width, double height) {
-    final thumbnailUrl = _getThumbnailUrl(clip);
+    final media = clip.media.isNotEmpty ? clip.media.first : null;
+    final isVideo = clip.hasVideo || (media?.isVideo ?? false);
+    final videoUrl = isVideo ? media?.mediaUrl : null;
+    final thumbUrl = isVideo
+        ? (media?.thumbnailUrl ?? _getThumbnailUrl(clip))
+        : (media?.mediaUrl ?? '');
+
     return GestureDetector(
       onTap: () => _onClipTap(clip),
       child: Container(
@@ -557,71 +586,51 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Thumbnail
-              if (thumbnailUrl.isNotEmpty)
-                CachedNetworkImage(
-                  imageUrl: thumbnailUrl,
-                  fit: BoxFit.cover,
-                  memCacheWidth: 600,
-                  placeholder: (context, url) => Container(
-                    color: const Color(0xFF141414),
-                    child: const Center(
-                      child: SizedBox(
-                        width: 16, height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2, color: AppTheme.primaryColor,
+              // Thumbnail & Video first frame preview
+              AppMediaThumbnail(
+                imageUrl: thumbUrl,
+                videoUrl: videoUrl,
+                isVideo: isVideo,
+                fit: BoxFit.cover,
+                memCacheWidth: 600,
+                showPlayIcon: false,
+              ),
+
+              // Bottom gradient overlay (video only)
+              if (isVideo)
+                Positioned(
+                  bottom: 0, left: 0, right: 0,
+                  child: Container(
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [Colors.black87, Colors.transparent],
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Play icon + views count (videos only)
+              if (isVideo)
+                Positioned(
+                  bottom: 6, left: 6,
+                  child: Row(
+                    children: [
+                      const Icon(AthIcons.play, color: Colors.white, size: 16),
+                      const SizedBox(width: 2),
+                      Text(
+                        _formatCount(clip.views),
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    color: const Color(0xFF181818),
-                    child: const Center(
-                      child: Icon(Icons.play_circle_outline, color: Colors.white24, size: 32),
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  color: const Color(0xFF181818),
-                  child: const Center(
-                    child: Icon(Icons.play_circle_outline, color: Colors.white24, size: 32),
+                    ],
                   ),
                 ),
-
-              // Bottom gradient overlay
-              Positioned(
-                bottom: 0, left: 0, right: 0,
-                child: Container(
-                  height: 48,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [Colors.black87, Colors.transparent],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Play icon + views count
-              Positioned(
-                bottom: 6, left: 6,
-                child: Row(
-                  children: [
-                    const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16),
-                    const SizedBox(width: 2),
-                    Text(
-                      _formatCount(clip.views),
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
 
               // Sport tag (top right)
               if (clip.sport.isNotEmpty)
@@ -635,7 +644,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     ),
                     child: Text(
                       clip.sport,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.outfit(
                         color: Colors.white70,
                         fontSize: 8,
                         fontWeight: FontWeight.w600,
@@ -671,7 +680,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               children: [
                 Text(
                   'Recent Searches',
-                  style: GoogleFonts.spaceGrotesk(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 13),
+                  style: GoogleFonts.outfit(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 TextButton(
                   onPressed: () {
@@ -681,7 +690,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   },
                   child: Text(
                     'Clear All',
-                    style: GoogleFonts.inter(color: AppTheme.primaryColor, fontSize: 12, fontWeight: FontWeight.w600),
+                    style: GoogleFonts.outfit(color: AppTheme.primaryColor, fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -695,7 +704,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ref.read(searchFiltersProvider.notifier).setQuery(q);
                 },
                 child: Chip(
-                  label: Text(q, style: GoogleFonts.inter(fontSize: 12, color: Colors.white)),
+                  label: Text(q, style: GoogleFonts.outfit(fontSize: 12, color: Colors.white)),
                   backgroundColor: const Color(0xFF141414),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -708,7 +717,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ],
           Text(
             'Suggested Users',
-            style: GoogleFonts.spaceGrotesk(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 13),
+            style: GoogleFonts.outfit(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 13),
           ),
           const SizedBox(height: 10),
           resultsAsync.when(
@@ -774,7 +783,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 _buildFilterChip(
                   label: 'Verified',
                   isActive: filters.onlyVerified,
-                  icon: Icons.verified,
+                  icon: AthIcons.checkBadgeSolid,
                   onTap: () => ref.read(searchFiltersProvider.notifier).setOnlyVerified(!filters.onlyVerified),
                 ),
               ],
@@ -795,7 +804,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 padding: const EdgeInsets.all(24.0),
                 child: Text(
                   UserFacingError.message(err, fallback: 'Unable to load profiles right now. Please try again.'),
-                  style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+                  style: GoogleFonts.outfit(color: Colors.white54, fontSize: 13),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -806,13 +815,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.person_search_outlined, size: 48, color: Colors.white.withValues(alpha: 0.15)),
+                      Icon(AthIcons.magnifyingGlass, size: 48, color: Colors.white.withValues(alpha: 0.15)),
                       const SizedBox(height: 12),
                       Text('No profiles found',
-                          style: GoogleFonts.inter(color: Colors.white38, fontSize: 14)),
+                          style: GoogleFonts.outfit(color: Colors.white38, fontSize: 14)),
                       const SizedBox(height: 4),
                       Text('Try adjusting your search or filters',
-                          style: GoogleFonts.inter(color: Colors.white24, fontSize: 12)),
+                          style: GoogleFonts.outfit(color: Colors.white24, fontSize: 12)),
                     ],
                   ),
                 );
@@ -827,7 +836,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Text(
                         '${users.length} result${users.length != 1 ? 's' : ''}',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.outfit(
                           color: Colors.white38,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
@@ -893,7 +902,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           Flexible(
                             child: Text(
                               athlete.name,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.outfit(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
@@ -903,20 +912,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           ),
                           if (athlete.verified) ...[
                             const SizedBox(width: 4),
-                            const Icon(Icons.verified, size: 15, color: AppTheme.primaryColor),
+                            const Icon(AthIcons.checkBadgeSolid, size: 15, color: AppTheme.primaryColor),
                           ],
                         ],
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '${athlete.sport} • ${athlete.primaryPosition}',
-                        style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
+                        style: GoogleFonts.outfit(color: Colors.white54, fontSize: 12),
                         overflow: TextOverflow.ellipsis,
                       ),
                       if (athlete.city.isNotEmpty || athlete.state.isNotEmpty)
                         Text(
                           [athlete.city, athlete.state].where((s) => s.isNotEmpty).join(', '),
-                          style: GoogleFonts.inter(color: Colors.white30, fontSize: 10),
+                          style: GoogleFonts.outfit(color: Colors.white30, fontSize: 10),
                           overflow: TextOverflow.ellipsis,
                         ),
                     ],
@@ -932,7 +941,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ),
                   child: Text(
                     athlete.role,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.outfit(
                       color: AppTheme.primaryColor,
                       fontWeight: FontWeight.w700,
                       fontSize: 10,
@@ -975,7 +984,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ],
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.outfit(
                 color: isActive ? AppTheme.primaryColor : Colors.white60,
                 fontWeight: FontWeight.w600,
                 fontSize: 12,
@@ -983,7 +992,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
             if (!isActive && icon == null) ...[
               const SizedBox(width: 4),
-              Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.white.withValues(alpha: 0.3)),
+              Icon(AthIcons.chevronDown, size: 16, color: Colors.white.withValues(alpha: 0.3)),
             ],
           ],
         ),
@@ -1019,7 +1028,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(title,
-                    style: GoogleFonts.spaceGrotesk(
+                    style: GoogleFonts.outfit(
                       color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
               ),
             ),
@@ -1035,13 +1044,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   return ListTile(
                     title: Text(
                       option,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.outfit(
                         color: isSelected ? AppTheme.primaryColor : Colors.white70,
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
                     trailing: isSelected
-                        ? const Icon(Icons.check_circle, color: AppTheme.primaryColor, size: 20)
+                        ? const Icon(AthIcons.checkCircleSolid, color: AppTheme.primaryColor, size: 20)
                         : null,
                     onTap: () {
                       onSelected(option);

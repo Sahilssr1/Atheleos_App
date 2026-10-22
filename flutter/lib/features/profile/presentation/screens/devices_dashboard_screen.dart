@@ -8,6 +8,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/user_facing_error.dart';
 import '../controllers/profile_controller.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 final currentDeviceSessionProvider =
     FutureProvider<Map<String, dynamic>>((ref) async {
@@ -93,8 +94,8 @@ class DevicesDashboardScreen extends ConsumerWidget {
               leading: Icon(
                 session['platform'] == 'macos' ||
                         session['platform'] == 'windows'
-                    ? Icons.laptop_mac_outlined
-                    : Icons.phone_android_outlined,
+                    ? AthIcons.cpuChip
+                    : AthIcons.devicePhoneMobile,
                 color: AppTheme.primaryColor,
               ),
               title: Text(session['name'] as String),

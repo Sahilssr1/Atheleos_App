@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../utils/password_validator.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class PasswordRequirementsView extends StatelessWidget {
   final String password;
@@ -31,7 +32,7 @@ class PasswordRequirementsView extends StatelessWidget {
         children: [
           Text(
             'PASSWORD MUST CONTAIN:',
-            style: GoogleFonts.spaceGrotesk(
+            style: GoogleFonts.outfit(
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 1,
@@ -60,14 +61,14 @@ class PasswordRequirementsView extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
-          isSatisfied ? Icons.check_circle_rounded : Icons.circle_outlined,
+          isSatisfied ? AthIcons.checkCircleSolid : Icons.circle_outlined,
           size: 13,
           color: isSatisfied ? AppTheme.primaryColor : Colors.white24,
         ),
         const SizedBox(width: 5),
         Text(
           label,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.outfit(
             fontSize: 11,
             color: isSatisfied ? Colors.white : Colors.white38,
             fontWeight: isSatisfied ? FontWeight.w600 : FontWeight.normal,

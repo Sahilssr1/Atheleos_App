@@ -5,6 +5,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/user_facing_error.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../controllers/chat_controller.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class ShareContentBottomSheet extends ConsumerStatefulWidget {
   final String? postId;
@@ -196,10 +197,10 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
                 decoration: InputDecoration(
                   hintText: 'Write a message... (attached to shared item)',
                   hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
-                  prefixIcon: const Icon(Icons.mode_comment_outlined, color: AppTheme.primaryColor, size: 18),
+                  prefixIcon: const Icon(AthIcons.chatRound, color: AppTheme.primaryColor, size: 18),
                   suffixIcon: _commentController.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white38, size: 16),
+                          icon: const Icon(AthIcons.xMark, color: Colors.white38, size: 16),
                           onPressed: () {
                             setState(() => _commentController.clear());
                           },
@@ -220,7 +221,7 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
               decoration: InputDecoration(
                 hintText: 'Search followers & athletes...',
                 hintStyle: const TextStyle(color: Colors.white30, fontSize: 12),
-                prefixIcon: const Icon(Icons.search, color: Colors.white54, size: 18),
+                prefixIcon: const Icon(AthIcons.search, color: Colors.white54, size: 18),
                 filled: true,
                 fillColor: const Color(0xFF181818),
                 border: OutlineInputBorder(
@@ -254,7 +255,7 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
                     padding: const EdgeInsets.all(24.0),
                     child: Text(
                       UserFacingError.message(err, fallback: 'Unable to load contacts. Please try again.'),
-                      style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+                      style: GoogleFonts.outfit(color: Colors.white54, fontSize: 13),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -309,7 +310,7 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
                               backgroundColor: Colors.white10,
                               child: (profile.avatarUrl.isEmpty ||
                                       (!profile.avatarUrl.startsWith('http://') && !profile.avatarUrl.startsWith('https://')))
-                                  ? const Icon(Icons.person, size: 20, color: Colors.white54)
+                                  ? const Icon(AthIcons.userSolid, size: 20, color: Colors.white54)
                                   : null,
                             ),
                             if (profile.isFollowing)
@@ -322,7 +323,7 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
                                     color: AppTheme.primaryColor,
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.star, size: 8, color: Colors.black),
+                                  child: const Icon(AthIcons.starSolid, size: 8, color: Colors.black),
                                 ),
                               ),
                           ],
@@ -342,7 +343,7 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
                             ),
                             if (profile.verified) ...[
                               const SizedBox(width: 4),
-                              const Icon(Icons.verified, color: Colors.blue, size: 13),
+                              const Icon(AthIcons.checkBadgeSolid, color: Colors.blue, size: 13),
                             ],
                           ],
                         ),
@@ -419,7 +420,7 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
                                   color: isSelected ? AppTheme.primaryColor : Colors.transparent,
                                 ),
                                 child: isSelected
-                                    ? const Icon(Icons.check, size: 14, color: Colors.black)
+                                    ? const Icon(AthIcons.check, size: 14, color: Colors.black)
                                     : null,
                               ),
                             ),
@@ -458,7 +459,7 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
                   ),
                   child: Text(
                     'Send to ${_selectedReceiverIds.length} ${_selectedReceiverIds.length == 1 ? "person" : "people"}',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.outfit(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
                       color: Colors.black,
@@ -480,20 +481,20 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
 
     switch (widget.shareType) {
       case 'event':
-        icon = Icons.calendar_month_rounded;
+        icon = AthIcons.calendar;
         label = 'Event';
         break;
       case 'reel':
-        icon = Icons.video_library_rounded;
+        icon = AthIcons.film;
         label = 'Reel';
         break;
       case 'profile':
-        icon = Icons.person_rounded;
+        icon = AthIcons.userSolid;
         label = 'Profile';
         break;
       case 'post':
       default:
-        icon = Icons.feed_rounded;
+        icon = AthIcons.documentText;
         label = 'Post';
         break;
     }
@@ -544,9 +545,9 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
                         ? Image.network(
                             event.bannerThumbnailUrl.isNotEmpty ? event.bannerThumbnailUrl : event.bannerUrl,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(Icons.event, color: Colors.white38, size: 20),
+                            errorBuilder: (_, __, ___) => const Icon(AthIcons.calendar, color: Colors.white38, size: 20),
                           )
-                        : const Icon(Icons.event, color: Colors.white38, size: 20),
+                        : const Icon(AthIcons.calendar, color: Colors.white38, size: 20),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -604,9 +605,9 @@ class _ShareContentBottomSheetState extends ConsumerState<ShareContentBottomShee
                         ? Image.network(
                             mediaUrl,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(Icons.image, color: Colors.white38, size: 20),
+                            errorBuilder: (_, __, ___) => const Icon(AthIcons.photo, color: Colors.white38, size: 20),
                           )
-                        : const Icon(Icons.feed, color: Colors.white38, size: 20),
+                        : const Icon(AthIcons.documentText, color: Colors.white38, size: 20),
                   ),
                 ),
                 const SizedBox(width: 10),

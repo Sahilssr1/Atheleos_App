@@ -1,3 +1,5 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,6 +33,7 @@ import '../../features/profile/presentation/screens/account_settings_screens.dar
 import '../../features/profile/presentation/screens/safety_support_screens.dart';
 import '../../features/profile/presentation/screens/following_list_screen.dart';
 import '../../features/profile/domain/models/profile_model.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 final authStateProvider = StateProvider<bool>((ref) => false);
 
@@ -40,9 +43,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/login',
     redirect: (context, state) {
-      final isAuthRoute = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/register' ||
-          state.matchedLocation == '/forgot-password';
+      final loc = state.matchedLocation;
+      if (loc == '/' || loc == '/feed') {
+        return isAuthenticated ? '/home' : '/login';
+      }
+
+      final isAuthRoute = loc == '/login' ||
+          loc == '/register' ||
+          loc == '/forgot-password';
 
       if (!isAuthenticated) {
         return isAuthRoute ? null : '/login';
@@ -55,6 +63,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/',
+        redirect: (context, state) => '/home',
+      ),
+      GoRoute(
+        path: '/feed',
+        redirect: (context, state) => '/home',
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
@@ -324,11 +340,11 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.exit_to_app, color: AppTheme.primaryColor, size: 20),
+              const Icon(AthIcons.arrowRightOnRectangle, color: AppTheme.primaryColor, size: 20),
               const SizedBox(width: 10),
               Text(
                 'Press back again to exit',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.outfit(
                   color: Colors.white,
                   fontWeight: FontWeight.w500,
                   fontSize: 13.5,
@@ -379,62 +395,75 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final currentIndex = widget.navigationShell.currentIndex;
 
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: Colors.black,
-        border: Border(
-          top: BorderSide(
-            color: Color(0xFF1E1E1E),
-            width: 0.8,
-          ),
+    return ColoredBox(
+      color: Colors.black,
+      child: Padding(
+      padding: EdgeInsets.fromLTRB(8, 4, 8, bottomInset > 0 ? bottomInset : 8),
+      child: Container(
+        height: 62,
+        decoration: BoxDecoration(
+          color: const Color(0xE6000000),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0x14FFFFFF)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0xCC000000),
+              blurRadius: 24,
+              offset: Offset(0, -4),
+            ),
+          ],
         ),
-      ),
-      padding: EdgeInsets.only(
-        top: 6,
-        bottom: bottomInset > 0 ? bottomInset : 8,
-      ),
-      child: Row(
+        child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildNavItem(
             index: 0,
             currentIndex: currentIndex,
             label: 'Home',
-            icon: Icons.home_outlined,
-            selectedIcon: Icons.home_rounded,
+            icon: AthIcons.home,
+            selectedIcon: AthIcons.homeFill,
           ),
           _buildNavItem(
             index: 1,
             currentIndex: currentIndex,
             label: 'Search',
-            icon: Icons.search_rounded,
-            selectedIcon: Icons.search_rounded,
+            icon: AthIcons.search,
+            selectedIcon: AthIcons.search,
           ),
           _buildNavItem(
             index: 2,
             currentIndex: currentIndex,
             label: 'Upload',
-            icon: Icons.add_circle_outline_rounded,
-            selectedIcon: Icons.add_circle_rounded,
+            icon: AthIcons.plusCircle,
+            selectedIcon: AthIcons.plusCircle,
           ),
           _buildNavItem(
             index: 3,
             currentIndex: currentIndex,
             label: 'Clips',
-            icon: Icons.play_circle_outline_rounded,
-            selectedIcon: Icons.play_circle_rounded,
+            icon: AthIcons.playCircle,
+            selectedIcon: AthIcons.playCircle,
           ),
           _buildNavItem(
             index: 4,
             currentIndex: currentIndex,
             label: 'Profile',
-            icon: Icons.person_outline_rounded,
-            selectedIcon: Icons.person_rounded,
+            icon: AthIcons.user,
+            selectedIcon: AthIcons.user,
+            avatarUrl: _navAvatarUrl(),
           ),
         ],
+        ),
+      ),
       ),
     );
+  }
+
+  String _navAvatarUrl() {
+    final fromProfile =
+        ref.watch(currentUserProvider).valueOrNull?.avatarUrl.trim() ?? '';
+    if (fromProfile.isNotEmpty) return fromProfile;
+    return FirebaseAuth.instance.currentUser?.photoURL ?? '';
   }
 
   Widget _buildNavItem({
@@ -443,8 +472,11 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
     required String label,
     required IconData icon,
     required IconData selectedIcon,
+    String? avatarUrl,
   }) {
     final isSelected = index == currentIndex;
+    final photo = avatarUrl?.trim() ?? '';
+    final hasPhoto = photo.startsWith('http');
 
     return Expanded(
       child: GestureDetector(
@@ -471,26 +503,47 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeInOut,
-              width: 58,
-              height: 32,
+              padding: EdgeInsets.symmetric(
+                horizontal: isSelected ? 16 : 4,
+                vertical: 4,
+              ),
               decoration: BoxDecoration(
                 color: isSelected ? AppTheme.primaryColor : Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: isSelected
+                    ? const [
+                        BoxShadow(
+                          color: Color(0x66E5A93B),
+                          blurRadius: 12,
+                        ),
+                      ]
+                    : null,
               ),
-              child: Icon(
-                isSelected ? selectedIcon : icon,
-                color: isSelected ? Colors.black : Colors.white,
-                size: 22,
-              ),
+              child: hasPhoto
+                  ? CircleAvatar(
+                      radius: 12,
+                      backgroundColor: const Color(0xFF1A1A1A),
+                      backgroundImage: CachedNetworkImageProvider(
+                        photo,
+                        maxWidth: 72,
+                        maxHeight: 72,
+                      ),
+                    )
+                  : Icon(
+                      isSelected ? selectedIcon : icon,
+                      color: isSelected ? Colors.black : Colors.white,
+                      size: 20,
+                    ),
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 2),
             Text(
               label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white60,
-                fontSize: 10.5,
+              style: GoogleFonts.outfit(
+                color: isSelected ? Colors.white : AppTheme.textSecondary,
+                fontSize: 10,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                letterSpacing: 0.2,
+                letterSpacing: -0.1,
+                height: 1.1,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

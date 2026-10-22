@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/post_model.dart';
@@ -21,8 +22,11 @@ class PostDeleteController {
 
   /// Whether [post] belongs to the currently logged-in user.
   bool isOwner(PostModel post) {
-    final loggedInId = _ref.read(loggedInUserIdProvider);
-    return loggedInId.isNotEmpty && loggedInId == post.userId;
+    final loggedInId = _ref.read(loggedInUserIdProvider).trim();
+    final authUid = (FirebaseAuth.instance.currentUser?.uid ?? '').trim();
+    final myId = loggedInId.isNotEmpty ? loggedInId : authUid;
+    final postUid = post.userId.trim();
+    return myId.isNotEmpty && (postUid.isEmpty || myId == postUid);
   }
 
   /// Deletes [post] and its associated media.
@@ -35,20 +39,22 @@ class PostDeleteController {
       throw StateError('Only the owner can delete this post.');
     }
 
-    // 1. Optimistically remove from in-memory states so the UI reacts instantly.
-    if (_ref.exists(feedPostsProvider)) {
-      _ref.read(feedPostsProvider.notifier).removePost(post.id);
-    }
-    if (_ref.exists(clipsProvider)) {
-      _ref.read(clipsProvider.notifier).removePost(post.id);
-    }
-
-    // 2. Delete the Firestore document (source of truth) + counters.
+    // 1. Delete the Firestore document (source of truth) + counters FIRST so backend confirms deletion.
     await _ref.read(postRepositoryProvider).deletePost(post);
 
-    // 3. Media deletion and reference counting are handled automatically on the backend via Firestore triggers.
+    // 2. Remove from in-memory states so feed and clips update cleanly.
+    if (_ref.exists(feedPostsProvider)) {
+      try {
+        _ref.read(feedPostsProvider.notifier).removePost(post.id);
+      } catch (_) {}
+    }
+    if (_ref.exists(clipsProvider)) {
+      try {
+        _ref.read(clipsProvider.notifier).removePost(post.id);
+      } catch (_) {}
+    }
 
-    // 4. Refresh profiles so postsCount and galleries stay in sync.
+    // 3. Refresh profiles so postsCount and galleries stay in sync.
     try {
       _ref.read(profileListProvider.notifier).loadAllProfiles();
     } catch (_) {}

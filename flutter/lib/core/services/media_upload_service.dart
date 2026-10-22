@@ -208,7 +208,13 @@ MediaType _getMediaType(String fileName) {
   if (ext == 'jpg' || ext == 'jpeg') return MediaType('image', 'jpeg');
   if (ext == 'png') return MediaType('image', 'png');
   if (ext == 'webp') return MediaType('image', 'webp');
-  if (ext == 'mp4') return MediaType('video', 'mp4');
+  if (ext == 'gif') return MediaType('image', 'gif');
+  if (ext == 'mp4' || ext == 'm4v') return MediaType('video', 'mp4');
+  if (ext == 'mov' || ext == 'quicktime') return MediaType('video', 'quicktime');
+  if (ext == 'webm') return MediaType('video', 'webm');
+  if (ext == 'mkv') return MediaType('video', 'x-matroska');
+  if (ext == '3gp' || ext == '3gpp') return MediaType('video', '3gpp');
+  if (ext == 'avi') return MediaType('video', 'x-msvideo');
   if (ext == 'pdf') return MediaType('application', 'pdf');
   return MediaType('application', 'octet-stream');
 }

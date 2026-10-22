@@ -11,6 +11,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/user_facing_error.dart';
 import '../controllers/profile_controller.dart';
 import '../controllers/settings_controller.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class SafetyUsersScreen extends ConsumerStatefulWidget {
   final bool blocked;
@@ -46,7 +47,7 @@ class _SafetyUsersScreenState extends ConsumerState<SafetyUsersScreen> {
                   setState(() => _query = value.trim().toLowerCase()),
               decoration: const InputDecoration(
                 hintText: 'Search users',
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: Icon(AthIcons.search),
               ),
             ),
           ),
@@ -97,7 +98,7 @@ class _SafetyUsersScreenState extends ConsumerState<SafetyUsersScreen> {
                             ? null
                             : NetworkImage(profile!.avatarUrl),
                         child: (profile?.avatarUrl ?? '').isEmpty
-                            ? const Icon(Icons.person_outline)
+                            ? const Icon(AthIcons.user)
                             : null,
                       ),
                       title: Text(profile?.name ?? 'Atheleos user'),
@@ -168,7 +169,7 @@ class _HiddenKeywordsScreenState extends ConsumerState<HiddenKeywordsScreen> {
                 IconButton.filled(
                   tooltip: 'Add keyword',
                   onPressed: _add,
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(AthIcons.plus),
                 ),
               ],
             ),
@@ -178,7 +179,7 @@ class _HiddenKeywordsScreenState extends ConsumerState<HiddenKeywordsScreen> {
                   setState(() => _query = value.trim().toLowerCase()),
               decoration: const InputDecoration(
                 hintText: 'Search keywords',
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: Icon(AthIcons.search),
               ),
             ),
             const SizedBox(height: 12),
@@ -211,14 +212,14 @@ class _HiddenKeywordsScreenState extends ConsumerState<HiddenKeywordsScreen> {
                     itemBuilder: (context, index) {
                       final keyword = filtered[index];
                       return ListTile(
-                        leading: const Icon(Icons.filter_alt_outlined),
+                        leading: const Icon(AthIcons.funnel),
                         title: Text(keyword),
                         trailing: IconButton(
                           tooltip: 'Remove keyword',
                           onPressed: () => ref
                               .read(settingsActionsProvider)
                               .removeHiddenKeyword(keyword),
-                          icon: const Icon(Icons.close),
+                          icon: const Icon(AthIcons.xMark),
                         ),
                       );
                     },
@@ -281,7 +282,7 @@ class ReportHistoryScreen extends ConsumerWidget {
               final createdAt = report['createdAt'] as Timestamp?;
               return ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.flag_outlined,
+                leading: const Icon(AthIcons.flag,
                     color: AppTheme.primaryColor),
                 title: Text(report['description'] as String? ?? 'Report'),
                 subtitle: Text([
@@ -439,7 +440,7 @@ class _ReportProblemScreenState extends ConsumerState<ReportProblemScreen> {
           OutlinedButton.icon(
             onPressed:
                 _loading || _screenshots.length >= 3 ? null : _attachScreenshot,
-            icon: const Icon(Icons.add_photo_alternate_outlined),
+            icon: const Icon(AthIcons.photo),
             label: Text('Attach Screenshot (${_screenshots.length}/3)'),
           ),
           if (_screenshots.isNotEmpty)
@@ -459,7 +460,7 @@ class _ReportProblemScreenState extends ConsumerState<ReportProblemScreen> {
                                 tooltip: 'Remove screenshot',
                                 onPressed: () =>
                                     setState(() => _screenshots.remove(url)),
-                                icon: const Icon(Icons.close, size: 16),
+                                icon: const Icon(AthIcons.xMark, size: 16),
                               ),
                             ),
                           ],

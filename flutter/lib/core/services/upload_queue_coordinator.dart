@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' as io;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'media_upload_service.dart';
 import 'media_delete_service.dart';
 
@@ -22,7 +23,7 @@ class UploadTask {
   final String fileName;
   final String ownerType;
   final String idempotencyKey;
-  
+
   UploadStatus status;
   double progress;
   String? mediaId;
@@ -69,7 +70,8 @@ class UploadTask {
 class UploadQueueNotifier extends StateNotifier<List<UploadTask>> {
   final Ref _ref;
   bool _isProcessing = false;
-  static const int maxConcurrency = 1; // Default sequential processing for videos
+  static const int maxConcurrency =
+      1; // Default sequential processing for videos
 
   UploadQueueNotifier(this._ref) : super([]);
 
@@ -113,12 +115,18 @@ class UploadQueueNotifier extends StateNotifier<List<UploadTask>> {
   Future<void> _processNext() async {
     if (_isProcessing) return;
 
-    final activeUploads = state.where((t) => t.status == UploadStatus.uploading || t.status == UploadStatus.processing).length;
+    final activeUploads = state
+        .where((t) =>
+            t.status == UploadStatus.uploading ||
+            t.status == UploadStatus.processing)
+        .length;
     if (activeUploads >= maxConcurrency) return;
 
     final nextTask = state.firstWhere(
-      (t) => t.status == UploadStatus.waiting || t.status == UploadStatus.retrying,
-      orElse: () => UploadTask(id: '', fileName: '', ownerType: '', idempotencyKey: ''),
+      (t) =>
+          t.status == UploadStatus.waiting || t.status == UploadStatus.retrying,
+      orElse: () =>
+          UploadTask(id: '', fileName: '', ownerType: '', idempotencyKey: ''),
     );
 
     if (nextTask.id.isEmpty) {
@@ -164,47 +172,71 @@ class UploadQueueNotifier extends StateNotifier<List<UploadTask>> {
 
         if (dupCheck != null && dupCheck['exists'] == true) {
           final mediaId = dupCheck['media']?['mediaId'] ?? dupCheck['mediaId'];
-          debugPrint('UploadQueue: Deduplication hit for task ${task.id}. Skipping upload.');
-          _updateTaskStatus(task.id, status: UploadStatus.completed, progress: 1.0, mediaId: mediaId);
+          debugPrint(
+              'UploadQueue: Deduplication hit for task ${task.id}. Skipping upload.');
+          _updateTaskStatus(task.id,
+              status: UploadStatus.completed, progress: 1.0, mediaId: mediaId);
           return;
         }
       }
 
       // 4. Fallback to normal upload
       final response = await _ref.read(mediaUploadServiceProvider).uploadMedia(
-        bytes: task.bytes,
-        filePath: task.filePath,
-        fileName: task.fileName,
-        ownerType: task.ownerType,
-        idempotencyKey: task.idempotencyKey,
-        onProgress: (prog) {
-          _updateTaskStatus(task.id, progress: prog);
-        },
-      );
+            bytes: task.bytes,
+            filePath: task.filePath,
+            fileName: task.fileName,
+            ownerType: task.ownerType,
+            idempotencyKey: task.idempotencyKey,
+            onProgress: (prog) {
+              _updateTaskStatus(task.id, progress: prog);
+            },
+          );
 
       final mediaId = response['media']?['mediaId'] ?? response['mediaId'];
-      _updateTaskStatus(task.id, status: UploadStatus.processing, mediaId: mediaId);
+      _updateTaskStatus(task.id,
+          status: UploadStatus.processing, mediaId: mediaId);
 
       // Handle direct completions or async states
       final statusStr = response['status'] as String?;
       if (statusStr == 'success') {
-        _updateTaskStatus(task.id, status: UploadStatus.completed, progress: 1.0);
+        _updateTaskStatus(task.id,
+            status: UploadStatus.completed, progress: 1.0);
       } else {
-        // Wait/Listen to Firestore for async status changes (for videos)
-        // If it's a video, the Worker returns {status: 'processing', jobId, mediaId}
-        // and processing is completed asynchronously.
-        _updateTaskStatus(task.id, status: UploadStatus.completed, progress: 1.0);
+        // Do not publish completion while the normalized MP4 is still being built.
+        // The post flow and background queue must observe the same ready/failed state.
+        if (mediaId == null)
+          throw Exception('Video processing did not return a media ID.');
+        final snap = await FirebaseFirestore.instance
+            .collection('media')
+            .doc(mediaId)
+            .snapshots()
+            .firstWhere((snap) {
+          final data = snap.data();
+          return snap.exists &&
+              (data?['status'] == 'ready' ||
+                  data?['status'] == 'completed' ||
+                  data?['status'] == 'failed');
+        }).timeout(const Duration(minutes: 3));
+        if (snap.data()?['status'] == 'failed') {
+          throw Exception('Video processing failed.');
+        }
+        _updateTaskStatus(task.id,
+            status: UploadStatus.completed, progress: 1.0);
       }
     } catch (e) {
       if (task.retryCount < 3) {
         final nextRetry = task.retryCount + 1;
-        _updateTaskStatus(task.id, status: UploadStatus.retrying, retryCount: nextRetry, errorMessage: e.toString());
+        _updateTaskStatus(task.id,
+            status: UploadStatus.retrying,
+            retryCount: nextRetry,
+            errorMessage: e.toString());
         // Exponential backoff
         final backoff = Duration(seconds: nextRetry * nextRetry * 2);
         await Future.delayed(backoff);
         _runTask(task.copyWith(retryCount: nextRetry));
       } else {
-        _updateTaskStatus(task.id, status: UploadStatus.failed, errorMessage: e.toString());
+        _updateTaskStatus(task.id,
+            status: UploadStatus.failed, errorMessage: e.toString());
       }
     }
   }
@@ -233,6 +265,7 @@ class UploadQueueNotifier extends StateNotifier<List<UploadTask>> {
   }
 }
 
-final uploadQueueProvider = StateNotifierProvider<UploadQueueNotifier, List<UploadTask>>((ref) {
+final uploadQueueProvider =
+    StateNotifierProvider<UploadQueueNotifier, List<UploadTask>>((ref) {
   return UploadQueueNotifier(ref);
 });

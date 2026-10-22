@@ -7,6 +7,7 @@ import '../../domain/models/profile_model.dart';
 import '../controllers/profile_controller.dart';
 import '../controllers/settings_controller.dart';
 import '../widgets/verification_dialog.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class VerificationDashboardScreen extends ConsumerWidget {
   final ProfileModel? profile;
@@ -19,7 +20,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
       'level': 0,
       'badge': 'No Badge',
       'color': 0xFF64748B,
-      'icon': Icons.help_outline,
+      'icon': AthIcons.questionMarkCircle,
       'requirements': [
         'Complete your profile (name, bio, sport)',
         'Upload a profile photo',
@@ -30,7 +31,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
       'level': 1,
       'badge': 'Verified Athlete',
       'color': 0xFF3B82F6,
-      'icon': Icons.verified_user_outlined,
+      'icon': AthIcons.shieldCheck,
       'requirements': [
         'Government ID or Passport scan',
         'Active club/academy affiliation',
@@ -41,7 +42,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
       'level': 2,
       'badge': 'District Athlete',
       'color': 0xFF10B981,
-      'icon': Icons.stars_outlined,
+      'icon': AthIcons.sparkles,
       'requirements': [
         'District-level competition certificate',
         'Coach reference letter',
@@ -52,7 +53,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
       'level': 3,
       'badge': 'State Athlete',
       'color': 0xFFE5A93B,
-      'icon': Icons.emoji_events_outlined,
+      'icon': AthIcons.trophy,
       'requirements': [
         'State-level selection certificate',
         'Federation letter or ID card',
@@ -63,7 +64,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
       'level': 4,
       'badge': 'National Athlete',
       'color': 0xFFEF4444,
-      'icon': Icons.military_tech_outlined,
+      'icon': AthIcons.trophy,
       'requirements': [
         'National team selection proof',
         'Official federation endorsement',
@@ -74,7 +75,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
       'level': 5,
       'badge': 'Elite Athlete',
       'color': 0xFF8B5CF6,
-      'icon': Icons.diamond_outlined,
+      'icon': AthIcons.sparkles,
       'requirements': ['Invite only — reviewed by ATHELEOS team.'],
     },
   ];
@@ -163,7 +164,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
         backgroundColor: Colors.black,
         appBar: AppBar(
           title: Text('VERIFICATION',
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                   fontWeight: FontWeight.w700, letterSpacing: 1.2, fontSize: 15)),
           backgroundColor: Colors.black,
         ),
@@ -174,7 +175,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
         backgroundColor: Colors.black,
         appBar: AppBar(
           title: Text('VERIFICATION',
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                   fontWeight: FontWeight.w700, letterSpacing: 1.2, fontSize: 15)),
           backgroundColor: Colors.black,
         ),
@@ -199,7 +200,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
             backgroundColor: Colors.black,
             appBar: AppBar(
               title: Text('VERIFICATION',
-                  style: GoogleFonts.spaceGrotesk(
+                  style: GoogleFonts.outfit(
                       fontWeight: FontWeight.w700, letterSpacing: 1.2, fontSize: 15)),
               backgroundColor: Colors.black,
             ),
@@ -209,11 +210,11 @@ class VerificationDashboardScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.person_off_outlined, size: 48, color: Colors.white38),
+                    const Icon(AthIcons.noSymbol, size: 48, color: Colors.white38),
                     const SizedBox(height: 16),
                     Text(
                       'Profile Not Found',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: GoogleFonts.outfit(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
@@ -233,7 +234,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      icon: const Icon(AthIcons.arrowPath, size: 18),
                       label: const Text('RETRY LOADING', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       onPressed: () {
                         if (targetId.isNotEmpty) {
@@ -276,7 +277,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
           backgroundColor: Colors.black,
           appBar: AppBar(
             title: Text(appBarTitle,
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                     fontWeight: FontWeight.w700, letterSpacing: 1.2, fontSize: 15)),
             backgroundColor: Colors.black,
           ),
@@ -352,14 +353,14 @@ class VerificationDashboardScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('CURRENT BADGE',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: GoogleFonts.outfit(
                             color: Colors.white38,
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5)),
                     const SizedBox(height: 2),
                     Text(currentLevelData['badge'] as String,
-                        style: GoogleFonts.spaceGrotesk(
+                        style: GoogleFonts.outfit(
                             color: Color(currentLevelData['color'] as int),
                             fontWeight: FontWeight.bold,
                             fontSize: 18)),
@@ -399,13 +400,13 @@ class VerificationDashboardScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('LEVEL PROGRESS',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: GoogleFonts.outfit(
                         color: Colors.white38,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5)),
                 Text('${level} / 5',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: GoogleFonts.outfit(
                         color: AppTheme.primaryColor,
                         fontWeight: FontWeight.bold,
                         fontSize: 12)),
@@ -529,10 +530,10 @@ class VerificationDashboardScreen extends ConsumerWidget {
                             fontSize: 12)),
                   ])),
               if (isUnlocked)
-                const Icon(Icons.check_circle_rounded,
+                const Icon(AthIcons.checkCircleSolid,
                     color: Colors.greenAccent, size: 16),
               if (!isUnlocked)
-                const Icon(Icons.lock_outlined, color: Colors.white24, size: 14),
+                const Icon(AthIcons.lockClosed, color: Colors.white24, size: 14),
             ]),
           );
         }),
@@ -584,7 +585,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
                   border: Border.all(
                       color: Color(badgeColor), width: 2),
                 ),
-                child: const Icon(Icons.sports, color: Color(badgeColor), size: 30),
+                child: const Icon(AthIcons.trophy, color: Color(badgeColor), size: 30),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -592,14 +593,14 @@ class VerificationDashboardScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('COACH ACCREDITATION',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: GoogleFonts.outfit(
                             color: Colors.white38,
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5)),
                     const SizedBox(height: 2),
                     Text('Verified Coach',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: GoogleFonts.outfit(
                             color: isVerified ? const Color(badgeColor) : Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 18)),
@@ -642,7 +643,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.info_outline, color: Color(badgeColor), size: 18),
+              const Icon(AthIcons.informationCircle, color: Color(badgeColor), size: 18),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -670,25 +671,25 @@ class VerificationDashboardScreen extends ConsumerWidget {
           child: Column(
             children: [
               _buildCriteriaItem(
-                Icons.card_membership_outlined,
+                AthIcons.identification,
                 'Coaching License / Degree',
                 'State or National sports council coaching license, university degree, or international coaching certification.',
               ),
               const Divider(color: Colors.white10, height: 20),
               _buildCriteriaItem(
-                Icons.stadium_outlined,
+                AthIcons.trophy,
                 'Academy or Club Affiliation',
                 'Official letter or proof confirming active coaching role at a school, college, academy, or competitive sports club.',
               ),
               const Divider(color: Colors.white10, height: 20),
               _buildCriteriaItem(
-                Icons.timeline_outlined,
+                AthIcons.arrowTrendingUp,
                 'Experience & Athlete Track Record',
                 'Documented coaching background, teams trained, and past tournament appearances.',
               ),
               const Divider(color: Colors.white10, height: 20),
               _buildCriteriaItem(
-                Icons.badge_outlined,
+                AthIcons.identification,
                 'Government / Sports Federation ID',
                 'Valid government identity card or sports association accreditation pass.',
               ),
@@ -723,10 +724,10 @@ class VerificationDashboardScreen extends ConsumerWidget {
           ),
           child: Column(
             children: [
-              _buildPrivilegeItem(Icons.verified, 'Official Verified Coach Badge displayed on profile'),
-              _buildPrivilegeItem(Icons.analytics_outlined, 'Access to verified combine benchmarks & athlete highlight film'),
-              _buildPrivilegeItem(Icons.event_available, 'Sanctioned permission to host official camps & showcases'),
-              _buildPrivilegeItem(Icons.mail_outline, 'Direct priority outreach messaging to prospective athletes'),
+              _buildPrivilegeItem(AthIcons.checkBadgeSolid, 'Official Verified Coach Badge displayed on profile'),
+              _buildPrivilegeItem(AthIcons.chartBar, 'Access to verified combine benchmarks & athlete highlight film'),
+              _buildPrivilegeItem(AthIcons.calendar, 'Sanctioned permission to host official camps & showcases'),
+              _buildPrivilegeItem(AthIcons.envelope, 'Direct priority outreach messaging to prospective athletes'),
             ],
           ),
         ),
@@ -782,7 +783,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
                   border: Border.all(
                       color: Color(badgeColor), width: 2),
                 ),
-                child: const Icon(Icons.account_balance, color: Color(badgeColor), size: 30),
+                child: const Icon(AthIcons.buildingLibrary, color: Color(badgeColor), size: 30),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -790,14 +791,14 @@ class VerificationDashboardScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('GOVERNING BODY ACCREDITATION',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: GoogleFonts.outfit(
                             color: Colors.white38,
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5)),
                     const SizedBox(height: 2),
                     Text('Verified Federation',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: GoogleFonts.outfit(
                             color: isVerified ? const Color(badgeColor) : Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 18)),
@@ -840,7 +841,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.gavel_outlined, color: Color(badgeColor), size: 18),
+              const Icon(AthIcons.scale, color: Color(badgeColor), size: 18),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -868,13 +869,13 @@ class VerificationDashboardScreen extends ConsumerWidget {
           child: Column(
             children: [
               _buildCriteriaItem(
-                Icons.assignment_outlined,
+                AthIcons.documentText,
                 'Registration Certificate',
                 'Official certificate of registration under Societies, Trust, or Non-profit Companies Act, or Sports Authority notification.',
               ),
               const Divider(color: Colors.white10, height: 20),
               _buildCriteriaItem(
-                Icons.menu_book_outlined,
+                AthIcons.newspaper,
                 'Constitution & Bye-Laws',
                 'Current ratified sports constitution, articles of association, and tournament rulebook.',
               ),
@@ -886,13 +887,13 @@ class VerificationDashboardScreen extends ConsumerWidget {
               ),
               const Divider(color: Colors.white10, height: 20),
               _buildCriteriaItem(
-                Icons.groups_outlined,
+                AthIcons.userGroup,
                 'Executive Committee & Office Bearers',
                 'Registered list of elected president, secretary general, and governing committee members with latest election record.',
               ),
               const Divider(color: Colors.white10, height: 20),
               _buildCriteriaItem(
-                Icons.verified_outlined,
+                AthIcons.checkBadge,
                 'Authorized Representative Letter',
                 'Signed authorization letter on federation letterhead authorizing this account representative.',
               ),
@@ -927,10 +928,10 @@ class VerificationDashboardScreen extends ConsumerWidget {
           ),
           child: Column(
             children: [
-              _buildPrivilegeItem(Icons.verified, 'Official Verified Federation Crest displayed across ATHELEOS'),
-              _buildPrivilegeItem(Icons.emoji_events_outlined, 'Power to sanction state/national tournaments, meets & combines'),
-              _buildPrivilegeItem(Icons.how_to_reg, 'Verify & endorse official athlete rosters and record certificates'),
-              _buildPrivilegeItem(Icons.campaign_outlined, 'Broadcast official directives & circulars to all affiliated participants'),
+              _buildPrivilegeItem(AthIcons.checkBadgeSolid, 'Official Verified Federation Crest displayed across ATHELEOS'),
+              _buildPrivilegeItem(AthIcons.trophy, 'Power to sanction state/national tournaments, meets & combines'),
+              _buildPrivilegeItem(AthIcons.userPlus, 'Verify & endorse official athlete rosters and record certificates'),
+              _buildPrivilegeItem(AthIcons.megaphone, 'Broadcast official directives & circulars to all affiliated participants'),
             ],
           ),
         ),
@@ -985,7 +986,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
                   color: Color(badgeColor).withValues(alpha: 0.15),
                   border: Border.all(color: Color(badgeColor), width: 2),
                 ),
-                child: const Icon(Icons.business_center, color: Color(badgeColor), size: 30),
+                child: const Icon(AthIcons.briefcase, color: Color(badgeColor), size: 30),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -993,14 +994,14 @@ class VerificationDashboardScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('CORPORATE BRAND VERIFICATION',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: GoogleFonts.outfit(
                             color: Colors.white38,
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5)),
                     const SizedBox(height: 2),
                     Text('Verified Brand',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: GoogleFonts.outfit(
                             color: isVerified ? const Color(badgeColor) : Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 18)),
@@ -1043,7 +1044,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.storefront_outlined, color: Color(badgeColor), size: 18),
+              const Icon(AthIcons.buildingStorefront, color: Color(badgeColor), size: 18),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -1071,7 +1072,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
           child: Column(
             children: [
               _buildCriteriaItem(
-                Icons.corporate_fare,
+                AthIcons.buildingOffice,
                 'Business Registration Certificate',
                 'Official Certificate of Incorporation, GST/Tax Registration, or commercial license.',
               ),
@@ -1083,7 +1084,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
               ),
               const Divider(color: Colors.white10, height: 20),
               _buildCriteriaItem(
-                Icons.contact_mail_outlined,
+                AthIcons.identification,
                 'Corporate Domain & Authorized Agent',
                 'Official corporate email domain and authorization letter.',
               ),
@@ -1151,16 +1152,16 @@ class VerificationDashboardScreen extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.check_circle, color: Colors.greenAccent, size: 18),
+                const Icon(AthIcons.checkCircleSolid, color: Colors.greenAccent, size: 18),
                 const SizedBox(width: 8),
                 Text(label,
-                    style: GoogleFonts.spaceGrotesk(
+                    style: GoogleFonts.outfit(
                         color: Colors.greenAccent,
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                         letterSpacing: 0.5)),
                 const SizedBox(width: 6),
-                const Icon(Icons.chevron_right, color: Colors.greenAccent, size: 16),
+                const Icon(AthIcons.chevronRight, color: Colors.greenAccent, size: 16),
               ],
             ),
           ),
@@ -1200,13 +1201,13 @@ class VerificationDashboardScreen extends ConsumerWidget {
                 ),
                 const SizedBox(width: 10),
                 Text('APPLICATION UNDER REVIEW (VIEW DETAILS)',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: GoogleFonts.outfit(
                         color: Colors.amberAccent,
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                         letterSpacing: 0.5)),
                 const SizedBox(width: 6),
-                const Icon(Icons.chevron_right, color: Colors.amberAccent, size: 16),
+                const Icon(AthIcons.chevronRight, color: Colors.amberAccent, size: 16),
               ],
             ),
           ),
@@ -1237,10 +1238,10 @@ class VerificationDashboardScreen extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(label,
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                     fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5)),
             const SizedBox(width: 8),
-            const Icon(Icons.arrow_forward, size: 16, color: Colors.black),
+            const Icon(AthIcons.arrowRight, size: 16, color: Colors.black),
           ],
         ),
       ),
@@ -1264,7 +1265,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.warning_amber_rounded,
+          const Icon(AthIcons.exclamationTriangle,
               color: Colors.redAccent, size: 16),
           const SizedBox(width: 10),
           Expanded(
@@ -1313,10 +1314,10 @@ class VerificationDashboardScreen extends ConsumerWidget {
               contentPadding: EdgeInsets.zero,
               leading: Icon(
                 status == 'approved'
-                    ? Icons.verified
+                    ? AthIcons.checkBadgeSolid
                     : status == 'rejected'
-                        ? Icons.cancel_outlined
-                        : Icons.hourglass_top,
+                        ? AthIcons.xCircle
+                        : AthIcons.clock,
                 color: _statusColor(status),
               ),
               title: Text(
@@ -1381,7 +1382,7 @@ class VerificationDashboardScreen extends ConsumerWidget {
 
   Widget _sectionTitle(String title) => Text(
         title,
-        style: GoogleFonts.spaceGrotesk(
+        style: GoogleFonts.outfit(
             color: AppTheme.primaryColor,
             fontWeight: FontWeight.w900,
             fontSize: 11,

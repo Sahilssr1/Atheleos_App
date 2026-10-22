@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +17,7 @@ import '../../../../core/widgets/password_requirements_view.dart';
 import '../../../../core/widgets/atheleos_logo.dart';
 import '../../data/models/user_model.dart';
 import '../controllers/auth_controller.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -92,36 +94,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         backgroundColor: Colors.black,
         body: Stack(
           children: [
-            // Background elegant elements
-            Positioned(
-              top: -100,
-              right: -100,
-              child: Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.primaryColor.withOpacity(0.04),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -80,
-              left: -80,
-              child: Container(
-                width: 250,
-                height: 250,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.primaryColor.withOpacity(0.03),
-                ),
-              ),
-            ),
-
             SafeArea(
               child: Column(
                 children: [
-                  if (authState.currentStep != AuthStep.splash && authState.currentStep != AuthStep.complete)
+                  if (authState.currentStep != AuthStep.splash &&
+                      authState.currentStep != AuthStep.login &&
+                      authState.currentStep != AuthStep.complete)
                     _buildHeader(context, authState),
 
                   // Main steps PageView (disabled manual scroll to control flow sequentially)
@@ -151,30 +129,63 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
 
-            // Global loading blocker
+            // Global loading blocker - Modern, smooth, and fast
             if (authState.isLoading)
-              Container(
-                color: Colors.black87,
-                child: const Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SpinKitSquareCircle(
-                        color: AppTheme.primaryColor,
-                        size: 50.0,
-                      ),
-                      SizedBox(height: 24),
-                      Text(
-                        'SECURELY SYNCING WITH ARENA...',
-                        style: TextStyle(
-                          fontFamily: 'SpaceGrotesk',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          color: AppTheme.primaryColor,
-                          letterSpacing: 2,
+              Positioned.fill(
+                child: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                    child: Container(
+                      color: Colors.black.withValues(alpha: 0.75),
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF141414),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: AppTheme.primaryColor.withValues(alpha: 0.25),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.6),
+                                blurRadius: 24,
+                                spreadRadius: 4,
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CustomPaint(
+                                size: const Size(36, 36),
+                                painter: AtheleosLogoPainter(),
+                              ),
+                              const SizedBox(height: 18),
+                              const SizedBox(
+                                width: 26,
+                                height: 26,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Text(
+                                'OPENING ARENA...',
+                                style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                  letterSpacing: 2,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -204,7 +215,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           // Back button (shown for all steps except the primary login screen)
           if (step != AuthStep.login)
             IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+              icon: const Icon(AthIcons.arrowLeft, color: Colors.white, size: 20),
               onPressed: () async {
                 if (step == AuthStep.createAccountCredentials) {
                   ref.read(authControllerProvider.notifier).goBackToLogin();
@@ -234,7 +245,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(width: 8),
               Text(
                 'ATHELEOS',
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 2,
@@ -248,7 +259,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           if (!isRecoveryStep && onboardingIndex >= 0 && onboardingIndex < totalOnboardingSteps)
             Text(
               '${onboardingIndex + 1}/$totalOnboardingSteps',
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
                 color: AppTheme.primaryColor,
@@ -274,21 +285,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           title: Text(
             'Exit Onboarding?',
-            style: GoogleFonts.spaceGrotesk(
+            style: GoogleFonts.outfit(
               color: Colors.white,
               fontWeight: FontWeight.bold,
             ),
           ),
           content: Text(
             "Your profile hasn't been created yet. Exiting now will delete your progress and registration details. Are you sure you want to exit?",
-            style: GoogleFonts.inter(color: Colors.white70, height: 1.5),
+            style: GoogleFonts.outfit(color: Colors.white70, height: 1.5),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
               child: Text(
                 'Cancel',
-                style: GoogleFonts.spaceGrotesk(color: Colors.white38),
+                style: GoogleFonts.outfit(color: Colors.white38),
               ),
             ),
             ElevatedButton(
@@ -302,7 +313,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               onPressed: () => Navigator.of(context).pop(true),
               child: Text(
                 'Exit & Delete',
-                style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold),
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
               ),
             ),
           ],
@@ -372,26 +383,26 @@ class _SplashWidgetState extends State<_SplashWidget> with SingleTickerProviderS
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CustomPaint(
-                size: const Size(130, 130),
+                size: const Size(96, 96),
                 painter: AtheleosLogoPainter(),
               ),
               const SizedBox(height: 32),
               Text(
                 'ATHELEOS',
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 6,
+                style: GoogleFonts.outfit(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.4,
                   color: Colors.white,
                 ),
               ),
               const SizedBox(height: 12),
               Text(
                 'TRAIN. CONNECT. INSPIRE.',
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 3,
+                  letterSpacing: 1.4,
                   color: AppTheme.primaryColor,
                 ),
               ),
@@ -458,9 +469,18 @@ class _LoginCredentialsWidgetState
   Future<void> _handleDirectSavedSignIn() async {
     setState(() => _isDirectSigningIn = true);
     try {
-      await ref
+      final success = await ref
           .read(authControllerProvider.notifier)
-          .directSignInWithSavedAccount();
+          .directSignInWithSavedAccount(
+            identifier: _savedCredentials?['identifier'] ?? _identifierController.text.trim(),
+            password: _savedCredentials?['password'],
+          );
+      if (!success && mounted) {
+        setState(() {
+          _showManualInputs = true;
+          _identifierController.text = _savedCredentials?['identifier'] ?? '';
+        });
+      }
     } finally {
       if (mounted) {
         setState(() => _isDirectSigningIn = false);
@@ -479,20 +499,20 @@ class _LoginCredentialsWidgetState
         ),
         title: Text(
           'Remove Saved Account?',
-          style: GoogleFonts.spaceGrotesk(
+          style: GoogleFonts.outfit(
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
         content: Text(
           'This will remove your saved credentials from this device. You will need to enter your password next time you sign in.',
-          style: GoogleFonts.inter(color: Colors.white70, height: 1.4),
+          style: GoogleFonts.outfit(color: Colors.white70, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text('Cancel',
-                style: GoogleFonts.inter(color: Colors.white54)),
+                style: GoogleFonts.outfit(color: Colors.white54)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -501,7 +521,7 @@ class _LoginCredentialsWidgetState
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text('Remove',
-                style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold)),
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -542,568 +562,692 @@ class _LoginCredentialsWidgetState
       builder: (context, ref, child) {
         final authState = ref.watch(authControllerProvider);
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 16),
-              Center(
-                child: CustomPaint(
-                  size: const Size(64, 64),
-                  painter: AtheleosLogoPainter(),
-                ),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
               ),
-              const SizedBox(height: 16),
-
-              if (_hasFullSavedCredentials && !_showManualInputs) ...[
-                // ─────────────────────────────────────────────────────────────
-                // 1-TAP SAVED ACCOUNT SIGN-IN SCREEN
-                // ─────────────────────────────────────────────────────────────
-                Text(
-                  'WELCOME BACK',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 2,
-                    color: Colors.white,
-                  ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Welcome back! Ready to crush your goals today?',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.white70,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                if (authState.errorMessage != null) ...[
-                  _buildErrorBanner(authState.errorMessage!),
-                  const SizedBox(height: 16),
-                ],
-
-                // Hero Saved Account Card
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF141414),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppTheme.primaryColor.withOpacity(0.4),
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primaryColor.withOpacity(0.08),
-                        blurRadius: 18,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
+                child: IntrinsicHeight(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Badge & Remove Row
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.bolt_rounded,
-                                    size: 14, color: AppTheme.primaryColor),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'SAVED ON DEVICE',
-                                  style: GoogleFonts.spaceGrotesk(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1,
-                                    color: AppTheme.primaryColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close,
-                                color: Colors.white38, size: 18),
-                            tooltip: 'Remove saved account',
-                            onPressed: _forgetSavedAccount,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
+                      const Spacer(flex: 2),
 
-                      // User Profile Info
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 28,
-                            backgroundColor:
-                                AppTheme.primaryColor.withOpacity(0.2),
-                            child: Text(
-                              ((_savedCredentials!['fullName']?.isNotEmpty ??
-                                          false)
-                                      ? _savedCredentials!['fullName']![0]
-                                      : 'U')
-                                  .toUpperCase(),
-                              style: GoogleFonts.spaceGrotesk(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryColor,
-                                fontSize: 22,
+                      // ─────────────────────────────────────────────────────
+                      // UNIFIED HERO BRANDING (Instagram Style)
+                      // ─────────────────────────────────────────────────────
+                      Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CustomPaint(
+                              size: const Size(64, 64),
+                              painter: AtheleosLogoPainter(),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              'ATHELEOS',
+                              style: GoogleFonts.outfit(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 4.0,
+                                color: Colors.white,
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+
+                      if (_hasFullSavedCredentials && !_showManualInputs) ...[
+                        // ─────────────────────────────────────────────────────
+                        // 1-TAP SAVED ACCOUNT SIGN-IN SCREEN
+                        // ─────────────────────────────────────────────────────
+                        Text(
+                          'Welcome back',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.outfit(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                            color: Colors.white,
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _savedCredentials!['fullName'] ??
-                                      'Atheleos User',
-                                  style: GoogleFonts.spaceGrotesk(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    fontSize: 17,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '@${_savedCredentials!['username']}',
-                                  style: GoogleFonts.inter(
-                                    color: AppTheme.primaryColor,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.08),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    (_savedCredentials!['role'] ?? 'ATHLETE')
-                                        .toUpperCase(),
-                                    style: GoogleFonts.spaceGrotesk(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1,
-                                      color: Colors.white70,
+                        ),
+                        const SizedBox(height: 20),
+
+                        if (authState.errorMessage != null) ...[
+                          _buildErrorBanner(authState.errorMessage!),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Hero Saved Account Card
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF141414),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: AppTheme.primaryColor.withOpacity(0.4),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryColor.withOpacity(0.08),
+                                blurRadius: 18,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              // Badge & Remove Row
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          AppTheme.primaryColor.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(AthIcons.bolt,
+                                            size: 14,
+                                            color: AppTheme.primaryColor),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'SAVED ON DEVICE',
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 1,
+                                            color: AppTheme.primaryColor,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-
-                      // 1-TAP SIGN IN ACTION BUTTON
-                      SizedBox(
-                        height: 54,
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 4,
-                            shadowColor:
-                                AppTheme.primaryColor.withOpacity(0.4),
-                          ),
-                          onPressed: _isDirectSigningIn
-                              ? null
-                              : _handleDirectSavedSignIn,
-                          child: _isDirectSigningIn
-                              ? const SizedBox(
-                                  height: 22,
-                                  width: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: Colors.black,
+                                  IconButton(
+                                    icon: const Icon(AthIcons.xMark,
+                                        color: Colors.white38, size: 18),
+                                    tooltip: 'Remove saved account',
+                                    onPressed: _forgetSavedAccount,
                                   ),
-                                )
-                              : Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.flash_on_rounded,
-                                        size: 20, color: Colors.black),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'CONTINUE AS @${(_savedCredentials!['username'] ?? 'USER').toUpperCase()}',
-                                      style: GoogleFonts.spaceGrotesk(
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 1.2,
-                                        fontSize: 14,
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+
+                              // User Profile Info
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 28,
+                                    backgroundColor:
+                                        AppTheme.primaryColor.withOpacity(0.2),
+                                    child: Text(
+                                      ((_savedCredentials!['fullName']
+                                                      ?.isNotEmpty ??
+                                                  false)
+                                              ? _savedCredentials!['fullName']![0]
+                                              : 'U')
+                                          .toUpperCase(),
+                                      style: GoogleFonts.outfit(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primaryColor,
+                                        fontSize: 22,
                                       ),
                                     ),
-                                  ],
-                                ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Switch Account Option
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _showManualInputs = true;
-                          });
-                        },
-                        child: Text(
-                          'Switch Account / Enter Password',
-                          style: GoogleFonts.inter(
-                            color: Colors.white54,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else ...[
-                // ─────────────────────────────────────────────────────────────
-                // MANUAL INPUTS / GOOGLE AUTOFILL MODE
-                // ─────────────────────────────────────────────────────────────
-                Text(
-                  'WELCOME TO ARENA',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 2,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Unlock Your True Potential with Atheleos. Sign in to access your athlete combine stats, scouting reports, and network.',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.white70,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Return to Saved Account Banner if available
-                if (_hasFullSavedCredentials) ...[
-                  InkWell(
-                    onTap: () {
-                      setState(() {
-                        _showManualInputs = false;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: AppTheme.primaryColor.withOpacity(0.35),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.bolt_rounded,
-                              color: AppTheme.primaryColor, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Use saved 1-Tap sign in for @${_savedCredentials!['username']}',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          const Icon(Icons.arrow_forward_ios,
-                              color: AppTheme.primaryColor, size: 12),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                if (authState.errorMessage != null) ...[
-                  _buildErrorBanner(authState.errorMessage!),
-                  const SizedBox(height: 16),
-                ],
-
-                AutofillGroup(
-                  onDisposeAction: AutofillContextAction.commit,
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Username or Email Field
-                        TextFormField(
-                          controller: _identifierController,
-                          keyboardType: TextInputType.emailAddress,
-                          autofillHints: const [
-                            AutofillHints.username,
-                            AutofillHints.email,
-                          ],
-                          textInputAction: TextInputAction.next,
-                          style: GoogleFonts.inter(
-                              color: Colors.white, fontSize: 15),
-                          decoration: const InputDecoration(
-                            labelText: 'Username or Email',
-                            hintText:
-                                'e.g. dynamic_player or player@atheleos.com',
-                            prefixIcon: Icon(Icons.alternate_email,
-                                color: AppTheme.primaryColor, size: 20),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Enter your username or email address';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Password Field
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          autofillHints: const [AutofillHints.password],
-                          textInputAction: TextInputAction.done,
-                          onFieldSubmitted: (_) => _handleLogin(),
-                          style: GoogleFonts.inter(
-                              color: Colors.white, fontSize: 15),
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            hintText: 'Enter your password',
-                            prefixIcon: const Icon(Icons.lock_outline,
-                                color: AppTheme.primaryColor, size: 20),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
-                                color: Colors.white54,
-                                size: 20,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Enter your password';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Remember Me & Forgot Password Row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _rememberMe = !_rememberMe;
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(4),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: Checkbox(
-                                      value: _rememberMe,
-                                      activeColor: AppTheme.primaryColor,
-                                      checkColor: Colors.black,
-                                      materialTapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                      onChanged: (val) {
-                                        setState(() {
-                                          _rememberMe = val ?? true;
-                                        });
-                                      },
-                                    ),
                                   ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Remember credentials',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      color: Colors.white70,
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _savedCredentials!['fullName'] ??
+                                              'Atheleos User',
+                                          style: GoogleFonts.outfit(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                            fontSize: 17,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '@${_savedCredentials!['username']}',
+                                          style: GoogleFonts.outfit(
+                                            color: AppTheme.primaryColor,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                Colors.white.withOpacity(0.08),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            (_savedCredentials!['role'] ??
+                                                    'ATHLETE')
+                                                .toUpperCase(),
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 1,
+                                              color: Colors.white70,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                            TextButton(
-                              onPressed: () => context.push('/forgot-password'),
-                              child: Text(
-                                'Forgot password?',
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: AppTheme.primaryColor,
-                                  fontWeight: FontWeight.w600,
+                              const SizedBox(height: 24),
+
+                              // 1-TAP SIGN IN ACTION BUTTON
+                              SizedBox(
+                                height: 46,
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryColor,
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 4,
+                                    shadowColor:
+                                        AppTheme.primaryColor.withOpacity(0.4),
+                                  ),
+                                  onPressed: _isDirectSigningIn
+                                      ? null
+                                      : _handleDirectSavedSignIn,
+                                  child: _isDirectSigningIn
+                                      ? const SizedBox(
+                                          height: 22,
+                                          width: 22,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: Colors.black,
+                                          ),
+                                        )
+                                      : Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(AthIcons.bolt,
+                                                size: 18, color: Colors.black),
+                                            const SizedBox(width: 6),
+                                            Flexible(
+                                              child: Text(
+                                                'CONTINUE AS @${(_savedCredentials!['username'] ?? 'USER').toUpperCase()}',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: GoogleFonts.outfit(
+                                                  fontWeight: FontWeight.w700,
+                                                  letterSpacing: -0.1,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
+                              const SizedBox(height: 14),
 
-                        // Primary SIGN IN Button
-                        SizedBox(
-                          height: 54,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.black,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                              // Switch Account Option
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _showManualInputs = true;
+                                  });
+                                },
+                                child: Text(
+                                  'Switch Account / Enter Password',
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white54,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ),
-                              elevation: 0,
+                            ],
+                          ),
+                        ),
+                      ] else ...[
+                        // ─────────────────────────────────────────────────────
+                        // MANUAL INPUTS MODE (Clean, Professional, Focused)
+                        // ─────────────────────────────────────────────────────
+
+                        // Return to Saved Account Banner if available
+                        if (_hasFullSavedCredentials) ...[
+                          InkWell(
+                            onTap: () {
+                              setState(() {
+                                _showManualInputs = false;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: AppTheme.primaryColor.withOpacity(0.35),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(AthIcons.bolt,
+                                      color: AppTheme.primaryColor, size: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Use saved 1-Tap sign in for @${_savedCredentials!['username']}',
+                                      style: GoogleFonts.outfit(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  const Icon(AthIcons.chevronRight,
+                                      color: AppTheme.primaryColor, size: 12),
+                                ],
+                              ),
                             ),
-                            onPressed: _handleLogin,
-                            child: Text(
-                              'SIGN IN',
-                              style: GoogleFonts.spaceGrotesk(
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.5,
-                                fontSize: 15,
-                              ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        if (authState.errorMessage != null) ...[
+                          _buildErrorBanner(authState.errorMessage!),
+                          const SizedBox(height: 12),
+                        ],
+
+                        AutofillGroup(
+                          onDisposeAction: AutofillContextAction.commit,
+                          child: Form(
+                            key: _formKey,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Username or Email Field
+                                TextFormField(
+                                  controller: _identifierController,
+                                  keyboardType: TextInputType.emailAddress,
+                                  autofillHints: const [
+                                    AutofillHints.username,
+                                    AutofillHints.email,
+                                  ],
+                                  textInputAction: TextInputAction.next,
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: 'Username or email',
+                                    hintStyle: GoogleFonts.outfit(
+                                      color: Colors.white38,
+                                      fontSize: 14,
+                                    ),
+                                    prefixIcon: const Icon(
+                                      AthIcons.atSymbol,
+                                      color: Colors.white54,
+                                      size: 18,
+                                    ),
+                                    filled: true,
+                                    fillColor: const Color(0xFF141414),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 16,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFF262626),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFF262626),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                        color: AppTheme.primaryColor,
+                                        width: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Enter your username or email address';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+
+                                // Password Field
+                                TextFormField(
+                                  controller: _passwordController,
+                                  obscureText: _obscurePassword,
+                                  autofillHints: const [AutofillHints.password],
+                                  textInputAction: TextInputAction.done,
+                                  onFieldSubmitted: (_) => _handleLogin(),
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: 'Password',
+                                    hintStyle: GoogleFonts.outfit(
+                                      color: Colors.white38,
+                                      fontSize: 14,
+                                    ),
+                                    prefixIcon: const Icon(
+                                      AthIcons.lockClosed,
+                                      color: Colors.white54,
+                                      size: 18,
+                                    ),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscurePassword
+                                            ? AthIcons.eyeSlash
+                                            : AthIcons.eye,
+                                        color: Colors.white38,
+                                        size: 20,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _obscurePassword = !_obscurePassword;
+                                        });
+                                      },
+                                    ),
+                                    filled: true,
+                                    fillColor: const Color(0xFF141414),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 16,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFF262626),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFF262626),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                        color: AppTheme.primaryColor,
+                                        width: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Enter your password';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 10),
+
+                                // Remember Me & Forgot Password Row
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          _rememberMe = !_rememberMe;
+                                        });
+                                      },
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 4),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            SizedBox(
+                                              height: 18,
+                                              width: 18,
+                                              child: Checkbox(
+                                                value: _rememberMe,
+                                                activeColor:
+                                                    AppTheme.primaryColor,
+                                                checkColor: Colors.black,
+                                                side: const BorderSide(
+                                                  color: Colors.white38,
+                                                  width: 1.5,
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                ),
+                                                materialTapTargetSize:
+                                                    MaterialTapTargetSize
+                                                        .shrinkWrap,
+                                                onChanged: (val) {
+                                                  setState(() {
+                                                    _rememberMe = val ?? true;
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Remember credentials',
+                                              style: GoogleFonts.outfit(
+                                                fontSize: 12,
+                                                color: Colors.white70,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () =>
+                                          context.push('/forgot-password'),
+                                      child: Text(
+                                        'Forgot password?',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 12,
+                                          color: AppTheme.primaryColor,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 18),
+
+                                // Primary SIGN IN Button
+                                SizedBox(
+                                  height: 48,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primaryColor,
+                                      foregroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                    onPressed: _handleLogin,
+                                    child: Text(
+                                      'SIGN IN',
+                                      style: GoogleFonts.outfit(
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 1.2,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
 
+                        const SizedBox(height: 22),
 
+                        // Divider OR
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Divider(
+                                color: Color(0xFF242424),
+                                thickness: 1,
+                              ),
+                            ),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              child: Text(
+                                'OR',
+                                style: GoogleFonts.outfit(
+                                  color: Colors.white38,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 11,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ),
+                            const Expanded(
+                              child: Divider(
+                                color: Color(0xFF242424),
+                                thickness: 1,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 22),
+
+                        // Secondary: Phone Number Sign-in Option
+                        SizedBox(
+                          height: 48,
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Color(0xFF262626)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () => ref
+                                .read(authControllerProvider.notifier)
+                                .goToPhoneLogin(),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(AthIcons.devicePhoneMobile,
+                                    color: AppTheme.primaryColor, size: 18),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'SIGN IN WITH MOBILE NUMBER',
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.8,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
-                    ),
-                  ),
-                ),
-              ],
 
-              const SizedBox(height: 24),
+                      const Spacer(flex: 3),
 
-              // Divider OR
-              Row(
-                children: [
-                  const Expanded(child: Divider(color: Color(0xFF2A2A2A))),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'OR',
-                      style: GoogleFonts.spaceGrotesk(
-                        color: Colors.white38,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ),
-                  const Expanded(child: Divider(color: Color(0xFF2A2A2A))),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // Secondary: Phone Number Sign-in Option
-              SizedBox(
-                height: 52,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Color(0xFF333333)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () => ref
-                      .read(authControllerProvider.notifier)
-                      .goToPhoneLogin(),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.phone_iphone,
-                          color: AppTheme.primaryColor, size: 18),
-                      const SizedBox(width: 10),
-                      Text(
-                        'SIGN IN WITH MOBILE NUMBER',
-                        style: GoogleFonts.spaceGrotesk(
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
-                          fontSize: 13,
+                      // ─────────────────────────────────────────────────────
+                      // PINNED INSTAGRAM-STYLE FOOTER
+                      // ─────────────────────────────────────────────────────
+                      SafeArea(
+                        top: false,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              top: BorderSide(
+                                color: Color(0xFF1E1E1E),
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Don't have an account? ",
+                                style: GoogleFonts.outfit(
+                                  color: Colors.white54,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => ref
+                                    .read(authControllerProvider.notifier)
+                                    .goToCreateAccount(),
+                                child: Text(
+                                  'Create Account',
+                                  style: GoogleFonts.outfit(
+                                    color: AppTheme.primaryColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-
-              const SizedBox(height: 32),
-
-              // Create Account Link
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Don\'t have an account? ',
-                    style: GoogleFonts.inter(
-                      color: Colors.white54,
-                      fontSize: 14,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => ref
-                        .read(authControllerProvider.notifier)
-                        .goToCreateAccount(),
-                    child: Text(
-                      'Create Account',
-                      style: GoogleFonts.inter(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -1147,17 +1291,17 @@ class _PhoneLoginWidgetState extends State<_PhoneLoginWidget> {
                 const SizedBox(height: 20),
                 Text(
                   'SIGN IN WITH MOBILE',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1,
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
                     color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Enter your registered mobile number. We will send a one-time code to verify your identity.',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.outfit(
                     fontSize: 13,
                     color: Colors.white70,
                     height: 1.5,
@@ -1171,7 +1315,7 @@ class _PhoneLoginWidgetState extends State<_PhoneLoginWidget> {
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
-                  style: GoogleFonts.spaceGrotesk(
+                  style: GoogleFonts.outfit(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 16),
@@ -1187,12 +1331,12 @@ class _PhoneLoginWidgetState extends State<_PhoneLoginWidget> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.phone_iphone_outlined,
+                          const Icon(AthIcons.devicePhoneMobile,
                               color: AppTheme.primaryColor, size: 18),
                           const SizedBox(width: 8),
                           Text(
                             '+91',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: GoogleFonts.outfit(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold),
                           ),
@@ -1200,7 +1344,7 @@ class _PhoneLoginWidgetState extends State<_PhoneLoginWidget> {
                       ),
                     ),
                     hintText: 'Enter 10-digit number',
-                    hintStyle: GoogleFonts.inter(color: Colors.white24),
+                    hintStyle: GoogleFonts.outfit(color: Colors.white24),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -1234,7 +1378,7 @@ class _PhoneLoginWidgetState extends State<_PhoneLoginWidget> {
                     },
                     child: Text(
                       'SEND OTP',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w900, letterSpacing: 1.5),
                     ),
                   ),
@@ -1305,14 +1449,14 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(
-                    Icons.verified_rounded,
+                    AthIcons.checkBadgeSolid,
                     color: AppTheme.primaryColor,
                     size: 13,
                   ),
                   const SizedBox(width: 5),
                   Text(
                     'PHONE VERIFIED',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: GoogleFonts.outfit(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.2,
@@ -1326,7 +1470,7 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
           const SizedBox(height: 12),
           Text(
             isSingle ? 'PROFILE FOUND' : 'SELECT ACCOUNT',
-            style: GoogleFonts.spaceGrotesk(
+            style: GoogleFonts.outfit(
               fontSize: 24,
               fontWeight: FontWeight.w900,
               letterSpacing: 1.2,
@@ -1338,7 +1482,7 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
             isSingle
                 ? 'We found 1 profile registered with ${authState.tempPhoneNumber}. Tap the card below to sign in:'
                 : '$count profiles are linked with ${authState.tempPhoneNumber}. Tap the account you wish to access:',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.outfit(
               fontSize: 13,
               color: Colors.white70,
               height: 1.5,
@@ -1353,10 +1497,10 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
             child: TextButton.icon(
               onPressed: () =>
                   ref.read(authControllerProvider.notifier).goToPhoneLogin(),
-              icon: const Icon(Icons.refresh_rounded, size: 16, color: Colors.white60),
+              icon: const Icon(AthIcons.arrowPath, size: 16, color: Colors.white60),
               label: Text(
                 'Use a different phone number',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.outfit(
                   color: Colors.white70,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
@@ -1370,7 +1514,7 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
                   ref.read(authControllerProvider.notifier).goBackToLogin(),
               child: Text(
                 'Sign in with username or email',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.outfit(
                   color: Colors.white38,
                   fontSize: 12,
                 ),
@@ -1427,7 +1571,7 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
                 // Profile picture / Avatar
                 Container(
                   width: 54,
-                  height: 54,
+                  height: 46,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
@@ -1441,7 +1585,7 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
                             imageUrl: account.avatarUrl.trim(),
                             fit: BoxFit.cover,
                             width: 54,
-                            height: 54,
+                            height: 46,
                             placeholder: (context, url) => Container(
                               color: const Color(0xFF222222),
                               child: const Center(
@@ -1466,7 +1610,7 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
                     children: [
                       Text(
                         displayName,
-                        style: GoogleFonts.spaceGrotesk(
+                        style: GoogleFonts.outfit(
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                           fontSize: 16,
@@ -1477,7 +1621,7 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
                       const SizedBox(height: 2),
                       Text(
                         '@${account.username}',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.outfit(
                           color: AppTheme.primaryColor,
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
@@ -1491,7 +1635,7 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
                           account.alternateEmail.isNotEmpty
                               ? account.alternateEmail
                               : account.googleEmail,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.outfit(
                             color: Colors.white38,
                             fontSize: 11,
                           ),
@@ -1518,7 +1662,7 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
                               ),
                               child: Text(
                                 account.role.toUpperCase(),
-                                style: GoogleFonts.spaceGrotesk(
+                                style: GoogleFonts.outfit(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                   color: AppTheme.primaryColor,
@@ -1540,7 +1684,7 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
                               ),
                               child: Text(
                                 account.sport,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.outfit(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w500,
                                   color: Colors.white70,
@@ -1569,7 +1713,7 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
                     children: [
                       Text(
                         'LOG IN',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: GoogleFonts.outfit(
                           color: AppTheme.primaryColor,
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
@@ -1578,7 +1722,7 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
                       ),
                       const SizedBox(width: 4),
                       const Icon(
-                        Icons.arrow_forward_rounded,
+                        AthIcons.arrowRight,
                         color: AppTheme.primaryColor,
                         size: 13,
                       ),
@@ -1599,7 +1743,7 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
       child: Center(
         child: Text(
           initial,
-          style: GoogleFonts.spaceGrotesk(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.bold,
             color: AppTheme.primaryColor,
             fontSize: 20,
@@ -1628,17 +1772,17 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
               const SizedBox(height: 20),
               Text(
                 'ENTER OTP',
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1,
+                style: GoogleFonts.outfit(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
                   color: Colors.white,
                 ),
               ),
               const SizedBox(height: 8),
               RichText(
                 text: TextSpan(
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.outfit(
                       fontSize: 13, color: Colors.white70, height: 1.5),
                   children: [
                     const TextSpan(text: 'We sent a 6-digit code to '),
@@ -1669,7 +1813,7 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center,
                       maxLength: 1,
-                      style: GoogleFonts.spaceGrotesk(
+                      style: GoogleFonts.outfit(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -1733,7 +1877,7 @@ class _PhoneLoginOtpWidgetState extends ConsumerState<_PhoneLoginOtpWidget> {
                       : null,
                   child: Text(
                     'VERIFY & SIGN IN',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w900, letterSpacing: 1.5),
                   ),
                 ),
@@ -1782,7 +1926,7 @@ Widget _buildErrorBanner(String message) {
     ),
     child: Row(
       children: [
-        const Icon(Icons.error_outline, color: Colors.red, size: 18),
+        const Icon(AthIcons.exclamationCircle, color: Colors.red, size: 18),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -1915,7 +2059,7 @@ class _CreateAccountCredentialsWidgetState
               children: [
                 Text(
                   'CREATE ACCOUNT',
-                  style: GoogleFonts.spaceGrotesk(
+                  style: GoogleFonts.outfit(
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 1.5,
@@ -1925,7 +2069,7 @@ class _CreateAccountCredentialsWidgetState
                 const SizedBox(height: 6),
                 Text(
                   'Step 1 of registration: Set your identity, verify your email, and secure your credentials.',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.outfit(
                     fontSize: 13,
                     color: Colors.white70,
                     height: 1.4,
@@ -1945,7 +2089,7 @@ class _CreateAccountCredentialsWidgetState
                     AutofillHints.username,
                   ],
                   textInputAction: TextInputAction.next,
-                  style: GoogleFonts.spaceGrotesk(
+                  style: GoogleFonts.outfit(
                     color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -1953,7 +2097,7 @@ class _CreateAccountCredentialsWidgetState
                   decoration: InputDecoration(
                     labelText: 'Arena Username',
                     hintText: 'e.g. dynamic_player',
-                    prefixIcon: const Icon(Icons.alternate_email,
+                    prefixIcon: const Icon(AthIcons.atSymbol,
                         color: AppTheme.primaryColor, size: 18),
                     suffixIcon: Padding(
                       padding: const EdgeInsets.only(right: 12),
@@ -1970,10 +2114,10 @@ class _CreateAccountCredentialsWidgetState
                               ),
                             )
                           else if (authState.isUsernameAvailable == true)
-                            const Icon(Icons.check_circle,
+                            const Icon(AthIcons.checkCircleSolid,
                                 color: Colors.greenAccent, size: 20)
                           else if (authState.isUsernameAvailable == false)
-                            const Icon(Icons.cancel,
+                            const Icon(AthIcons.xMark,
                                 color: Colors.redAccent, size: 20),
                         ],
                       ),
@@ -2000,7 +2144,7 @@ class _CreateAccountCredentialsWidgetState
                     padding: const EdgeInsets.only(top: 4, left: 12),
                     child: Text(
                       '✓ @${_usernameController.text.trim()} is available',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.outfit(
                           color: Colors.greenAccent, fontSize: 11),
                     ),
                   )
@@ -2009,7 +2153,7 @@ class _CreateAccountCredentialsWidgetState
                     padding: const EdgeInsets.only(top: 4, left: 12),
                     child: Text(
                       '✗ Username is already taken',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.outfit(
                           color: Colors.redAccent, fontSize: 11),
                     ),
                   ),
@@ -2020,11 +2164,11 @@ class _CreateAccountCredentialsWidgetState
                   controller: _fullNameController,
                   autofillHints: const [AutofillHints.name],
                   textInputAction: TextInputAction.next,
-                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 14),
                   decoration: const InputDecoration(
                     labelText: 'Full Name',
                     hintText: 'e.g. Alex Hunter',
-                    prefixIcon: Icon(Icons.person_outline,
+                    prefixIcon: Icon(AthIcons.user,
                         color: AppTheme.primaryColor, size: 18),
                   ),
                   validator: (val) {
@@ -2043,11 +2187,11 @@ class _CreateAccountCredentialsWidgetState
                   autofillHints: const [AutofillHints.email],
                   textInputAction: TextInputAction.next,
                   enabled: !authState.isEmailVerified,
-                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 14),
                   decoration: InputDecoration(
                     labelText: 'Email Address',
                     hintText: 'e.g. athlete@example.com',
-                    prefixIcon: const Icon(Icons.mail_outline,
+                    prefixIcon: const Icon(AthIcons.envelope,
                         color: AppTheme.primaryColor, size: 18),
                     suffixIcon: Padding(
                       padding: const EdgeInsets.only(right: 8),
@@ -2055,12 +2199,12 @@ class _CreateAccountCredentialsWidgetState
                           ? Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.verified,
+                                const Icon(AthIcons.checkBadgeSolid,
                                     color: Colors.greenAccent, size: 18),
                                 const SizedBox(width: 4),
                                 Text(
                                   'VERIFIED',
-                                  style: GoogleFonts.spaceGrotesk(
+                                  style: GoogleFonts.outfit(
                                     color: Colors.greenAccent,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 11,
@@ -2076,7 +2220,7 @@ class _CreateAccountCredentialsWidgetState
                                 authState.isEmailOtpSent
                                     ? 'Resend OTP'
                                     : 'Send OTP',
-                                style: GoogleFonts.spaceGrotesk(
+                                style: GoogleFonts.outfit(
                                   color: AppTheme.primaryColor,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
@@ -2100,7 +2244,7 @@ class _CreateAccountCredentialsWidgetState
                   padding: const EdgeInsets.only(left: 4),
                   child: Text(
                     'Strict policy: 1 account per email address.',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.outfit(
                         color: Colors.white38, fontSize: 11),
                   ),
                 ),
@@ -2121,12 +2265,12 @@ class _CreateAccountCredentialsWidgetState
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.mark_email_read_outlined,
+                            const Icon(AthIcons.envelope,
                                 color: AppTheme.primaryColor, size: 18),
                             const SizedBox(width: 8),
                             Text(
                               'VERIFY EMAIL OTP',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: GoogleFonts.outfit(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
@@ -2138,7 +2282,7 @@ class _CreateAccountCredentialsWidgetState
                         const SizedBox(height: 4),
                         Text(
                           'Enter the 6-digit code sent to ${authState.tempEmail}:',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.outfit(
                               color: Colors.white60, fontSize: 12),
                         ),
                         const SizedBox(height: 12),
@@ -2149,7 +2293,7 @@ class _CreateAccountCredentialsWidgetState
                                 controller: _emailOtpController,
                                 keyboardType: TextInputType.number,
                                 maxLength: 6,
-                                style: GoogleFonts.spaceGrotesk(
+                                style: GoogleFonts.outfit(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
@@ -2175,7 +2319,7 @@ class _CreateAccountCredentialsWidgetState
                               onPressed: _verifyEmailOtp,
                               child: Text(
                                 'VERIFY',
-                                style: GoogleFonts.spaceGrotesk(
+                                style: GoogleFonts.outfit(
                                   fontWeight: FontWeight.w900,
                                   letterSpacing: 1.2,
                                 ),
@@ -2195,20 +2339,20 @@ class _CreateAccountCredentialsWidgetState
                   obscureText: _obscurePassword,
                   autofillHints: const [AutofillHints.newPassword],
                   textInputAction: TextInputAction.next,
-                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 14),
                   onChanged: (val) {
                     setState(() {});
                   },
                   decoration: InputDecoration(
                     labelText: 'Password',
                     hintText: 'Min 8 chars, A-Z, a-z, 0-9, symbol',
-                    prefixIcon: const Icon(Icons.lock_outline,
+                    prefixIcon: const Icon(AthIcons.lockClosed,
                         color: AppTheme.primaryColor, size: 18),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
+                            ? AthIcons.eyeSlash
+                            : AthIcons.eye,
                         color: Colors.white54,
                         size: 20,
                       ),
@@ -2232,17 +2376,17 @@ class _CreateAccountCredentialsWidgetState
                   autofillHints: const [AutofillHints.newPassword],
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _handleSubmit(authState),
-                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 14),
                   decoration: InputDecoration(
                     labelText: 'Confirm Password',
                     hintText: 'Re-enter your password',
-                    prefixIcon: const Icon(Icons.lock_reset,
+                    prefixIcon: const Icon(AthIcons.key,
                         color: AppTheme.primaryColor, size: 18),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscureConfirm
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
+                            ? AthIcons.eyeSlash
+                            : AthIcons.eye,
                         color: Colors.white54,
                         size: 20,
                       ),
@@ -2267,7 +2411,7 @@ class _CreateAccountCredentialsWidgetState
 
                 // SUBMIT BUTTON
                 SizedBox(
-                  height: 54,
+                  height: 46,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
@@ -2279,7 +2423,7 @@ class _CreateAccountCredentialsWidgetState
                     onPressed: () => _handleSubmit(authState),
                     child: Text(
                       'CONTINUE TO MOBILE VERIFICATION',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.2,
                         fontSize: 13,
@@ -2334,17 +2478,17 @@ class _PhoneInputWidgetState extends State<_PhoneInputWidget> {
                 const SizedBox(height: 20),
                 Text(
                   'PHONE VERIFICATION',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1,
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
                     color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Step 2: Atheleos allows up to 5 accounts linked to one phone number. We will send a one-time SMS verification code.',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.outfit(
                     fontSize: 13,
                     color: Colors.white70,
                     height: 1.5,
@@ -2359,7 +2503,7 @@ class _PhoneInputWidgetState extends State<_PhoneInputWidget> {
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
-                  style: GoogleFonts.spaceGrotesk(
+                  style: GoogleFonts.outfit(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 16),
@@ -2375,12 +2519,12 @@ class _PhoneInputWidgetState extends State<_PhoneInputWidget> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.phone_iphone_outlined,
+                          const Icon(AthIcons.devicePhoneMobile,
                               color: AppTheme.primaryColor, size: 18),
                           const SizedBox(width: 8),
                           Text(
                             '+91',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: GoogleFonts.outfit(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold),
                           ),
@@ -2388,7 +2532,7 @@ class _PhoneInputWidgetState extends State<_PhoneInputWidget> {
                       ),
                     ),
                     hintText: 'Enter 10-digit number',
-                    hintStyle: GoogleFonts.inter(color: Colors.white24),
+                    hintStyle: GoogleFonts.outfit(color: Colors.white24),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -2421,7 +2565,7 @@ class _PhoneInputWidgetState extends State<_PhoneInputWidget> {
                     },
                     child: Text(
                       'SEND SECURE OTP',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w900, letterSpacing: 1.5),
                     ),
                   ),
@@ -2487,17 +2631,17 @@ class _OtpInputWidgetState extends State<_OtpInputWidget> {
               const SizedBox(height: 20),
               Text(
                 'ENTER VERIFICATION CODE',
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1,
+                style: GoogleFonts.outfit(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
                   color: Colors.white,
                 ),
               ),
               const SizedBox(height: 8),
               RichText(
                 text: TextSpan(
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.outfit(
                       fontSize: 13, color: Colors.white70, height: 1.5),
                   children: [
                     const TextSpan(
@@ -2529,7 +2673,7 @@ class _OtpInputWidgetState extends State<_OtpInputWidget> {
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center,
                       maxLength: 1,
-                      style: GoogleFonts.spaceGrotesk(
+                      style: GoogleFonts.outfit(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -2597,7 +2741,7 @@ class _OtpInputWidgetState extends State<_OtpInputWidget> {
                       : null,
                   child: Text(
                     'VERIFY SECURITY CODE',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w900, letterSpacing: 1.5),
                   ),
                 ),
@@ -2665,7 +2809,7 @@ class _RoleSelectionWidgetState extends State<_RoleSelectionWidget> {
             children: [
               Text(
                 'SELECT YOUR ARENA ROLE',
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   fontSize: 24,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
@@ -2674,7 +2818,7 @@ class _RoleSelectionWidgetState extends State<_RoleSelectionWidget> {
               const SizedBox(height: 6),
               Text(
                 'Select your primary affiliation inside the Atheleos ecosystem. You can modify details later.',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.outfit(
                   fontSize: 13,
                   color: Colors.white70,
                   height: 1.5,
@@ -2685,7 +2829,7 @@ class _RoleSelectionWidgetState extends State<_RoleSelectionWidget> {
               // ATHLETE CARD
               _buildRoleCard(
                 roleName: 'Athlete',
-                icon: Icons.emoji_events,
+                icon: AthIcons.trophy,
                 description: 'Build your public stats card, upload drill combine clips, and get verified scouts to review your showcase videos.',
               ),
               const SizedBox(height: 16),
@@ -2693,7 +2837,7 @@ class _RoleSelectionWidgetState extends State<_RoleSelectionWidget> {
               // COACH CARD
               _buildRoleCard(
                 roleName: 'Coach',
-                icon: Icons.shield, // Athletic coach vibe
+                icon: AthIcons.shieldCheck, // Athletic coach vibe
                 description: 'Manage teams, search verified athlete data benchmarks, review direct combine film highlights, and invite prospects to camps.',
               ),
               const SizedBox(height: 16),
@@ -2701,7 +2845,7 @@ class _RoleSelectionWidgetState extends State<_RoleSelectionWidget> {
               // BRAND CARD
               _buildRoleCard(
                 roleName: 'Brand',
-                icon: Icons.business_center_outlined,
+                icon: AthIcons.briefcase,
                 description: 'Coordinate sports events, sponsor combines, issue brand contracts, and partner with top verified local talent pools.',
               ),
               const SizedBox(height: 16),
@@ -2709,7 +2853,7 @@ class _RoleSelectionWidgetState extends State<_RoleSelectionWidget> {
               // FEDERATION CARD
               _buildRoleCard(
                 roleName: 'Federation',
-                icon: Icons.account_balance_outlined,
+                icon: AthIcons.buildingLibrary,
                 description: 'Official sports governing bodies and associations. Sanction tournaments, organize state/national meets, and verify competitive rosters.',
               ),
               const SizedBox(height: 32),
@@ -2729,7 +2873,7 @@ class _RoleSelectionWidgetState extends State<_RoleSelectionWidget> {
                       : null,
                   child: Text(
                     'CONFIRM PROFILE ROLE',
-                    style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5),
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w900, letterSpacing: 1.5),
                   ),
                 ),
               ),
@@ -2789,7 +2933,7 @@ class _RoleSelectionWidgetState extends State<_RoleSelectionWidget> {
                 children: [
                   Text(
                     roleName.toUpperCase(),
-                    style: GoogleFonts.spaceGrotesk(
+                    style: GoogleFonts.outfit(
                       fontWeight: FontWeight.w900,
                       fontSize: 16,
                       color: isSelected ? AppTheme.primaryColor : Colors.white,
@@ -2799,7 +2943,7 @@ class _RoleSelectionWidgetState extends State<_RoleSelectionWidget> {
                   const SizedBox(height: 6),
                   Text(
                     description,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.outfit(
                       fontSize: 12,
                       color: Colors.white60,
                       height: 1.4,
@@ -2923,14 +3067,14 @@ class _LocationWidgetState extends State<_LocationWidget> {
                     children: [
                       Text(
                         title.toUpperCase(),
-                        style: GoogleFonts.spaceGrotesk(
+                        style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
                           fontSize: 16,
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white38),
+                        icon: const Icon(AthIcons.xMark, color: Colors.white38),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ],
@@ -2941,7 +3085,7 @@ class _LocationWidgetState extends State<_LocationWidget> {
                     decoration: InputDecoration(
                       hintText: 'Search here...',
                       hintStyle: const TextStyle(color: Colors.white30),
-                      prefixIcon: const Icon(Icons.search, color: AppTheme.primaryColor),
+                      prefixIcon: const Icon(AthIcons.search, color: AppTheme.primaryColor),
                       fillColor: Colors.white10,
                       filled: true,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -2967,7 +3111,7 @@ class _LocationWidgetState extends State<_LocationWidget> {
                               return ListTile(
                                 tileColor: Colors.transparent,
                                 title: Text(filteredItems[index], style: const TextStyle(color: Colors.white)),
-                                trailing: const Icon(Icons.arrow_forward_ios, size: 12, color: AppTheme.primaryColor),
+                                trailing: const Icon(AthIcons.chevronRight, size: 12, color: AppTheme.primaryColor),
                                 onTap: () {
                                   onSelected(filteredItems[index]);
                                   Navigator.pop(context);
@@ -2996,7 +3140,7 @@ class _LocationWidgetState extends State<_LocationWidget> {
             children: [
               Text(
                 'YOUR REGIONAL HUB',
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   fontSize: 24,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
@@ -3005,7 +3149,7 @@ class _LocationWidgetState extends State<_LocationWidget> {
               const SizedBox(height: 6),
               Text(
                 'Connect locally. Atheleos custom-groups athletic leagues, local combines, and scouting boards by state and city centers.',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.outfit(
                   fontSize: 13,
                   color: Colors.white70,
                   height: 1.5,
@@ -3032,11 +3176,11 @@ class _LocationWidgetState extends State<_LocationWidget> {
                   controller: _pincodeController,
                   keyboardType: TextInputType.number,
                   maxLength: 6,
-                  style: GoogleFonts.spaceGrotesk(color: Colors.white, fontSize: 14),
+                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Enter 6-digit PIN Code',
                     hintStyle: const TextStyle(color: Colors.white24),
-                    prefixIcon: const Icon(Icons.pin_drop, color: AppTheme.primaryColor, size: 16),
+                    prefixIcon: const Icon(AthIcons.mapPin, color: AppTheme.primaryColor, size: 16),
                     counterText: '',
                     suffixIcon: _isPincodeLoading
                         ? const Padding(
@@ -3120,7 +3264,7 @@ class _LocationWidgetState extends State<_LocationWidget> {
                       : null,
                   child: Text(
                     'LOCK IN REGION',
-                    style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5),
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w900, letterSpacing: 1.5),
                   ),
                 ),
               ),
@@ -3144,7 +3288,7 @@ class _LocationWidgetState extends State<_LocationWidget> {
         children: [
           Text(
             label,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.outfit(
               color: (label.startsWith('Select') || label.startsWith('Waiting'))
                   ? Colors.white30 
                   : (isClickable ? Colors.white : Colors.white60),
@@ -3153,7 +3297,7 @@ class _LocationWidgetState extends State<_LocationWidget> {
             ),
           ),
           if (isClickable)
-            const Icon(Icons.keyboard_arrow_down, color: AppTheme.primaryColor, size: 18),
+            const Icon(AthIcons.chevronDown, color: AppTheme.primaryColor, size: 18),
         ],
       ),
     );
@@ -3200,7 +3344,7 @@ class _RoleDetailsWidgetState extends State<_RoleDetailsWidget> {
             children: [
               Text(
                 'ROLE SPECIFIC DETAILS',
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
@@ -3213,7 +3357,7 @@ class _RoleDetailsWidgetState extends State<_RoleDetailsWidget> {
                     : isFederation
                         ? 'Specify your governing sport or administrative scope. You can update details anytime.'
                         : 'Specify your brand industry category or primary sport focus. You can update details anytime.',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.outfit(
                   fontSize: 12,
                   color: Colors.white70,
                   height: 1.4,
@@ -3247,7 +3391,7 @@ class _RoleDetailsWidgetState extends State<_RoleDetailsWidget> {
                   style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(
                     hintText: 'e.g. Batsman, Bowler, Striker, Raider, Defender',
-                    prefixIcon: Icon(Icons.star, color: AppTheme.primaryColor, size: 16),
+                    prefixIcon: Icon(AthIcons.starSolid, color: AppTheme.primaryColor, size: 16),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -3261,7 +3405,7 @@ class _RoleDetailsWidgetState extends State<_RoleDetailsWidget> {
                   dropdownColor: const Color(0xFF141414),
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                   decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.military_tech_outlined, color: AppTheme.primaryColor, size: 18),
+                    prefixIcon: Icon(AthIcons.trophy, color: AppTheme.primaryColor, size: 18),
                   ),
                   items: const [
                     DropdownMenuItem(value: 'School / Grassroots', child: Text('School / Grassroots / Club Level')),
@@ -3364,7 +3508,7 @@ class _RoleDetailsWidgetState extends State<_RoleDetailsWidget> {
                   },
                   child: Text(
                     'COMPLETE REGISTRATION',
-                    style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5),
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w900, letterSpacing: 1.5),
                   ),
                 ),
               ),
@@ -3387,7 +3531,7 @@ class _RoleDetailsWidgetState extends State<_RoleDetailsWidget> {
                   },
                   child: Text(
                     'SKIP FOR NOW',
-                    style: GoogleFonts.spaceGrotesk(color: Colors.white38, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.outfit(color: Colors.white38, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -3468,7 +3612,7 @@ class _CompleteSuccessWidgetState extends State<_CompleteSuccessWidget> with Sin
                         children: [
                           Text(
                             '$completion%',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: GoogleFonts.outfit(
                               fontSize: 28,
                               fontWeight: FontWeight.w900,
                               color: Colors.white,
@@ -3476,7 +3620,7 @@ class _CompleteSuccessWidgetState extends State<_CompleteSuccessWidget> with Sin
                           ),
                           Text(
                             'COMPLETED',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: GoogleFonts.outfit(
                               fontSize: 8,
                               fontWeight: FontWeight.bold,
                               color: AppTheme.primaryColor,
@@ -3494,7 +3638,7 @@ class _CompleteSuccessWidgetState extends State<_CompleteSuccessWidget> with Sin
               Text(
                 'PROFILE SYNCHRONIZED!',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1,
@@ -3507,7 +3651,7 @@ class _CompleteSuccessWidgetState extends State<_CompleteSuccessWidget> with Sin
                     ? 'Welcome to the premium athletic arena, Athlete. Your secure verified credentials have been synced with our high-performance scout servers.'
                     : 'Your account is active. To maximize your recruitment outreach and unlock advanced scouts, please complete your achievements, height, weight, and position inside your Profile completion later.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.outfit(
                   fontSize: 13,
                   color: Colors.white70,
                   height: 1.5,
@@ -3529,11 +3673,11 @@ class _CompleteSuccessWidgetState extends State<_CompleteSuccessWidget> with Sin
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.info, color: AppTheme.primaryColor, size: 16),
+                          const Icon(AthIcons.informationCircle, color: AppTheme.primaryColor, size: 16),
                           const SizedBox(width: 8),
                           Text(
                             'PENDING ARENA METRICS',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: GoogleFonts.outfit(
                               fontWeight: FontWeight.bold,
                               fontSize: 11,
                               color: AppTheme.primaryColor,
@@ -3568,7 +3712,7 @@ class _CompleteSuccessWidgetState extends State<_CompleteSuccessWidget> with Sin
                   },
                   child: Text(
                     'ENTER THE ARENA',
-                    style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5),
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w900, letterSpacing: 1.5),
                   ),
                 ),
               ),

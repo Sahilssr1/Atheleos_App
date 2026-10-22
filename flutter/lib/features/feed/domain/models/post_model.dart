@@ -56,10 +56,18 @@ class MediaItem {
       mediaUrl.toLowerCase().contains('/video/upload/');
 
   factory MediaItem.fromMap(Map<String, dynamic> map) {
+    final mUrl = map['mediaUrl'] as String? ?? '';
+    final mType = map['mediaType'] as String? ?? 'image';
+    final isVid = mType.toLowerCase().contains('video') ||
+        mType == 'clip' ||
+        mUrl.toLowerCase().contains('.mp4') ||
+        mUrl.toLowerCase().contains('.mov') ||
+        mUrl.toLowerCase().contains('/video/upload/');
+    final thumb = map['thumbnailUrl'] as String?;
     return MediaItem(
-      mediaUrl: map['mediaUrl'] as String? ?? '',
-      mediaType: map['mediaType'] as String? ?? 'image',
-      thumbnailUrl: map['thumbnailUrl'] as String?,
+      mediaUrl: mUrl,
+      mediaType: isVid ? 'video' : 'image',
+      thumbnailUrl: (thumb != null && thumb.isNotEmpty) ? thumb : (isVid ? null : mUrl),
       publicId: map['publicId'] as String?,
       width: (map['width'] as num?)?.toInt(),
       height: (map['height'] as num?)?.toInt(),
@@ -98,6 +106,7 @@ class PostModel {
   final bool edited;
   final bool deleted;
 
+  final String? location;
   final DateTime createdAt;
   final List<MentionModel> mentions;
 
@@ -126,6 +135,7 @@ class PostModel {
     required this.hasBookmarked,
     this.edited = false,
     this.deleted = false,
+    this.location,
     required this.createdAt,
     this.mentions = const [],
   });
@@ -151,6 +161,7 @@ class PostModel {
     bool? hasBookmarked,
     bool? edited,
     bool? deleted,
+    String? location,
     DateTime? createdAt,
     List<MentionModel>? mentions,
   }) {
@@ -175,6 +186,7 @@ class PostModel {
       hasBookmarked: hasBookmarked ?? this.hasBookmarked,
       edited: edited ?? this.edited,
       deleted: deleted ?? this.deleted,
+      location: location ?? this.location,
       createdAt: createdAt ?? this.createdAt,
       mentions: mentions ?? this.mentions,
     );
@@ -206,6 +218,7 @@ class PostModel {
       'hasBookmarked': hasBookmarked,
       'edited': edited,
       'deleted': deleted,
+      'location': location,
       'createdAt': Timestamp.fromDate(createdAt),
       'mentions': mentions.map((m) => m.toMap()).toList(),
     };
@@ -238,11 +251,14 @@ class PostModel {
       // Fallback to legacy single mediaUrl fields or root image/video fields
       final singleUrl = (map['mediaUrl'] ?? map['url'] ?? map['imageUrl'] ?? map['videoUrl']) as String?;
       if (singleUrl != null && singleUrl.isNotEmpty) {
+        final mType = _resolveMediaType((map['mediaType'] ?? map['media_type']) as String?, singleUrl) ?? 'image';
+        final isVid = mType == 'video';
+        final thumb = (map['thumbnailUrl'] ?? map['thumbUrl'] ?? map['thumbnail_url']) as String?;
         mediaList = [
           MediaItem(
             mediaUrl: singleUrl,
-            mediaType: _resolveMediaType((map['mediaType'] ?? map['media_type']) as String?, singleUrl) ?? 'image',
-            thumbnailUrl: (map['thumbnailUrl'] ?? map['thumbUrl'] ?? map['thumbnail_url']) as String?,
+            mediaType: mType,
+            thumbnailUrl: (thumb != null && thumb.isNotEmpty) ? thumb : (isVid ? null : singleUrl),
             publicId: (map['publicId'] ?? map['public_id'] ?? map['id']) as String?,
           )
         ];
@@ -342,6 +358,7 @@ class PostModel {
       hasBookmarked: resolvedHasBookmarked,
       edited: map['edited'] == true,
       deleted: map['deleted'] == true,
+      location: (map['location'] ?? map['place'] ?? map['venue'])?.toString(),
       createdAt: resolvedCreatedAt,
       mentions: mentionsList,
     );

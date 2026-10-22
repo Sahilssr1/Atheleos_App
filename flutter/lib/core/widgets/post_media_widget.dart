@@ -8,6 +8,7 @@ import 'package:shimmer/shimmer.dart';
 import '../services/cache_manager.dart';
 import '../theme/app_theme.dart';
 import 'dart:io';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Video lifecycle policy (Instagram-style)
@@ -63,13 +64,22 @@ class PostMediaWidget extends ConsumerStatefulWidget {
     this.onMediaTap,
   });
 
+  bool get isVideo =>
+      mediaType.toLowerCase().contains('video') ||
+      mediaType.toLowerCase() == 'clip' ||
+      mediaUrl.toLowerCase().contains('.mp4') ||
+      mediaUrl.toLowerCase().contains('.mov') ||
+      mediaUrl.toLowerCase().contains('/video/upload/');
+
   /// Computes the known aspect ratio from width/height metadata.
   /// For vertical videos (Reels), supports down to 0.5 (~9:18 / 9:16) so vertical videos
   /// show full-frame without cropping top and bottom in feed (like Instagram).
   /// For images, clamps between 4:5 (0.8) and 16:9 (1.91).
   double get knownAspectRatio {
-    final isVideo = mediaType == 'video';
-    if (mediaWidth != null && mediaHeight != null && mediaWidth! > 0 && mediaHeight! > 0) {
+    if (mediaWidth != null &&
+        mediaHeight != null &&
+        mediaWidth! > 0 &&
+        mediaHeight! > 0) {
       final raw = mediaWidth! / mediaHeight!;
       final minAspect = isVideo ? 0.5 : 0.8;
       return raw.clamp(minAspect, 1.91);
@@ -82,7 +92,8 @@ class PostMediaWidget extends ConsumerStatefulWidget {
   ConsumerState<PostMediaWidget> createState() => _PostMediaWidgetState();
 }
 
-class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTickerProviderStateMixin {
+class _PostMediaWidgetState extends ConsumerState<PostMediaWidget>
+    with SingleTickerProviderStateMixin {
   VideoPlayerController? _videoController;
   bool _isInitialized = false;
   bool _hasError = false;
@@ -112,10 +123,31 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
   /// Clamps down to 0.5 so full 9:16 vertical videos (0.5625) are 100% visible
   /// without cropping any part of the top or bottom.
   double get _effectiveAspectRatio {
-    if (_isInitialized && _videoController != null && _videoController!.value.aspectRatio > 0) {
+    if (_isInitialized &&
+        _videoController != null &&
+        _videoController!.value.aspectRatio > 0) {
       return _videoController!.value.aspectRatio.clamp(0.5, 1.91);
     }
     return widget.knownAspectRatio;
+  }
+
+  String? get _effectiveThumbnailUrl {
+    if (widget.thumbnailUrl != null &&
+        widget.thumbnailUrl!.isNotEmpty &&
+        !widget.thumbnailUrl!.toLowerCase().contains('.mp4')) {
+      return widget.thumbnailUrl;
+    }
+    if (widget.mediaUrl.contains('/media/') &&
+        widget.mediaUrl.endsWith('.mp4')) {
+      return widget.mediaUrl.replaceAll('.mp4', '_thumb.jpg');
+    }
+    if (widget.mediaUrl.contains('/video/upload/')) {
+      return widget.mediaUrl
+          .replaceAll('/video/upload/', '/video/upload/so_0/')
+          .replaceAll(
+              RegExp(r'\.(mp4|mov|webm)$', caseSensitive: false), '.jpg');
+    }
+    return null;
   }
 
   @override
@@ -131,7 +163,8 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
 
     _heartScale = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.0, end: 1.3).chain(CurveTween(curve: Curves.easeOutBack)),
+        tween: Tween<double>(begin: 0.0, end: 1.3)
+            .chain(CurveTween(curve: Curves.easeOutBack)),
         weight: 35,
       ),
       TweenSequenceItem(
@@ -143,18 +176,22 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
         weight: 25,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 0.0).chain(CurveTween(curve: Curves.easeIn)),
+        tween: Tween<double>(begin: 1.0, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
         weight: 20,
       ),
     ]).animate(_heartController);
 
     _heartOpacity = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween<double>(begin: 0.0, end: 0.95), weight: 35),
-      TweenSequenceItem(tween: Tween<double>(begin: 0.95, end: 0.95), weight: 45),
-      TweenSequenceItem(tween: Tween<double>(begin: 0.95, end: 0.0), weight: 20),
+      TweenSequenceItem(
+          tween: Tween<double>(begin: 0.0, end: 0.95), weight: 35),
+      TweenSequenceItem(
+          tween: Tween<double>(begin: 0.95, end: 0.95), weight: 45),
+      TweenSequenceItem(
+          tween: Tween<double>(begin: 0.95, end: 0.0), weight: 20),
     ]).animate(_heartController);
 
-    if (widget.mediaType == 'video') {
+    if (widget.isVideo) {
       // Reconcile against current provider state after the first frame so we
       // can subscribe to future changes via `ref.listen` in build().
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -165,13 +202,13 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
   }
 
   bool get _shouldHoldController {
-    if (widget.mediaType != 'video') return false;
+    if (!widget.isVideo) return false;
     final active = ref.read(activeVideoUrlProvider);
     return widget.mediaUrl == active;
   }
 
   bool get _shouldPlay {
-    return widget.mediaType == 'video' &&
+    return widget.isVideo &&
         ref.read(activeVideoUrlProvider) == widget.mediaUrl;
   }
 
@@ -180,7 +217,7 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
   /// and whenever the widget updates.
   void _reconcileControllerLifecycle() {
     if (!mounted) return;
-    if (widget.mediaType != 'video') return;
+    if (!widget.isVideo) return;
 
     final shouldHold = _shouldHoldController;
     final shouldPlay = _shouldPlay;
@@ -214,7 +251,8 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
       if (parts.length == 2) {
         String afterUpload = parts[1];
         if (afterUpload.endsWith('.mp4')) {
-          afterUpload = '${afterUpload.substring(0, afterUpload.length - 4)}.m3u8';
+          afterUpload =
+              '${afterUpload.substring(0, afterUpload.length - 4)}.m3u8';
           // sp_auto enables Cloudinary's dynamic adaptive streaming (HLS)
           return '${parts[0]}/upload/sp_auto/$afterUpload';
         }
@@ -235,14 +273,16 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
 
     VideoPlayerController? localController;
     try {
-      final cachedPath = await CacheManager().getCachedVideoPath(widget.mediaUrl);
+      final cachedPath =
+          await CacheManager().getCachedVideoPath(widget.mediaUrl);
       if (!mounted || generation != _initGeneration) return;
 
       if (cachedPath != null) {
         localController = VideoPlayerController.file(File(cachedPath));
       } else {
         final adaptiveUrl = _getAdaptiveStreamUrl(widget.mediaUrl);
-        localController = VideoPlayerController.networkUrl(Uri.parse(adaptiveUrl));
+        localController =
+            VideoPlayerController.networkUrl(Uri.parse(adaptiveUrl));
         CacheManager().preloadVideo(widget.mediaUrl);
       }
 
@@ -250,7 +290,9 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
 
       // Verify mounting, active URL, and generation token before attaching
       final activeUrl = ref.read(activeVideoUrlProvider);
-      if (!mounted || generation != _initGeneration || widget.mediaUrl != activeUrl) {
+      if (!mounted ||
+          generation != _initGeneration ||
+          widget.mediaUrl != activeUrl) {
         await localController.dispose();
         return;
       }
@@ -259,7 +301,9 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
       final isMuted = ref.read(videosMutedProvider);
       await localController.setVolume(isMuted ? 0.0 : 1.0);
 
-      if (!mounted || generation != _initGeneration || widget.mediaUrl != activeUrl) {
+      if (!mounted ||
+          generation != _initGeneration ||
+          widget.mediaUrl != activeUrl) {
         await localController.dispose();
         return;
       }
@@ -299,6 +343,15 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
 
   void _videoPlayerListener() {
     if (!mounted || _videoController == null) return;
+    if (_videoController!.value.hasError) {
+      if (!_hasError) {
+        setState(() {
+          _hasError = true;
+          _isInitialized = false;
+        });
+      }
+      return;
+    }
     final isBuffering = _videoController!.value.isBuffering;
     final isPlaying = _videoController!.value.isPlaying;
     if (isBuffering != _lastBuffering || isPlaying != _lastPlaying) {
@@ -311,9 +364,10 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
   @override
   void didUpdateWidget(PostMediaWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.mediaUrl != oldWidget.mediaUrl || widget.mediaType != oldWidget.mediaType) {
+    if (widget.mediaUrl != oldWidget.mediaUrl ||
+        widget.mediaType != oldWidget.mediaType) {
       _disposeVideo();
-      if (widget.mediaType == 'video') {
+      if (widget.isVideo) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           _reconcileControllerLifecycle();
@@ -380,7 +434,9 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
     });
 
     Future.delayed(const Duration(seconds: 1), () {
-      if (mounted && DateTime.now().difference(_lastMuteIndicatorTime).inMilliseconds >= 900) {
+      if (mounted &&
+          DateTime.now().difference(_lastMuteIndicatorTime).inMilliseconds >=
+              900) {
         setState(() {
           _showMuteIndicator = false;
         });
@@ -419,7 +475,7 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.broken_image_outlined, color: Colors.white24, size: 40),
+              const Icon(AthIcons.photo, color: Colors.white24, size: 40),
               const SizedBox(height: 12),
               const Text(
                 'Failed to load media',
@@ -428,7 +484,7 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
               const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: () {
-                  if (widget.mediaType == 'video') {
+                  if (widget.isVideo) {
                     setState(() {
                       _hasError = false;
                     });
@@ -437,10 +493,14 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
                     setState(() {});
                   }
                 },
-                icon: const Icon(Icons.refresh, size: 16, color: AppTheme.primaryColor),
+                icon: const Icon(AthIcons.arrowPath,
+                    size: 16, color: AppTheme.primaryColor),
                 label: const Text(
                   'Retry',
-                  style: TextStyle(color: AppTheme.primaryColor, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      color: AppTheme.primaryColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -455,7 +515,7 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
     // React to any change that could affect our controller lifecycle:
     //  * active URL changed (some other video became active / no active video)
     //  * mute state changed (adjust volume)
-    if (widget.mediaType == 'video') {
+    if (widget.isVideo) {
       ref.listen<String?>(activeVideoUrlProvider, (prev, next) {
         _reconcileControllerLifecycle();
       });
@@ -471,14 +531,16 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
 
     return GestureDetector(
       onDoubleTap: _triggerDoubleTapLike,
-      onTap: widget.mediaType == 'video' ? (widget.onMediaTap ?? _toggleMute) : widget.onMediaTap,
+      onTap: widget.isVideo
+          ? (widget.onMediaTap ?? _toggleMute)
+          : widget.onMediaTap,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
         child: Stack(
           alignment: Alignment.center,
           children: [
             // MEDIA RENDERER
-            if (widget.mediaType == 'image')
+            if (!widget.isVideo)
               AspectRatio(
                 aspectRatio: widget.knownAspectRatio,
                 child: CachedNetworkImage(
@@ -491,7 +553,7 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
                   errorWidget: (context, url, error) => _buildErrorWidget(),
                 ),
               )
-            else if (widget.mediaType == 'video')
+            else
               AspectRatio(
                 aspectRatio: _effectiveAspectRatio,
                 child: _hasError
@@ -502,15 +564,17 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
                             fit: StackFit.expand,
                             children: [
                               // Show thumbnail while initializing video
-                              if (widget.thumbnailUrl != null && widget.thumbnailUrl!.isNotEmpty)
+                              if (_effectiveThumbnailUrl != null)
                                 CachedNetworkImage(
-                                  imageUrl: widget.thumbnailUrl!,
+                                  imageUrl: _effectiveThumbnailUrl!,
                                   width: double.infinity,
                                   fit: BoxFit.cover,
                                   memCacheWidth: 1080,
                                   memCacheHeight: 1920,
-                                  placeholder: (context, url) => _buildShimmerPlaceholder(),
-                                  errorWidget: (context, url, error) => Container(color: Colors.black),
+                                  placeholder: (context, url) =>
+                                      _buildShimmerPlaceholder(),
+                                  errorWidget: (context, url, error) =>
+                                      Container(color: Colors.black),
                                 )
                               else
                                 Container(
@@ -534,14 +598,13 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
                             fit: StackFit.expand,
                             children: [
                               Builder(builder: (context) {
-                                final vAspect = _videoController!.value.aspectRatio > 0
-                                    ? _videoController!.value.aspectRatio
-                                    : widget.knownAspectRatio;
-                                return FittedBox(
-                                  fit: BoxFit.cover,
-                                  child: SizedBox(
-                                    width: vAspect * 1000,
-                                    height: 1000,
+                                final vAspect =
+                                    _videoController!.value.aspectRatio > 0
+                                        ? _videoController!.value.aspectRatio
+                                        : widget.knownAspectRatio;
+                                return Center(
+                                  child: AspectRatio(
+                                    aspectRatio: vAspect,
                                     child: VideoPlayer(_videoController!),
                                   ),
                                 );
@@ -568,7 +631,7 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
                     child: Transform.scale(
                       scale: _heartScale.value,
                       child: const Icon(
-                        Icons.favorite,
+                        AthIcons.heartFill,
                         color: Colors.red,
                         size: 90,
                       ),
@@ -578,7 +641,7 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
               ),
 
             // VOLUME/MUTE STATE OVERLAY INDICATOR
-            if (widget.mediaType == 'video' && _showMuteIndicator)
+            if (widget.isVideo && _showMuteIndicator)
               AnimatedOpacity(
                 opacity: _showMuteIndicator ? 0.9 : 0.0,
                 duration: const Duration(milliseconds: 200),
@@ -586,7 +649,7 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
                   backgroundColor: Colors.black54,
                   radius: 24,
                   child: Icon(
-                    isMuted ? Icons.volume_off : Icons.volume_up,
+                    isMuted ? AthIcons.volumeMute : AthIcons.volumeHigh,
                     color: Colors.white,
                     size: 24,
                   ),
@@ -594,7 +657,7 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
               ),
 
             // PERSISTENT MUTE/UNMUTE BUTTON OVERLAY (Bottom Right Corner)
-            if (widget.mediaType == 'video')
+            if (widget.isVideo)
               Positioned(
                 bottom: 12,
                 right: 12,
@@ -607,7 +670,7 @@ class _PostMediaWidgetState extends ConsumerState<PostMediaWidget> with SingleTi
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      isMuted ? Icons.volume_off : Icons.volume_up,
+                      isMuted ? AthIcons.volumeMute : AthIcons.volumeHigh,
                       color: Colors.white,
                       size: 16,
                     ),
@@ -651,10 +714,12 @@ class AutoPlayVideoVisibilityWidget extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<AutoPlayVideoVisibilityWidget> createState() => _AutoPlayVideoVisibilityWidgetState();
+  ConsumerState<AutoPlayVideoVisibilityWidget> createState() =>
+      _AutoPlayVideoVisibilityWidgetState();
 }
 
-class _AutoPlayVideoVisibilityWidgetState extends ConsumerState<AutoPlayVideoVisibilityWidget> {
+class _AutoPlayVideoVisibilityWidgetState
+    extends ConsumerState<AutoPlayVideoVisibilityWidget> {
   Timer? _debounceTimer;
   double _visibleFraction = 0.0;
 
@@ -695,34 +760,43 @@ class _AutoPlayVideoVisibilityWidgetState extends ConsumerState<AutoPlayVideoVis
     }
   }
 
+  bool get _isVideo =>
+      widget.mediaType.toLowerCase().contains('video') ||
+      widget.mediaType.toLowerCase() == 'clip' ||
+      widget.mediaUrl.toLowerCase().contains('.mp4') ||
+      widget.mediaUrl.toLowerCase().contains('.mov') ||
+      widget.mediaUrl.toLowerCase().contains('/video/upload/');
+
   @override
   Widget build(BuildContext context) {
-    if (widget.mediaType != 'video') {
-      return widget.child ?? PostMediaWidget(
-        mediaUrl: widget.mediaUrl,
-        mediaType: widget.mediaType,
-        thumbnailUrl: widget.thumbnailUrl,
-        isLiked: widget.isLiked,
-        onDoubleTapLike: widget.onDoubleTapLike,
-        mediaWidth: widget.mediaWidth,
-        mediaHeight: widget.mediaHeight,
-        onMediaTap: widget.onMediaTap,
-      );
+    if (!_isVideo) {
+      return widget.child ??
+          PostMediaWidget(
+            mediaUrl: widget.mediaUrl,
+            mediaType: widget.mediaType,
+            thumbnailUrl: widget.thumbnailUrl,
+            isLiked: widget.isLiked,
+            onDoubleTapLike: widget.onDoubleTapLike,
+            mediaWidth: widget.mediaWidth,
+            mediaHeight: widget.mediaHeight,
+            onMediaTap: widget.onMediaTap,
+          );
     }
 
     return VisibilityDetector(
       key: Key('video_vis_${widget.mediaUrl.hashCode}'),
       onVisibilityChanged: _onVisibilityChanged,
-      child: widget.child ?? PostMediaWidget(
-        mediaUrl: widget.mediaUrl,
-        mediaType: widget.mediaType,
-        thumbnailUrl: widget.thumbnailUrl,
-        isLiked: widget.isLiked,
-        onDoubleTapLike: widget.onDoubleTapLike,
-        mediaWidth: widget.mediaWidth,
-        mediaHeight: widget.mediaHeight,
-        onMediaTap: widget.onMediaTap,
-      ),
+      child: widget.child ??
+          PostMediaWidget(
+            mediaUrl: widget.mediaUrl,
+            mediaType: widget.mediaType,
+            thumbnailUrl: widget.thumbnailUrl,
+            isLiked: widget.isLiked,
+            onDoubleTapLike: widget.onDoubleTapLike,
+            mediaWidth: widget.mediaWidth,
+            mediaHeight: widget.mediaHeight,
+            onMediaTap: widget.onMediaTap,
+          ),
     );
   }
 }

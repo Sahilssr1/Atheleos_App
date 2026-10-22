@@ -14,6 +14,7 @@ import '../../domain/models/stat_entry.dart';
 import '../../../../core/widgets/sport_selector_field.dart';
 import '../controllers/profile_controller.dart';
 import '../../../../core/utils/user_facing_error.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   final ProfileModel profile;
@@ -295,7 +296,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                               const SizedBox(height: 8),
                               Text(
                                 'Updating banner...',
-                                style: GoogleFonts.spaceGrotesk(
+                                style: GoogleFonts.outfit(
                                   color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
@@ -308,7 +309,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     : (_coverUrl.trim().isEmpty
                         ? Center(
                             child: Icon(
-                              Icons.panorama_outlined,
+                              AthIcons.photo,
                               color: Colors.white.withValues(alpha: 0.3),
                               size: 36,
                             ),
@@ -365,7 +366,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           )
                         : (_avatarUrl.trim().isEmpty
                             ? const Icon(
-                                Icons.person_outline,
+                                AthIcons.user,
                                 size: 38,
                                 color: Colors.white38,
                               )
@@ -383,7 +384,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           children: [
             Expanded(
               child: _buildImageActionButton(
-                icon: Icons.person_outline,
+                icon: AthIcons.user,
                 label: 'Change Profile Pic',
                 isLoading: _isUploadingAvatar,
                 onTap: () => _pickAndUploadImage(isAvatar: true),
@@ -392,7 +393,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: _buildImageActionButton(
-                icon: Icons.image_outlined,
+                icon: AthIcons.photo,
                 label: 'Change Banner',
                 isLoading: _isUploadingCover,
                 onTap: () => _pickAndUploadImage(isAvatar: false),
@@ -447,7 +448,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       const SizedBox(width: 8),
                       Text(
                         'Selecting...',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: GoogleFonts.outfit(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: AppTheme.primaryColor,
@@ -464,7 +465,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       Flexible(
                         child: Text(
                           label,
-                          style: GoogleFonts.spaceGrotesk(
+                          style: GoogleFonts.outfit(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -571,14 +572,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         ),
         title: Text(
           'Unsaved Changes',
-          style: GoogleFonts.spaceGrotesk(
+          style: GoogleFonts.outfit(
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
         content: Text(
           'You have unsaved changes. Do you want to save them before exiting?',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.outfit(
             color: Colors.white70,
             fontSize: 14,
             height: 1.4,
@@ -711,7 +712,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         const SnackBar(
           content: Row(
             children: [
-              Icon(Icons.check_circle, color: Colors.black),
+              Icon(AthIcons.checkCircleSolid, color: Colors.black),
               SizedBox(width: 8),
               Text('Profile updated successfully!',
                   style: TextStyle(
@@ -792,13 +793,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             color: AppTheme.primaryColor.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.bar_chart,
+                          child: const Icon(AthIcons.chartBar,
                               color: AppTheme.primaryColor, size: 20),
                         ),
                         const SizedBox(width: 12),
                         Text(
                           existing == null ? 'ADD STATISTIC' : 'EDIT STATISTIC',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: GoogleFonts.outfit(
                             fontWeight: FontWeight.w900,
                             fontSize: 16,
                             color: Colors.white,
@@ -807,7 +808,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         ),
                         const Spacer(),
                         IconButton(
-                          icon: const Icon(Icons.close,
+                          icon: const Icon(AthIcons.xMark,
                               color: Colors.white38, size: 20),
                           onPressed: () => Navigator.pop(ctx),
                         ),
@@ -818,7 +819,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     // ── Statistic Name ───────────────────────────────────
                     Text(
                       'STATISTIC NAME',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: GoogleFonts.outfit(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.5,
@@ -829,10 +830,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     TextFormField(
                       controller: nameController,
                       style:
-                          GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                          GoogleFonts.outfit(color: Colors.white, fontSize: 14),
                       decoration: InputDecoration(
                         hintText: 'e.g. Wins, Bench Press, Ranking',
-                        hintStyle: GoogleFonts.inter(color: Colors.white24),
+                        hintStyle: GoogleFonts.outfit(color: Colors.white24),
                         filled: true,
                         fillColor: const Color(0xFF262626),
                         border: OutlineInputBorder(
@@ -854,7 +855,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     // ── Type ─────────────────────────────────────────────
                     Text(
                       'TYPE',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: GoogleFonts.outfit(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.5,
@@ -874,7 +875,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           value: selectedType,
                           isExpanded: true,
                           dropdownColor: const Color(0xFF262626),
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.outfit(
                               color: Colors.white, fontSize: 14),
                           items: StatType.values.map((t) {
                             return DropdownMenuItem(
@@ -897,7 +898,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     // ── Value ─────────────────────────────────────────────
                     Text(
                       'VALUE',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: GoogleFonts.outfit(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.5,
@@ -914,10 +915,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                   decimal: true)
                               : TextInputType.text,
                       style:
-                          GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                          GoogleFonts.outfit(color: Colors.white, fontSize: 14),
                       decoration: InputDecoration(
                         hintText: selectedType.valueHint,
-                        hintStyle: GoogleFonts.inter(color: Colors.white24),
+                        hintStyle: GoogleFonts.outfit(color: Colors.white24),
                         filled: true,
                         fillColor: const Color(0xFF262626),
                         border: OutlineInputBorder(
@@ -972,7 +973,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         },
                         child: Text(
                           existing == null ? 'ADD STATISTIC' : 'SAVE CHANGES',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: GoogleFonts.outfit(
                             fontWeight: FontWeight.w900,
                             letterSpacing: 1.5,
                           ),
@@ -1004,19 +1005,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         backgroundColor: Colors.black,
         appBar: AppBar(
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(AthIcons.arrowLeft),
             tooltip: 'Back',
             onPressed: _onWillExit,
           ),
           title: Text(
             'EDIT ${role.toUpperCase()} PROFILE',
-            style: GoogleFonts.spaceGrotesk(
+            style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w600, letterSpacing: 1),
           ),
           actions: [
             IconButton(
               icon:
-                  const Icon(Icons.check, color: AppTheme.primaryColor, size: 28),
+                  const Icon(AthIcons.check, color: AppTheme.primaryColor, size: 28),
               tooltip: 'Save Changes',
               onPressed: _saveProfile,
             ),
@@ -1073,7 +1074,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   _buildSectionHeader('ATHLETIC DETAILS'),
                   const SizedBox(height: 12),
                   Text('Sport (Search or Custom)',
-                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white70)),
+                      style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white70)),
                   const SizedBox(height: 6),
                   SportSelectorField(
                     initialSport: _sportController.text,
@@ -1187,7 +1188,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Website Link',
                     prefixIcon:
-                        Icon(Icons.language, size: 20, color: Colors.white54),
+                        Icon(AthIcons.globeAlt, size: 20, color: Colors.white54),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -1199,7 +1200,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   controller: _instagramController,
                   decoration: const InputDecoration(
                     labelText: 'Instagram Username',
-                    prefixIcon: Icon(Icons.camera_alt_outlined,
+                    prefixIcon: Icon(AthIcons.camera,
                         size: 20, color: Colors.white54),
                   ),
                 ),
@@ -1208,7 +1209,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   controller: _twitterController,
                   decoration: const InputDecoration(
                     labelText: 'Twitter/X Username',
-                    prefixIcon: Icon(Icons.alternate_email,
+                    prefixIcon: Icon(AthIcons.atSymbol,
                         size: 20, color: Colors.white54),
                   ),
                 ),
@@ -1217,7 +1218,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   controller: _tiktokController,
                   decoration: const InputDecoration(
                     labelText: 'TikTok Username',
-                    prefixIcon: Icon(Icons.play_circle_outline,
+                    prefixIcon: Icon(AthIcons.playCircle,
                         size: 20, color: Colors.white54),
                   ),
                 ),
@@ -1289,8 +1290,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         children: [
                           Icon(
                             _resumeFileName != null
-                                ? Icons.document_scanner
-                                : Icons.cloud_upload_outlined,
+                                ? AthIcons.documentArrowDown
+                                : AthIcons.cloudArrowUp,
                             size: 44,
                             color: _resumeFileName != null
                                 ? AppTheme.primaryColor
@@ -1316,7 +1317,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.check_circle,
+                                const Icon(AthIcons.checkCircleSolid,
                                     color: AppTheme.primaryColor, size: 16),
                                 const SizedBox(width: 4),
                                 const Text(
@@ -1456,7 +1457,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     onPressed: _saveProfile,
                     child: Text(
                       'SAVE CHANGES',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: GoogleFonts.outfit(
                         color: Colors.black,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -1518,11 +1519,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
-            icon: const Icon(Icons.add_circle_outline,
+            icon: const Icon(AthIcons.plusCircle,
                 color: AppTheme.primaryColor, size: 18),
             label: Text(
               'ADD STATISTIC',
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.2,
                 fontSize: 13,
@@ -1560,7 +1561,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             ),
             child: Text(
               stat.type.label.toUpperCase(),
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                 fontSize: 8,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1,
@@ -1577,7 +1578,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               children: [
                 Text(
                   stat.name,
-                  style: GoogleFonts.spaceGrotesk(
+                  style: GoogleFonts.outfit(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                     color: Colors.white,
@@ -1585,7 +1586,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 ),
                 Text(
                   stat.displayValue,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.outfit(
                     fontSize: 12,
                     color: Colors.white54,
                   ),
@@ -1596,7 +1597,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
           // Edit button
           IconButton(
-            icon: const Icon(Icons.edit_outlined,
+            icon: const Icon(AthIcons.pencilSquare,
                 color: Colors.white38, size: 18),
             constraints: const BoxConstraints(),
             padding: const EdgeInsets.all(8),
@@ -1605,7 +1606,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
           // Delete button
           IconButton(
-            icon: const Icon(Icons.delete_outline,
+            icon: const Icon(AthIcons.trash,
                 color: Colors.redAccent, size: 18),
             constraints: const BoxConstraints(),
             padding: const EdgeInsets.all(8),
@@ -1623,7 +1624,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget _buildSectionHeader(String title) {
     return Text(
       title,
-      style: GoogleFonts.spaceGrotesk(
+      style: GoogleFonts.outfit(
         fontWeight: FontWeight.bold,
         fontSize: 12,
         color: AppTheme.primaryColor,
@@ -1635,11 +1636,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget _buildPrivateDataHeader() {
     return Row(
       children: [
-        const Icon(Icons.lock_outline, color: AppTheme.primaryColor, size: 16),
+        const Icon(AthIcons.lockClosed, color: AppTheme.primaryColor, size: 16),
         const SizedBox(width: 8),
         Text(
           'SECURE PRIVATE DATA',
-          style: GoogleFonts.spaceGrotesk(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.bold,
             fontSize: 12,
             color: AppTheme.primaryColor,

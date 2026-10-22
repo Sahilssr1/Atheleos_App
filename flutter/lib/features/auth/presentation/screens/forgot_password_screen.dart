@@ -10,6 +10,7 @@ import '../../../../core/utils/password_validator.dart';
 import '../../../../core/widgets/password_requirements_view.dart';
 import '../../../../core/widgets/atheleos_logo.dart';
 import '../controllers/auth_controller.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 enum ForgotPasswordStep {
   emailInput,
@@ -143,7 +144,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         SnackBar(
           content: Text(
             'New verification code sent to ${_emailController.text.trim()}',
-            style: GoogleFonts.inter(color: Colors.white),
+            style: GoogleFonts.outfit(color: Colors.white),
           ),
           backgroundColor: const Color(0xFF1E1E1E),
           behavior: SnackBarBehavior.floating,
@@ -280,7 +281,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           backgroundColor: Colors.black,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+            icon: const Icon(AthIcons.arrowLeft, color: Colors.white, size: 20),
             onPressed: _handleBackNavigation,
           ),
           title: Row(
@@ -290,7 +291,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               const SizedBox(width: 8),
               Text(
                 'ATHELEOS',
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 2,
@@ -382,7 +383,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             ),
             child: Text(
               'ACCOUNT RECOVERY',
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.2,
@@ -394,7 +395,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         const SizedBox(height: 14),
         Text(
           'FORGOT PASSWORD?',
-          style: GoogleFonts.spaceGrotesk(
+          style: GoogleFonts.outfit(
             fontSize: 24,
             fontWeight: FontWeight.w900,
             letterSpacing: 1.2,
@@ -404,7 +405,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         const SizedBox(height: 6),
         Text(
           'Enter your registered email address and we will send you a 6-digit verification code to reset your password.',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.outfit(
             fontSize: 13,
             color: Colors.white70,
             height: 1.5,
@@ -417,11 +418,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.done,
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+          style: GoogleFonts.outfit(color: Colors.white, fontSize: 14),
           decoration: InputDecoration(
             labelText: 'Email Address',
-            labelStyle: GoogleFonts.inter(color: Colors.white60, fontSize: 13),
-            prefixIcon: const Icon(Icons.email_outlined,
+            labelStyle: GoogleFonts.outfit(color: Colors.white60, fontSize: 13),
+            prefixIcon: const Icon(AthIcons.envelope,
                 color: AppTheme.primaryColor, size: 20),
             filled: true,
             fillColor: const Color(0xFF141414),
@@ -454,7 +455,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             onPressed: _isProcessing ? null : _handleSendEmailOtp,
             child: Text(
               'SEND VERIFICATION CODE',
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.2,
                 fontSize: 13,
@@ -472,7 +473,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 14),
               child: Text(
                 'OR SIGN IN DIRECTLY',
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   color: Colors.white38,
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
@@ -504,7 +505,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       color: AppTheme.primaryColor.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.phone_android_rounded,
+                    child: const Icon(AthIcons.devicePhoneMobile,
                         color: AppTheme.primaryColor, size: 20),
                   ),
                   const SizedBox(width: 12),
@@ -514,7 +515,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                       children: [
                         Text(
                           'Login with Phone Number',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: GoogleFonts.outfit(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -523,7 +524,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                         const SizedBox(height: 2),
                         Text(
                           'Instant OTP login without needing your password.',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.outfit(
                             fontSize: 12,
                             color: Colors.white54,
                           ),
@@ -553,7 +554,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   },
                   child: Text(
                     'SIGN IN VIA PHONE NUMBER',
-                    style: GoogleFonts.spaceGrotesk(
+                    style: GoogleFonts.outfit(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1,
@@ -578,7 +579,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             },
             child: Text(
               'Back to Sign In',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.outfit(
                 color: Colors.white54,
                 fontSize: 13,
               ),
@@ -611,7 +612,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             ),
             child: Text(
               'STEP 2 OF 3',
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                 fontSize: 10,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.2,
@@ -623,7 +624,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         const SizedBox(height: 14),
         Text(
           'VERIFY EMAIL',
-          style: GoogleFonts.spaceGrotesk(
+          style: GoogleFonts.outfit(
             fontSize: 24,
             fontWeight: FontWeight.w900,
             letterSpacing: 1.2,
@@ -633,7 +634,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         const SizedBox(height: 6),
         RichText(
           text: TextSpan(
-            style: GoogleFonts.inter(
+            style: GoogleFonts.outfit(
                 fontSize: 13, color: Colors.white70, height: 1.5),
             children: [
               const TextSpan(text: 'We sent a 6-digit verification code to '),
@@ -663,7 +664,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
                 maxLength: 1,
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.primaryColor,
@@ -719,7 +720,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             onPressed: _isProcessing ? null : _handleVerifyOtp,
             child: Text(
               'VERIFY CODE',
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.2,
                 fontSize: 13,
@@ -735,12 +736,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           children: [
             Text(
               "Didn't receive code? ",
-              style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+              style: GoogleFonts.outfit(color: Colors.white54, fontSize: 13),
             ),
             if (_resendCountdown > 0)
               Text(
                 'Resend in ${_resendCountdown}s',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.outfit(
                   color: AppTheme.primaryColor,
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
@@ -751,7 +752,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 onTap: _handleResendOtp,
                 child: Text(
                   'Resend Code',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.outfit(
                     color: AppTheme.primaryColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
@@ -769,11 +770,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             onPressed: () {
               setState(() => _currentStep = ForgotPasswordStep.emailInput);
             },
-            icon: const Icon(Icons.edit_outlined,
+            icon: const Icon(AthIcons.pencilSquare,
                 size: 14, color: Colors.white60),
             label: Text(
               'Change email address',
-              style: GoogleFonts.inter(color: Colors.white60, fontSize: 13),
+              style: GoogleFonts.outfit(color: Colors.white60, fontSize: 13),
             ),
           ),
         ),
@@ -802,7 +803,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               ),
               child: Text(
                 'STEP 3 OF 3',
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
@@ -814,7 +815,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           const SizedBox(height: 14),
           Text(
             'SET NEW PASSWORD',
-            style: GoogleFonts.spaceGrotesk(
+            style: GoogleFonts.outfit(
               fontSize: 24,
               fontWeight: FontWeight.w900,
               letterSpacing: 1.2,
@@ -824,7 +825,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           const SizedBox(height: 6),
           Text(
             'Create a strong password with at least 8 characters to secure your Atheleos profile.',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.outfit(
               fontSize: 13,
               color: Colors.white70,
               height: 1.5,
@@ -838,13 +839,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             readOnly: true,
             enabled: false,
             autofillHints: const [AutofillHints.username, AutofillHints.email],
-            style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+            style: GoogleFonts.outfit(color: Colors.white70, fontSize: 13),
             decoration: InputDecoration(
               labelText: 'Account Email',
-              labelStyle: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
-              prefixIcon: const Icon(Icons.account_circle_outlined,
+              labelStyle: GoogleFonts.outfit(color: Colors.white38, fontSize: 12),
+              prefixIcon: const Icon(AthIcons.user,
                   color: AppTheme.primaryColor, size: 20),
-              suffixIcon: const Icon(Icons.check_circle,
+              suffixIcon: const Icon(AthIcons.checkCircleSolid,
                   color: AppTheme.primaryColor, size: 16),
               filled: true,
               fillColor: const Color(0xFF101010),
@@ -862,18 +863,18 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             obscureText: _obscureNewPassword,
             autofillHints: const [AutofillHints.newPassword],
             textInputAction: TextInputAction.next,
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+            style: GoogleFonts.outfit(color: Colors.white, fontSize: 14),
             onChanged: (val) => setState(() {}),
             decoration: InputDecoration(
               labelText: 'New Password',
-              labelStyle: GoogleFonts.inter(color: Colors.white60, fontSize: 13),
-              prefixIcon: const Icon(Icons.lock_outline,
+              labelStyle: GoogleFonts.outfit(color: Colors.white60, fontSize: 13),
+              prefixIcon: const Icon(AthIcons.lockClosed,
                   color: AppTheme.primaryColor, size: 20),
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscureNewPassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
+                      ? AthIcons.eye
+                      : AthIcons.eyeSlash,
                   color: Colors.white38,
                   size: 20,
                 ),
@@ -903,17 +904,17 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             obscureText: _obscureConfirmPassword,
             autofillHints: const [AutofillHints.password],
             textInputAction: TextInputAction.done,
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+            style: GoogleFonts.outfit(color: Colors.white, fontSize: 14),
             decoration: InputDecoration(
               labelText: 'Confirm New Password',
-              labelStyle: GoogleFonts.inter(color: Colors.white60, fontSize: 13),
-              prefixIcon: const Icon(Icons.lock_outline,
+              labelStyle: GoogleFonts.outfit(color: Colors.white60, fontSize: 13),
+              prefixIcon: const Icon(AthIcons.lockClosed,
                   color: AppTheme.primaryColor, size: 20),
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscureConfirmPassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
+                      ? AthIcons.eye
+                      : AthIcons.eyeSlash,
                   color: Colors.white38,
                   size: 20,
                 ),
@@ -951,7 +952,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               onPressed: _isProcessing ? null : _handleResetPassword,
               child: Text(
                 'UPDATE PASSWORD',
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1.2,
                   fontSize: 13,
@@ -985,7 +986,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               ),
             ),
             child: const Icon(
-              Icons.check_rounded,
+              AthIcons.check,
               size: 48,
               color: AppTheme.primaryColor,
             ),
@@ -995,7 +996,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         Text(
           'PASSWORD UPDATED!',
           textAlign: TextAlign.center,
-          style: GoogleFonts.spaceGrotesk(
+          style: GoogleFonts.outfit(
             fontSize: 24,
             fontWeight: FontWeight.w900,
             letterSpacing: 1.2,
@@ -1006,7 +1007,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         Text(
           'Your password has been successfully reset. You can now log in to your Atheleos account with your new credentials.',
           textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.outfit(
             fontSize: 13,
             color: Colors.white70,
             height: 1.6,
@@ -1029,7 +1030,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             },
             child: Text(
               'SIGN IN NOW',
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.5,
                 fontSize: 13,
@@ -1052,13 +1053,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded,
+          const Icon(AthIcons.exclamationCircle,
               color: Colors.redAccent, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.outfit(
                 color: Colors.white,
                 fontSize: 12,
                 height: 1.4,

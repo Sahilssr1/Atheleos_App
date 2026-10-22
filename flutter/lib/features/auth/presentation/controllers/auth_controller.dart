@@ -138,7 +138,7 @@ class AuthController extends StateNotifier<AuthState> {
       var currentUser = await FirebaseAuth.instance.authStateChanges().first;
       if (currentUser != null) {
         try {
-          await currentUser.reload();
+          await currentUser.reload().timeout(const Duration(seconds: 2));
           currentUser = FirebaseAuth.instance.currentUser;
         } catch (e) {
           debugPrint('Failed to reload current user on startup: $e');
@@ -157,26 +157,13 @@ class AuthController extends StateNotifier<AuthState> {
           state =
               state.copyWith(currentStep: AuthStep.complete, isLoading: false);
         } else {
-          // Incomplete profile - delete user record from Firebase Auth and sign out on startup
-          final uid = currentUser.uid;
-          final userEmail = currentUser.email;
-          try {
-            await FirebaseFirestore.instance.collection('users').doc(uid).delete();
-          } catch (_) {}
-          try {
-            await currentUser.delete();
-          } catch (e) {
-            debugPrint('Failed to delete incomplete user on startup: $e');
-            if (userEmail != null && userEmail.isNotEmpty) {
-              await _repository.cleanupIncompleteAccount(userEmail);
-            }
-          }
-          await clearSavedCredentials();
+          // If session needs re-verification, return to login but preserve saved credentials!
           await _repository.signOut();
           state = state.copyWith(currentStep: AuthStep.login, isLoading: false);
         }
       } else {
-        Future.delayed(const Duration(milliseconds: 2500), () {
+        // Fast instant transition to login screen (no artificial 2.5s delay)
+        Future.delayed(const Duration(milliseconds: 300), () {
           if (state.currentStep == AuthStep.splash) {
             state = state.copyWith(currentStep: AuthStep.login);
           }
@@ -222,7 +209,6 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   void goBackToLogin() {
-    clearSavedCredentials();
     state = state.copyWith(
       currentStep: AuthStep.login,
       errorMessage: null,
@@ -454,20 +440,33 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> directSignInWithSavedAccount() async {
-    final creds = await getSavedCredentials();
-    if (creds != null &&
-        creds['identifier'] != null &&
-        creds['password'] != null &&
-        creds['password']!.isNotEmpty) {
+  Future<bool> directSignInWithSavedAccount({
+    String? identifier,
+    String? password,
+  }) async {
+    String? targetId = identifier?.trim();
+    String? targetPass = password;
+
+    if (targetId == null || targetId.isEmpty || targetPass == null || targetPass.isEmpty) {
+      final creds = await getSavedCredentials();
+      targetId = targetId ?? creds?['identifier'];
+      targetPass = targetPass ?? creds?['password'];
+    }
+
+    if (targetId != null &&
+        targetId.isNotEmpty &&
+        targetPass != null &&
+        targetPass.isNotEmpty) {
       await loginWithUsernameOrEmail(
-        identifier: creds['identifier']!,
-        password: creds['password']!,
+        identifier: targetId,
+        password: targetPass,
       );
+      return true;
     } else {
       state = state.copyWith(
-        errorMessage: 'Saved credentials not found. Please sign in manually.',
+        errorMessage: 'Saved password not found. Please enter your password to sign in.',
       );
+      return false;
     }
   }
 

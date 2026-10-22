@@ -74,6 +74,7 @@ final sportsHierarchyProvider = StreamProvider<Map<String, List<String>>>((ref) 
 // Category & Sport Category filters state
 final selectedCategoryProvider = StateProvider<String>((ref) => 'All');
 final selectedSportProvider = StateProvider<String>((ref) => 'All');
+final selectedFeedSortProvider = StateProvider<String>((ref) => 'Latest'); // 'Latest' or 'Trending'
 
 // Streams of user likes & bookmarks sets
 final userLikesIdsProvider = StreamProvider<Set<String>>((ref) {
@@ -113,6 +114,7 @@ final feedPostsProvider = StateNotifierProvider<FeedNotifier, AsyncValue<List<Po
   final repository = ref.watch(postRepositoryProvider);
   final category = ref.watch(selectedCategoryProvider);
   final sport = ref.watch(selectedSportProvider);
+  final sortBy = ref.watch(selectedFeedSortProvider);
   final userId = ref.watch(loggedInUserIdProvider);
 
   // Read initial cached values synchronously to avoid cold-start flicker
@@ -121,7 +123,7 @@ final feedPostsProvider = StateNotifierProvider<FeedNotifier, AsyncValue<List<Po
   final likedIds = ref.read(userLikesIdsProvider).valueOrNull ?? cachedLiked;
   final bookmarkedIds = ref.read(userBookmarksIdsProvider).valueOrNull ?? cachedBookmarked;
 
-  final notifier = FeedNotifier(repository, category, sport, userId, likedIds, bookmarkedIds, ref);
+  final notifier = FeedNotifier(repository, category, sport, sortBy, userId, likedIds, bookmarkedIds, ref);
 
   // Manually listen to remote syncs to update UI without resetting pagination
   ref.listen(userLikesIdsProvider, (prev, next) {
@@ -139,7 +141,7 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
   final PostRepository _repository;
   final String _category;
   final String _sport;
-  static const String _sortBy = 'Latest';
+  final String _sortBy;
   final String _userId;
   Set<String> _likedIds;
   Set<String> _bookmarkedIds;
@@ -165,6 +167,7 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
     this._repository,
     this._category,
     this._sport,
+    this._sortBy,
     this._userId,
     this._likedIds,
     this._bookmarkedIds,
@@ -178,7 +181,7 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
   void _loadFromCache() {
     // If a filter is selected (e.g. 'Training', 'Match', 'Combat'), do NOT populate with generic All posts!
     // This allows the UI to immediately show the sleek shimmer loading skeleton!
-    if (_category.toLowerCase() != 'all' || _sport.toLowerCase() != 'all') {
+    if (_category.toLowerCase() != 'all' || _sport.toLowerCase() != 'all' || _sortBy != 'Latest') {
       return;
     }
 
@@ -194,7 +197,11 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
           );
         }).toList();
         state = AsyncValue.data(cachedPosts);
-        _ref.read(sharedLikeStateProvider.notifier).registerPosts(cachedPosts);
+        Future.microtask(() {
+          if (mounted) {
+            _ref.read(sharedLikeStateProvider.notifier).registerPosts(cachedPosts);
+          }
+        });
       }
     } catch (_) {}
   }
@@ -221,7 +228,9 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
       // feel) instead of shimmer placeholders that pop into content.
       await _warmInitialBatch(mapped);
 
+      if (!mounted) return;
       state = AsyncValue.data(mapped);
+      if (!mounted) return;
       _ref.read(sharedLikeStateProvider.notifier).registerPosts(mapped);
       _hasMore = posts.length >= 8;
       _lastPrefetchedIndex = -1;
@@ -237,7 +246,7 @@ class FeedNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
         cacheManager.saveFeed(mapped.map((p) => p.toMap()).toList());
       } catch (_) {}
     } catch (err, stack) {
-      if (state is! AsyncData<List<PostModel>> || state.asData!.value.isEmpty) {
+      if (mounted && (state is! AsyncData<List<PostModel>> || state.asData!.value.isEmpty)) {
         state = AsyncValue.error(err, stack);
       }
     }

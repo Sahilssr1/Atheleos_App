@@ -48,6 +48,50 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:342381590324:android:44311d852155e5cdfad761",
+        "android_client_info": {
+          "package_name": "com.atheleos.atheleos"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "342381590324-8c84he0p8sfksn6hmvufm01c15ur25q7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.atheleos.atheleos",
+            "certificate_hash": "bc764ac28944de9d2f9662ab7f275618c3bbfca2"
+          }
+        },
+        {
+          "client_id": "342381590324-smtv8j2hfrr5a9fr57e3r78i9l6itrka.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB3vo-lWDq1qEfXiTiFmLFk60svJCNweLc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "342381590324-smtv8j2hfrr5a9fr57e3r78i9l6itrka.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "342381590324-t2bngpmcb45dnsdblpa4dt908mdhaanc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.atheleos.atheleos"
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"

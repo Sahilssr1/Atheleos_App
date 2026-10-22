@@ -15,6 +15,7 @@ import '../../domain/repositories/events_repository.dart';
 import '../controllers/events_controller.dart';
 import '../../../../core/widgets/app_avatar.dart';
 import '../../../../core/utils/user_facing_error.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class EventDetailsScreen extends ConsumerWidget {
   final String eventId;
@@ -52,13 +53,13 @@ class EventDetailsScreen extends ConsumerWidget {
               children: [
                 Text(
                   'SHARE EVENT',
-                  style: GoogleFonts.spaceGrotesk(color: AppTheme.primaryColor, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5),
+                  style: GoogleFonts.outfit(color: AppTheme.primaryColor, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5),
                 ),
                 const SizedBox(height: 16),
                 ListTile(
                   leading: const CircleAvatar(
                     backgroundColor: Colors.white10,
-                    child: Icon(Icons.link, color: Colors.white),
+                    child: Icon(AthIcons.link, color: Colors.white),
                   ),
                   title: const Text('Copy Event Link', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                   subtitle: const Text('Save location path to clipboard', style: TextStyle(color: Colors.white38, fontSize: 10)),
@@ -73,7 +74,7 @@ class EventDetailsScreen extends ConsumerWidget {
                 ListTile(
                   leading: const CircleAvatar(
                     backgroundColor: Colors.white10,
-                    child: Icon(Icons.send_rounded, color: Colors.white),
+                    child: Icon(AthIcons.send, color: Colors.white),
                   ),
                   title: const Text('Share inside ATHELEOS', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                   subtitle: const Text('Send directly to followers or coaches', style: TextStyle(color: Colors.white38, fontSize: 10)),
@@ -94,7 +95,7 @@ class EventDetailsScreen extends ConsumerWidget {
                 ListTile(
                   leading: const CircleAvatar(
                     backgroundColor: Colors.white10,
-                    child: Icon(Icons.share_outlined, color: Colors.white),
+                    child: Icon(AthIcons.share, color: Colors.white),
                   ),
                   title: const Text('Share Outside App', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                   subtitle: const Text('Post to other sports networks', style: TextStyle(color: Colors.white38, fontSize: 10)),
@@ -129,7 +130,7 @@ class EventDetailsScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(24.0),
             child: Text(
               UserFacingError.message(err, fallback: 'Unable to load event details. Please try again.'),
-              style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+              style: GoogleFonts.outfit(color: Colors.white70, fontSize: 13),
               textAlign: TextAlign.center,
             ),
           ),
@@ -180,7 +181,7 @@ class EventDetailsScreen extends ConsumerWidget {
                 actions: [
                   IconButton(
                     icon: Icon(
-                      isBookmarked ? Icons.bookmark : Icons.bookmark_border_outlined,
+                      isBookmarked ? AthIcons.bookmarkFill : AthIcons.bookmark,
                       color: isBookmarked ? AppTheme.primaryColor : Colors.white,
                     ),
                     onPressed: () {
@@ -192,7 +193,7 @@ class EventDetailsScreen extends ConsumerWidget {
                     },
                   ),
                   IconButton(
-                    icon: const Icon(Icons.share_outlined, color: Colors.white),
+                    icon: const Icon(AthIcons.share, color: Colors.white),
                     onPressed: () => _showShareOptions(context, event, allProfiles),
                   ),
                 ],
@@ -263,7 +264,7 @@ class EventDetailsScreen extends ConsumerWidget {
                       // Title
                       Text(
                         event.title,
-                        style: GoogleFonts.spaceGrotesk(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                       const SizedBox(height: 16),
 
@@ -298,14 +299,14 @@ class EventDetailsScreen extends ConsumerWidget {
                                         ),
                                         if (event.verifiedOrganizer) ...[
                                           const SizedBox(width: 4),
-                                          const Icon(Icons.verified, size: 12, color: AppTheme.primaryColor),
+                                          const Icon(AthIcons.checkBadgeSolid, size: 12, color: AppTheme.primaryColor),
                                         ],
                                       ],
                                     ),
                                   ],
                                 ),
                               ),
-                              const Icon(Icons.chevron_right, color: Colors.white38, size: 16),
+                              const Icon(AthIcons.chevronRight, color: Colors.white38, size: 16),
                             ],
                           ),
                         ),
@@ -315,15 +316,15 @@ class EventDetailsScreen extends ConsumerWidget {
                       // Event Stats Grid
                       Row(
                         children: [
-                          Expanded(child: _buildStatItem('FEE', event.isFree ? 'Free' : '₹${event.entryFee % 1 == 0 ? event.entryFee.toInt() : event.entryFee.toStringAsFixed(2)}', Icons.currency_rupee_rounded)),
-                          Expanded(child: _buildStatItem('DATE', '${event.startDate.day}/${event.startDate.month}/${event.startDate.year}', Icons.calendar_today_outlined)),
+                          Expanded(child: _buildStatItem('FEE', event.isFree ? 'Free' : '₹${event.entryFee % 1 == 0 ? event.entryFee.toInt() : event.entryFee.toStringAsFixed(2)}', AthIcons.currencyRupee)),
+                          Expanded(child: _buildStatItem('DATE', '${event.startDate.day}/${event.startDate.month}/${event.startDate.year}', AthIcons.calendar)),
                         ],
                       ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(child: _buildStatItem('TIME', '${event.startTime} - ${event.endTime}', Icons.access_time)),
-                          Expanded(child: _buildStatItem('VENUE', event.venue, Icons.location_on_outlined)),
+                          Expanded(child: _buildStatItem('TIME', '${event.startTime} - ${event.endTime}', AthIcons.clock)),
+                          Expanded(child: _buildStatItem('VENUE', event.venue, AthIcons.mapPin)),
                         ],
                       ),
                       // Venue Maps Action Tile
@@ -346,7 +347,7 @@ class EventDetailsScreen extends ConsumerWidget {
                                   color: AppTheme.primaryColor.withValues(alpha: 0.12),
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.location_on_rounded, color: AppTheme.primaryColor, size: 16),
+                                child: const Icon(AthIcons.mapPinSolid, color: AppTheme.primaryColor, size: 16),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
@@ -355,7 +356,7 @@ class EventDetailsScreen extends ConsumerWidget {
                                   children: [
                                     Text(
                                       'VENUE LOCATION',
-                                      style: GoogleFonts.spaceGrotesk(
+                                      style: GoogleFonts.outfit(
                                         color: AppTheme.primaryColor,
                                         fontSize: 9,
                                         fontWeight: FontWeight.bold,
@@ -387,7 +388,7 @@ class EventDetailsScreen extends ConsumerWidget {
                                       style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600),
                                     ),
                                     SizedBox(width: 4),
-                                    Icon(Icons.open_in_new, color: Colors.white70, size: 11),
+                                    Icon(AthIcons.arrowTopRightOnSquare, color: Colors.white70, size: 11),
                                   ],
                                 ),
                               ),
@@ -407,7 +408,7 @@ class EventDetailsScreen extends ConsumerWidget {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           onPressed: () => _launchExternalUrl(context, event.externalRegistrationUrl ?? ''),
-                          child: Text('REGISTER ON OFFICIAL SITE', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 13)),
+                          child: Text('REGISTER ON OFFICIAL SITE', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13)),
                         ),
                       ] else ...[
                         ElevatedButton(
@@ -468,7 +469,7 @@ class EventDetailsScreen extends ConsumerWidget {
                                 : event.isFull
                                     ? 'EVENT FULL'
                                     : 'REGISTER / JOIN NOW',
-                            style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 13),
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13),
                           ),
                         ),
                       ],
@@ -492,10 +493,10 @@ class EventDetailsScreen extends ConsumerWidget {
                             ),
                           );
                         },
-                        icon: const Icon(Icons.share_outlined, size: 16, color: AppTheme.primaryColor),
+                        icon: const Icon(AthIcons.share, size: 16, color: AppTheme.primaryColor),
                         label: Text(
                           'SHARE WITH FOLLOWERS',
-                          style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5),
+                          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.5),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -510,7 +511,7 @@ class EventDetailsScreen extends ConsumerWidget {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 16),
+                            const Icon(AthIcons.exclamationTriangle, color: Colors.redAccent, size: 16),
                             const SizedBox(width: 8),
                             Expanded(
                               child: RichText(
@@ -535,7 +536,7 @@ class EventDetailsScreen extends ConsumerWidget {
                       if (attendeeAvatars.isNotEmpty) ...[
                         Text(
                           'PARTICIPATING ATHLETES (${event.currentParticipants} / ${event.maxParticipants})',
-                          style: GoogleFonts.spaceGrotesk(color: AppTheme.primaryColor, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 0.5),
+                          style: GoogleFonts.outfit(color: AppTheme.primaryColor, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 0.5),
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -576,18 +577,18 @@ class EventDetailsScreen extends ConsumerWidget {
                       // Eligibility criteria
                       Text(
                         'ELIGIBILITY CRITERIA',
-                        style: GoogleFonts.spaceGrotesk(color: AppTheme.primaryColor, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 0.5),
+                        style: GoogleFonts.outfit(color: AppTheme.primaryColor, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 0.5),
                       ),
                       const SizedBox(height: 12),
-                      _buildCriteriaTile('Age Eligibility', event.ageGroup, Icons.assignment_ind_outlined),
-                      _buildCriteriaTile('Gender Category', event.gender, Icons.people_outline),
-                      _buildCriteriaTile('Skill Level Profile', event.skillLevel, Icons.trending_up),
+                      _buildCriteriaTile('Age Eligibility', event.ageGroup, AthIcons.identification),
+                      _buildCriteriaTile('Gender Category', event.gender, AthIcons.userGroup),
+                      _buildCriteriaTile('Skill Level Profile', event.skillLevel, AthIcons.arrowTrendingUp),
                       const SizedBox(height: 24),
 
                       // Description
                       Text(
                         'EVENT DESCRIPTION & RULES',
-                        style: GoogleFonts.spaceGrotesk(color: AppTheme.primaryColor, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 0.5),
+                        style: GoogleFonts.outfit(color: AppTheme.primaryColor, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 0.5),
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -599,14 +600,14 @@ class EventDetailsScreen extends ConsumerWidget {
                       // Contact Details
                       Text(
                         'ORGANIZER CONTACT DETAILS',
-                        style: GoogleFonts.spaceGrotesk(color: AppTheme.primaryColor, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 0.5),
+                        style: GoogleFonts.outfit(color: AppTheme.primaryColor, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 0.5),
                       ),
                       const SizedBox(height: 12),
-                      _buildContactTile('Contact Name', event.contactPerson, Icons.person_outline),
-                      _buildContactTile('Contact Number', event.contactNumber, Icons.phone_android_outlined),
-                      _buildContactTile('Contact Email', event.contactEmail, Icons.mail_outline_outlined),
+                      _buildContactTile('Contact Name', event.contactPerson, AthIcons.user),
+                      _buildContactTile('Contact Number', event.contactNumber, AthIcons.devicePhoneMobile),
+                      _buildContactTile('Contact Email', event.contactEmail, AthIcons.envelope),
                       if (event.officialWebsite != null)
-                        _buildContactTile('Official Website', event.officialWebsite!, Icons.language_outlined),
+                        _buildContactTile('Official Website', event.officialWebsite!, AthIcons.globeAlt),
 
                       const SizedBox(height: 40),
                     ],

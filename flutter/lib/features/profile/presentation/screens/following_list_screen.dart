@@ -8,6 +8,7 @@ import '../../../../core/utils/user_facing_error.dart';
 import '../../domain/models/profile_model.dart';
 import '../controllers/profile_controller.dart';
 import '../controllers/settings_controller.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class FollowingListScreen extends ConsumerStatefulWidget {
   final String? userId;
@@ -46,7 +47,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
         ),
         title: Text(
           'Unfollow @${user.username.isNotEmpty ? user.username : user.name}?',
-          style: GoogleFonts.spaceGrotesk(
+          style: GoogleFonts.outfit(
             color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 16,
@@ -54,7 +55,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
         ),
         content: Text(
           'Their posts and updates will no longer appear in your personal feed.',
-          style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+          style: GoogleFonts.outfit(color: Colors.white70, fontSize: 13),
         ),
         actions: [
           TextButton(
@@ -170,7 +171,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.person_outline, color: Colors.white70),
+                leading: const Icon(AthIcons.user, color: Colors.white70),
                 title: const Text('View Profile', style: TextStyle(color: Colors.white)),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -178,7 +179,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.volume_off_outlined, color: Colors.white70),
+                leading: const Icon(AthIcons.volumeMute, color: Colors.white70),
                 title: Text('Mute @${user.username}', style: const TextStyle(color: Colors.white)),
                 subtitle: const Text('Hide their stories and posts quietly',
                     style: TextStyle(color: Colors.white38, fontSize: 11)),
@@ -193,7 +194,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.block_outlined, color: Colors.redAccent),
+                leading: const Icon(AthIcons.noSymbol, color: Colors.redAccent),
                 title: Text('Block @${user.username}', style: const TextStyle(color: Colors.redAccent)),
                 subtitle: const Text('They will not be able to find your profile or message you',
                     style: TextStyle(color: Colors.white38, fontSize: 11)),
@@ -294,7 +295,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
           children: [
             Text(
               screenTitle,
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.2,
                 fontSize: 15,
@@ -309,7 +310,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
               ),
               child: Text(
                 '${followedUsers.length}',
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.primaryColor,
@@ -340,10 +341,10 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
                 decoration: InputDecoration(
                   hintText: isMe ? 'Search accounts you follow...' : 'Search following...',
                   hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-                  prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 20),
+                  prefixIcon: const Icon(AthIcons.search, color: Colors.white38, size: 20),
                   suffixIcon: _query.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear, color: Colors.white38, size: 18),
+                          icon: const Icon(AthIcons.xMark, color: Colors.white38, size: 18),
                           onPressed: () {
                             _searchController.clear();
                             setState(() => _query = '');
@@ -376,7 +377,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
               data: (_) {
                 if (followedUsers.isEmpty) {
                   return _buildEmptyState(
-                    icon: Icons.people_outline,
+                    icon: AthIcons.userGroup,
                     title: isMe
                         ? 'Not following anyone yet'
                         : 'No followed accounts',
@@ -388,7 +389,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
 
                 if (filteredUsers.isEmpty) {
                   return _buildEmptyState(
-                    icon: Icons.search_off_rounded,
+                    icon: AthIcons.magnifyingGlass,
                     title: 'No matching accounts',
                     subtitle: 'We couldn\'t find any followed users matching "$_query".',
                   );
@@ -441,7 +442,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
                           user.name.isNotEmpty
                               ? user.name[0].toUpperCase()
                               : 'U',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: GoogleFonts.outfit(
                             color: Colors.white70,
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -460,7 +461,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
-                        Icons.verified,
+                        AthIcons.checkBadgeSolid,
                         color: AppTheme.primaryColor,
                         size: 13,
                       ),
@@ -482,7 +483,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
                           user.name.isNotEmpty ? user.name : 'Atheleos User',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.spaceGrotesk(
+                          style: GoogleFonts.outfit(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
@@ -542,7 +543,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
                 onPressed: () => _handleUnfollow(user),
                 child: Text(
                   'Unfollow',
-                  style: GoogleFonts.spaceGrotesk(
+                  style: GoogleFonts.outfit(
                     color: Colors.white70,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -566,7 +567,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
                 onPressed: () => _handleFollowToggle(user, isFollowingUser),
                 child: Text(
                   isFollowingUser ? 'Following' : 'Follow',
-                  style: GoogleFonts.spaceGrotesk(
+                  style: GoogleFonts.outfit(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
@@ -575,7 +576,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
 
             // 3-dots Context Menu
             IconButton(
-              icon: const Icon(Icons.more_vert, color: Colors.white38, size: 18),
+              icon: const Icon(AthIcons.ellipsisVertical, color: Colors.white38, size: 18),
               onPressed: () => _showUserOptionsMenu(user),
               visualDensity: VisualDensity.compact,
               splashRadius: 20,
@@ -609,7 +610,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
             const SizedBox(height: 16),
             Text(
               title,
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
@@ -619,7 +620,7 @@ class _FollowingListScreenState extends ConsumerState<FollowingListScreen> {
             const SizedBox(height: 8),
             Text(
               subtitle,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.outfit(
                 color: Colors.white38,
                 fontSize: 12,
                 height: 1.5,

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../controllers/profile_controller.dart';
 import '../widgets/profile_loader.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final String? userId;
@@ -66,9 +68,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(
+          backgroundColor: const Color(0xE6000000),
+          toolbarHeight: 52,
+          shape: const Border(
+            bottom: BorderSide(color: Color(0x1AFFFFFF), width: 1),
+          ),
           leading: isViewingOther || Navigator.of(context).canPop()
               ? IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  icon: const Icon(AthIcons.arrowLeft, color: Colors.white, size: 20),
                   tooltip: 'Back',
                   onPressed: () {
                     if (Navigator.of(context).canPop()) {
@@ -81,17 +88,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               : null,
           title: Text(
             appBarTitle,
-            style: GoogleFonts.spaceGrotesk(
+            style: GoogleFonts.outfit(
               fontWeight: FontWeight.w600,
               letterSpacing: 1.5,
-              fontSize: 15,
+              fontSize: 14,
+              color: AppTheme.primaryColor,
             ),
           ),
           actions: [
             // Settings gear — only visible on the owner's own profile
             if (!isViewingOther)
               IconButton(
-                icon: const Icon(Icons.settings_outlined, color: Colors.white70, size: 22),
+                icon: const Icon(AthIcons.cog6Tooth, color: Colors.white, size: 22),
                 tooltip: 'Settings',
                 onPressed: () => context.push('/settings', extra: activeProfileAsync.valueOrNull),
               ),

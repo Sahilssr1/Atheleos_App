@@ -7,6 +7,7 @@ import '../../domain/models/notification_model.dart';
 import '../../domain/notification_navigation.dart';
 import '../controllers/notifications_controller.dart';
 import '../widgets/notification_tile.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
@@ -100,13 +101,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
     if (state.error != null && state.items.isEmpty) {
       return _EmptyState(
-        icon: Icons.error_outline,
+        icon: AthIcons.exclamationCircle,
         message: 'Could not load notifications.\nPull down to retry.',
       );
     }
     if (state.items.isEmpty) {
       return _EmptyState(
-        icon: Icons.notifications_none,
+        icon: AthIcons.bell,
         message: _emptyMessage(ref.read(notificationFilterProvider)),
       );
     }
@@ -145,7 +146,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               color: Colors.redAccent.withOpacity(0.85),
               alignment: Alignment.centerRight,
               padding: const EdgeInsets.only(right: 24),
-              child: const Icon(Icons.delete_outline, color: Colors.white),
+              child: const Icon(AthIcons.trash, color: Colors.white),
             ),
             onDismissed: (_) =>
                 ref.read(notificationsProvider.notifier).delete(n.id),

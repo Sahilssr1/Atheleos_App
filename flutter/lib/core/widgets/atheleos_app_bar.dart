@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
+import '../../features/chat/presentation/controllers/chat_list_controller.dart';
 import '../../features/notifications/presentation/controllers/notifications_controller.dart';
+import '../../features/profile/presentation/controllers/profile_controller.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class AtheleosAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final String titleText;
@@ -21,27 +24,40 @@ class AtheleosAppBar extends ConsumerWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final unreadCount =
+    final unreadNotifications =
         ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
+    final myId = ref.watch(loggedInUserIdProvider);
+    final unreadMessages = showActions
+        ? ref
+            .watch(chatListProvider)
+            .where((room) => room.unreadBy.contains(myId))
+            .length
+        : 0;
 
     return AppBar(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xCC000000),
       surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
       elevation: 0,
+      toolbarHeight: 56,
       centerTitle: false,
       titleSpacing: 16,
       leading: leading,
+      iconTheme: const IconThemeData(color: Colors.white, size: 20),
+      actionsIconTheme: const IconThemeData(color: Colors.white, size: 20),
+      shape: const Border(
+        bottom: BorderSide(color: Color(0x0FFFFFFF), width: 1),
+      ),
       title: title ??
           (titleText == 'ATHELEOS'
               ? ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 27),
+                  constraints: const BoxConstraints(maxHeight: 24),
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Image.asset(
                       'assets/images/atheleos_banner.png',
-                      height: 27,
+                      height: 24,
                       fit: BoxFit.contain,
                       alignment: Alignment.centerLeft,
                     ),
@@ -49,91 +65,96 @@ class AtheleosAppBar extends ConsumerWidget implements PreferredSizeWidget {
                 )
               : Text(
                   titleText,
-                  style: TextStyle(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.5,
-                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.appBarTheme.titleTextStyle,
                 )),
       actions: showActions
           ? [
-              // Events Combine Button (Calendar outline icon)
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+              _TopBarAction(
                 tooltip: 'Events & Combine',
-                icon: const Icon(Icons.calendar_today_outlined),
-                onPressed: () {
-                  context.push('/events');
-                },
+                icon: AthIcons.calendar,
+                onTap: () => context.push('/events'),
               ),
-              // Notifications Alerts Button with live unread badge
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+              const SizedBox(width: 6),
+              _TopBarAction(
                 tooltip: 'Alerts & Notifications',
-                icon: _NotificationBell(count: unreadCount),
-                onPressed: () {
-                  context.push('/notifications');
-                },
+                icon: AthIcons.bell,
+                badgeCount: unreadNotifications,
+                onTap: () => context.push('/notifications'),
               ),
-              // Chat Message Button
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+              const SizedBox(width: 6),
+              _TopBarAction(
                 tooltip: 'Direct Messages',
-                icon: const Icon(Icons.chat_bubble_outline_rounded),
-                onPressed: () {
-                  context.push('/chat');
-                },
+                icon: AthIcons.chatRound,
+                badgeCount: unreadMessages,
+                onTap: () => context.push('/chat'),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
             ]
           : null,
     );
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => const Size.fromHeight(56);
 }
 
-class _NotificationBell extends StatelessWidget {
-  final int count;
-  const _NotificationBell({required this.count});
+class _TopBarAction extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final int badgeCount;
+  final VoidCallback onTap;
+
+  const _TopBarAction({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+    this.badgeCount = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Icon(count > 0
-            ? Icons.notifications
-            : Icons.notifications_none_outlined),
-        if (count > 0)
-          Positioned(
-            right: -5,
-            top: -4,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor,
-                borderRadius: BorderRadius.circular(9),
-                border: Border.all(color: Colors.black, width: 1.5),
-              ),
-              child: Text(
-                count > 99 ? '99+' : '$count',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                  height: 1.1,
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(icon, color: Colors.white, size: 21),
+              if (badgeCount > 0)
+                Positioned(
+                  right: -4,
+                  top: -4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    constraints:
+                        const BoxConstraints(minWidth: 14, minHeight: 14),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppTheme.errorColor,
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: Text(
+                      badgeCount > 9 ? '9+' : '$badgeCount',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        height: 1.1,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+            ],
           ),
-      ],
+        ),
+      ),
     );
   }
 }

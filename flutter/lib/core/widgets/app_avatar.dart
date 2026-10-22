@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 /// A universal avatar widget that displays a user's profile image if present,
 /// or a clean, modern user icon placeholder when no profile image has been added.
@@ -33,13 +34,13 @@ class AppAvatar extends StatelessWidget {
   IconData get _placeholderIcon {
     final normalizedRole = role?.trim().toLowerCase() ?? '';
     if (normalizedRole == 'brand') {
-      return Icons.business_outlined;
+      return AthIcons.buildingOffice;
     } else if (normalizedRole == 'federation') {
-      return Icons.account_balance_outlined;
+      return AthIcons.buildingLibrary;
     } else if (normalizedRole == 'coach') {
-      return Icons.sports_outlined;
+      return AthIcons.trophy;
     }
-    return Icons.person_outline;
+    return AthIcons.user;
   }
 
   @override

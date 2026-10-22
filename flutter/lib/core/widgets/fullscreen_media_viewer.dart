@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart';
 import '../theme/app_theme.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class FullscreenMediaViewer extends StatefulWidget {
   final String mediaUrl;
@@ -39,17 +40,19 @@ class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
   @override
   void initState() {
     super.initState();
-    if (widget.mediaType == 'video') {
+    if (widget.mediaType.toLowerCase().contains('video') ||
+        widget.mediaType.toLowerCase() == 'clip') {
       _initializeVideo();
     }
   }
 
   void _initializeVideo() async {
     try {
-      final controller = VideoPlayerController.networkUrl(Uri.parse(widget.mediaUrl));
+      final controller =
+          VideoPlayerController.networkUrl(Uri.parse(widget.mediaUrl));
       _videoController = controller;
       await controller.initialize();
-      
+
       if (!mounted) {
         controller.dispose();
         return;
@@ -64,6 +67,15 @@ class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
       });
 
       controller.addListener(() {
+        if (controller.value.hasError) {
+          if (mounted && !_hasError) {
+            setState(() {
+              _hasError = true;
+              _isInitialized = false;
+            });
+          }
+          return;
+        }
         if (mounted) {
           final nowPlaying = controller.value.isPlaying;
           if (nowPlaying != _isPlaying) {
@@ -129,10 +141,12 @@ class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
                       width: double.infinity,
                       fit: BoxFit.contain,
                       placeholder: (context, url) => const Center(
-                        child: CircularProgressIndicator(color: AppTheme.primaryColor),
+                        child: CircularProgressIndicator(
+                            color: AppTheme.primaryColor),
                       ),
                       errorWidget: (context, url, error) => const Center(
-                        child: Icon(Icons.broken_image, color: Colors.white24, size: 48),
+                        child: Icon(AthIcons.photo,
+                            color: Colors.white24, size: 48),
                       ),
                     ),
                   )
@@ -141,18 +155,21 @@ class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+                            Icon(AthIcons.exclamationCircle,
+                                color: Colors.redAccent, size: 48),
                             SizedBox(height: 12),
                             Text(
                               'Failed to play video',
-                              style: TextStyle(color: Colors.white70, fontSize: 14),
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 14),
                             ),
                           ],
                         ),
                       )
                     : !_isInitialized
                         ? const Center(
-                            child: CircularProgressIndicator(color: AppTheme.primaryColor),
+                            child: CircularProgressIndicator(
+                                color: AppTheme.primaryColor),
                           )
                         : GestureDetector(
                             onTap: _togglePlay,
@@ -162,14 +179,15 @@ class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
                                 alignment: Alignment.bottomCenter,
                                 children: [
                                   VideoPlayer(_videoController!),
-                                  
+
                                   // Play/Pause big center icon when paused
                                   if (!_isPlaying)
                                     const Center(
                                       child: CircleAvatar(
                                         radius: 30,
                                         backgroundColor: Colors.black45,
-                                        child: Icon(Icons.play_arrow, size: 40, color: Colors.white),
+                                        child: Icon(AthIcons.play,
+                                            size: 40, color: Colors.white),
                                       ),
                                     ),
 
@@ -182,7 +200,8 @@ class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
                                       bufferedColor: Colors.white24,
                                       backgroundColor: Colors.white10,
                                     ),
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
                                   ),
                                 ],
                               ),
@@ -202,18 +221,20 @@ class _FullscreenMediaViewerState extends State<FullscreenMediaViewer> {
                 CircleAvatar(
                   backgroundColor: Colors.black45,
                   child: IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
+                    icon: const Icon(AthIcons.xMark, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
 
                 // Video mute toggle button
-                if (widget.mediaType == 'video' && _isInitialized)
+                if ((widget.mediaType.toLowerCase().contains('video') ||
+                        widget.mediaType.toLowerCase() == 'clip') &&
+                    _isInitialized)
                   CircleAvatar(
                     backgroundColor: Colors.black45,
                     child: IconButton(
                       icon: Icon(
-                        _isMuted ? Icons.volume_off : Icons.volume_up,
+                        _isMuted ? AthIcons.volumeMute : AthIcons.volumeHigh,
                         color: Colors.white,
                       ),
                       onPressed: _toggleMute,

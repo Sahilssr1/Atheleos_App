@@ -10,6 +10,7 @@ import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../chat/presentation/widgets/share_content_bottom_sheet.dart';
 import '../../domain/models/event_model.dart';
 import '../controllers/events_controller.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class EventsScreen extends ConsumerWidget {
   const EventsScreen({super.key});
@@ -76,10 +77,10 @@ class EventsScreen extends ConsumerWidget {
               decoration: InputDecoration(
                 hintText: 'Search by event name, city, state, organizer...',
                 hintStyle: const TextStyle(color: Colors.white24, fontSize: 12),
-                prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 18),
+                prefixIcon: const Icon(AthIcons.search, color: Colors.white38, size: 18),
                 suffixIcon: searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white38, size: 16),
+                        icon: const Icon(AthIcons.xMark, color: Colors.white38, size: 16),
                         onPressed: () {
                           ref.read(eventSearchQueryProvider.notifier).state = '';
                           searchController.clear();
@@ -177,7 +178,7 @@ class EventsScreen extends ConsumerWidget {
               children: [
                 Text(
                   'SORT BY:',
-                  style: GoogleFonts.spaceGrotesk(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.outfit(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold),
                 ),
                 DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
@@ -209,11 +210,11 @@ class EventsScreen extends ConsumerWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+                      const Icon(AthIcons.exclamationCircle, color: Colors.redAccent, size: 40),
                       const SizedBox(height: 12),
                       Text(
                         'Unable to load events',
-                        style: GoogleFonts.spaceGrotesk(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                        style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -224,7 +225,7 @@ class EventsScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.black),
-                        icon: const Icon(Icons.refresh, size: 16),
+                        icon: const Icon(AthIcons.arrowPath, size: 16),
                         label: const Text('RETRY', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                         onPressed: () {
                           HapticFeedback.lightImpact();
@@ -262,7 +263,7 @@ class EventsScreen extends ConsumerWidget {
                                 border: Border.all(color: const Color(0xFF262626)),
                               ),
                               child: const Icon(
-                                Icons.event_busy_outlined,
+                                AthIcons.calendar,
                                 color: Colors.white38,
                                 size: 30,
                               ),
@@ -270,7 +271,7 @@ class EventsScreen extends ConsumerWidget {
                             const SizedBox(height: 16),
                             Text(
                               'No Events Found',
-                              style: GoogleFonts.spaceGrotesk(
+                              style: GoogleFonts.outfit(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -280,7 +281,7 @@ class EventsScreen extends ConsumerWidget {
                             Text(
                               'No matches found for your current filters. Adjust your sport or competition level to discover upcoming combines.',
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.spaceGrotesk(
+                              style: GoogleFonts.outfit(
                                 color: Colors.white38,
                                 fontSize: 12,
                                 height: 1.4,
@@ -294,10 +295,10 @@ class EventsScreen extends ConsumerWidget {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
-                              icon: const Icon(Icons.refresh, size: 16, color: AppTheme.primaryColor),
+                              icon: const Icon(AthIcons.arrowPath, size: 16, color: AppTheme.primaryColor),
                               label: Text(
                                 'RESET FILTERS',
-                                style: GoogleFonts.spaceGrotesk(
+                                style: GoogleFonts.outfit(
                                   color: AppTheme.primaryColor,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
@@ -346,10 +347,10 @@ class EventsScreen extends ConsumerWidget {
               backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.black,
               onPressed: () => context.push('/events/create'),
-              icon: const Icon(Icons.add, size: 18),
+              icon: const Icon(AthIcons.plus, size: 18),
               label: Text(
                 'HOST EVENT',
-                style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, letterSpacing: 0.5, fontSize: 12),
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, letterSpacing: 0.5, fontSize: 12),
               ),
             )
           : null,
@@ -391,7 +392,7 @@ class EventsScreen extends ConsumerWidget {
                           width: double.infinity,
                           height: 120,
                           color: const Color(0xFF181818),
-                          child: const Icon(Icons.event, color: Colors.white24, size: 36),
+                          child: const Icon(AthIcons.calendar, color: Colors.white24, size: 36),
                         ),
                       );
                     }
@@ -399,7 +400,7 @@ class EventsScreen extends ConsumerWidget {
                       width: double.infinity,
                       height: 120,
                       color: const Color(0xFF181818),
-                      child: const Icon(Icons.event, color: Colors.white24, size: 36),
+                      child: const Icon(AthIcons.calendar, color: Colors.white24, size: 36),
                     );
                   }),
                   Positioned(
@@ -446,27 +447,32 @@ class EventsScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
+                      Flexible(
+                        child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppTheme.primaryColor.withValues(alpha: 0.1),
                           border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2)),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           '${event.eventType} • ${event.sport}'.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: AppTheme.primaryColor,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.3,
                           ),
                         ),
                       ),
+                      ),
+                      const SizedBox(width: 8),
                       Text(
                         '${event.currentParticipants} / ${event.maxParticipants} Joined',
-                        style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.4), fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.45), fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
@@ -475,14 +481,14 @@ class EventsScreen extends ConsumerWidget {
                     event.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, letterSpacing: -0.2, color: Colors.white),
                   ),
                   const SizedBox(height: 8),
 
                   // Location and Date Details
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, color: AppTheme.primaryColor, size: 14),
+                      const Icon(AthIcons.mapPin, color: AppTheme.primaryColor, size: 14),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -550,11 +556,11 @@ class EventsScreen extends ConsumerWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.share_outlined, size: 15, color: AppTheme.primaryColor),
+                              const Icon(AthIcons.share, size: 15, color: AppTheme.primaryColor),
                               const SizedBox(width: 6),
                               Text(
                                 'Share with Followers',
-                                style: GoogleFonts.spaceGrotesk(
+                                style: GoogleFonts.outfit(
                                   color: Colors.white70,
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w600,
@@ -569,14 +575,14 @@ class EventsScreen extends ConsumerWidget {
                         children: [
                           Text(
                             'View Details',
-                            style: GoogleFonts.spaceGrotesk(
+                            style: GoogleFonts.outfit(
                               color: AppTheme.primaryColor,
                               fontSize: 11.5,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(width: 4),
-                          const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: AppTheme.primaryColor),
+                          const Icon(AthIcons.chevronRight, size: 10, color: AppTheme.primaryColor),
                         ],
                       ),
                     ],

@@ -9,12 +9,14 @@ import '../controllers/feed_controller.dart';
 import '../controllers/post_delete_controller.dart';
 import '../screens/feed_screen.dart'
     show AnimatedLikeButton, AnimatedBookmarkButton, CommentBottomSheet;
+import '../screens/edit_post_screen.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../../core/services/cache_manager.dart';
 import '../controllers/like_controller.dart';
 import '../../../chat/presentation/widgets/share_content_bottom_sheet.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/widgets/app_avatar.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 /// Reusable feed-style post card.
 ///
@@ -88,24 +90,23 @@ class PostCard extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             ListTile(
-              leading: const Icon(Icons.edit_outlined, color: Colors.white70, size: 22),
+              leading: const Icon(AthIcons.pencilSquare, color: Colors.white70, size: 22),
               title: const Text(
                 'Edit',
                 style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
               ),
-              onTap: () {
+              onTap: () async {
                 Navigator.of(sheetContext).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Editing posts is coming soon.'),
-                    backgroundColor: AppTheme.primaryColor,
-                    duration: Duration(seconds: 1),
-                  ),
+                final updated = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(builder: (_) => EditPostScreen(postId: post.id)),
                 );
+                if (updated == true) {
+                  ref.invalidate(feedPostsProvider);
+                }
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+              leading: const Icon(AthIcons.trash, color: Colors.redAccent, size: 22),
               title: const Text(
                 'Delete',
                 style: TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w600),
@@ -154,27 +155,25 @@ class PostCard extends ConsumerWidget {
 
     if (confirmed != true) return;
 
+    final messenger = ScaffoldMessenger.maybeOf(context);
     try {
       await ref.read(postDeleteControllerProvider).deletePost(post);
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('Post deleted successfully'),
+          backgroundColor: AppTheme.primaryColor,
+          duration: Duration(seconds: 2),
+        ),
+      );
       onDeleted?.call();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Post deleted'),
-            backgroundColor: AppTheme.primaryColor,
-            duration: Duration(seconds: 1),
-          ),
-        );
-      }
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to delete post. Please try again.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
+      debugPrint('Error deleting post: $e');
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('Failed to delete post. Please try again.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 
@@ -192,17 +191,35 @@ class PostCard extends ConsumerWidget {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFF262626), width: 1),
+          side: const BorderSide(color: Color(0x14FFFFFF), width: 1),
         ),
         color: Colors.black,
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.fromLTRB(14, 12, 10, 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header: Profile Avatar, Details and Category Chip
               Builder(builder: (context) {
                 final displayName = post.userName.trim().isNotEmpty ? post.userName.trim() : 'Athlete';
+
+                // Resolve avatar: if post.userAvatar is empty or invalid, fallback to current user or profile cache
+                String resolvedAvatar = post.userAvatar.trim();
+                if (resolvedAvatar.isEmpty || !resolvedAvatar.startsWith('http')) {
+                  if (isOwner) {
+                    final myProfile = ref.watch(activeProfileProvider).valueOrNull;
+                    if (myProfile != null && myProfile.avatarUrl.trim().startsWith('http')) {
+                      resolvedAvatar = myProfile.avatarUrl.trim();
+                    }
+                  }
+                  if (resolvedAvatar.isEmpty || !resolvedAvatar.startsWith('http')) {
+                    final profiles = ref.watch(profileListProvider).valueOrNull ?? [];
+                    final matched = profiles.where((p) => p.id == post.userId || (post.userName.isNotEmpty && p.username.toLowerCase() == post.userName.toLowerCase())).firstOrNull;
+                    if (matched != null && matched.avatarUrl.trim().startsWith('http')) {
+                      resolvedAvatar = matched.avatarUrl.trim();
+                    }
+                  }
+                }
 
                 return Row(
                   children: [
@@ -211,7 +228,7 @@ class PostCard extends ConsumerWidget {
                         context.push('/profile/${post.userId}');
                       },
                       child: AppAvatar(
-                        imageUrl: post.userAvatar,
+                        imageUrl: resolvedAvatar,
                         radius: 20,
                         name: displayName,
                       ),
@@ -226,27 +243,57 @@ class PostCard extends ConsumerWidget {
                             context.push('/profile/${post.userId}');
                           },
                           child: Row(
-                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                displayName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13.5,
-                                  color: Colors.white,
+                              Flexible(
+                                child: Text(
+                                  displayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    letterSpacing: -0.15,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                               if (post.verified) ...[
                                 const SizedBox(width: 4),
-                                const Icon(Icons.verified, size: 14, color: AppTheme.primaryColor),
+                                const Icon(AthIcons.checkBadgeSolid, size: 14, color: AppTheme.primaryColor),
                               ],
                             ],
                           ),
                         ),
                         Text(
                           '${post.sport} • ${post.position} • $postTime',
-                          style: const TextStyle(color: Colors.white38, fontSize: 10.5),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 11,
+                          ),
                         ),
+                        if (post.location != null && post.location!.trim().isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Icon(AthIcons.mapPin, size: 10, color: AppTheme.primaryColor),
+                              const SizedBox(width: 3),
+                              Flexible(
+                                child: Text(
+                                  post.location!.trim(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: AppTheme.primaryColor,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -259,7 +306,12 @@ class PostCard extends ConsumerWidget {
                     ),
                     child: Text(
                       post.category.name.toUpperCase(),
-                      style: const TextStyle(color: AppTheme.primaryColor, fontSize: 8.5, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.4,
+                      ),
                     ),
                   ),
                   // Owner-only options menu (Edit / Delete)
@@ -268,7 +320,7 @@ class PostCard extends ConsumerWidget {
                       onTap: () => _showOwnerMenu(context, ref),
                       child: Container(
                         padding: const EdgeInsets.only(left: 8),
-                        child: const Icon(Icons.more_vert, color: Colors.white60, size: 20),
+                        child: const Icon(AthIcons.ellipsisVertical, color: Colors.white60, size: 20),
                       ),
                     ),
                 ],
@@ -282,7 +334,7 @@ class PostCard extends ConsumerWidget {
               mentions: post.mentions,
               trimLength: 95,
               trimLines: 2,
-              style: const TextStyle(fontSize: 13, height: 1.45, color: Color(0xE6FFFFFF)),
+              style: const TextStyle(fontSize: 14, height: 1.55, letterSpacing: -0.1, color: Color(0xE6FFFFFF)),
               actionStyle: TextStyle(
                 color: Colors.white.withValues(alpha: 0.60),
                 fontWeight: FontWeight.w700,
@@ -339,74 +391,53 @@ class PostCard extends ConsumerWidget {
 
             // Action Buttons Bar
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Like Action
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedLikeButton(
+                Expanded(
+                  child: _PostAction(
+                    onTap: () => _handleLike(ref),
+                    icon: AnimatedLikeButton(
                       isLiked: likeState.isLiked,
                       onTap: () => _handleLike(ref),
                     ),
-                    const Text('Like', style: TextStyle(fontSize: 11.5, color: Colors.white60)),
-                  ],
-                ),
-
-                // Comment Action
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white60, size: 20),
-                      onPressed: () {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (context) => CommentBottomSheet(
-                            post: post,
-                            onCommentAdded: (newCount) {
-                              // Comment counts sync reactively through Firestore.
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                    const Text('Comment', style: TextStyle(fontSize: 11.5, color: Colors.white60)),
-                  ],
-                ),
-
-                // Share Action
-                InkWell(
-                  onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      backgroundColor: Colors.transparent,
-                      isScrollControlled: true,
-                      useRootNavigator: true,
-                      builder: (context) => ShareContentBottomSheet(
-                        postId: post.id,
-                        reelId: post.hasVideo ? post.id : null,
-                        shareType: post.hasVideo ? 'reel' : 'post',
-                      ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.share_outlined, color: Colors.white60, size: 20),
-                        const SizedBox(width: 6),
-                        const Text('Share', style: TextStyle(fontSize: 11.5, color: Colors.white60)),
-                      ],
-                    ),
+                    label: 'Like',
                   ),
                 ),
-
-                // Bookmark Action
+                Expanded(
+                  child: _PostAction(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => CommentBottomSheet(
+                          post: post,
+                          onCommentAdded: (newCount) {},
+                        ),
+                      );
+                    },
+                    icon: const Icon(AthIcons.chatRound, color: Colors.white, size: 22),
+                    label: 'Comment',
+                  ),
+                ),
+                Expanded(
+                  child: _PostAction(
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.transparent,
+                        isScrollControlled: true,
+                        useRootNavigator: true,
+                        builder: (context) => ShareContentBottomSheet(
+                          postId: post.id,
+                          reelId: post.hasVideo ? post.id : null,
+                          shareType: post.hasVideo ? 'reel' : 'post',
+                        ),
+                      );
+                    },
+                    icon: const Icon(AthIcons.send, color: Colors.white, size: 22),
+                    label: 'Share',
+                  ),
+                ),
                 AnimatedBookmarkButton(
                   isBookmarked: post.hasBookmarked,
                   onTap: () => _handleBookmark(ref),
@@ -418,5 +449,47 @@ class PostCard extends ConsumerWidget {
       ),
     ),
   );
+  }
 }
+
+class _PostAction extends StatelessWidget {
+  final VoidCallback onTap;
+  final Widget icon;
+  final String label;
+
+  const _PostAction({
+    required this.onTap,
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            icon,
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

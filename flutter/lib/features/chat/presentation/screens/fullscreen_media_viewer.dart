@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class FullScreenMediaViewer extends StatefulWidget {
   final String mediaUrl;
@@ -143,7 +144,7 @@ class _FullScreenMediaViewerState extends State<FullScreenMediaViewer> {
                               ),
                             ),
                             errorWidget: (_, __, ___) => const Center(
-                              child: Icon(Icons.broken_image_rounded, color: Colors.white38, size: 54),
+                              child: Icon(AthIcons.photo, color: Colors.white38, size: 54),
                             ),
                           ),
                   ),
@@ -174,7 +175,7 @@ class _FullScreenMediaViewerState extends State<FullScreenMediaViewer> {
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                        icon: const Icon(AthIcons.arrowLeft, color: Colors.white, size: 24),
                         onPressed: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 4),
@@ -200,7 +201,7 @@ class _FullScreenMediaViewerState extends State<FullScreenMediaViewer> {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.reply_rounded, color: Colors.white),
+                        icon: const Icon(AthIcons.arrowUturnLeft, color: Colors.white),
                         tooltip: 'Reply',
                         onPressed: () {
                           Navigator.pop(context);

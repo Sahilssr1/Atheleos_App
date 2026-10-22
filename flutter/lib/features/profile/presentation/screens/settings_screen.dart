@@ -14,6 +14,7 @@ import '../controllers/settings_controller.dart';
 import 'verification_dashboard_screen.dart';
 import 'portfolio_analytics_screen.dart';
 import '../../../../core/utils/user_facing_error.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 // ── Settings Categories Definition ──────────────────────────────────────────
 
@@ -22,7 +23,7 @@ enum SettingsCategory {
     title: 'ACCOUNT',
     displayName: 'Account',
     subtitle: 'Edit profile, password, phone, username, email, sign out',
-    icon: Icons.person_outline,
+    icon: AthIcons.user,
     keywords: [
       'profile',
       'edit',
@@ -40,7 +41,7 @@ enum SettingsCategory {
     title: 'PRIVACY & VISIBILITY',
     displayName: 'Privacy & Visibility',
     subtitle: 'Show following on profile, hide personal details',
-    icon: Icons.visibility_outlined,
+    icon: AthIcons.eye,
     keywords: [
       'privacy',
       'visibility',
@@ -59,7 +60,7 @@ enum SettingsCategory {
     title: 'MESSAGING',
     displayName: 'Messaging',
     subtitle: 'Who can message you, message requests, read receipts',
-    icon: Icons.chat_bubble_outline_rounded,
+    icon: AthIcons.chatRound,
     keywords: [
       'messaging',
       'messages',
@@ -73,7 +74,7 @@ enum SettingsCategory {
     title: 'NOTIFICATIONS',
     displayName: 'Notifications',
     subtitle: 'Push alerts & email notification preferences',
-    icon: Icons.notifications_outlined,
+    icon: AthIcons.bell,
     keywords: [
       'notifications',
       'alerts',
@@ -89,7 +90,7 @@ enum SettingsCategory {
     title: 'SAFETY',
     displayName: 'Safety',
     subtitle: 'Blocked users, muted users, hidden keywords, reports',
-    icon: Icons.shield_outlined,
+    icon: AthIcons.shieldCheck,
     keywords: [
       'safety',
       'blocked',
@@ -103,21 +104,21 @@ enum SettingsCategory {
     title: 'VERIFICATION',
     displayName: 'Verification',
     subtitle: 'Athlete verification dashboard & badge status',
-    icon: Icons.verified_outlined,
+    icon: AthIcons.checkBadge,
     keywords: ['verification', 'badge', 'verify', 'athlete', 'review'],
   ),
   portfolio(
     title: 'PORTFOLIO & ANALYTICS',
     displayName: 'Portfolio & Analytics',
     subtitle: 'Views, shares, analytics & portfolio performance',
-    icon: Icons.bar_chart_rounded,
+    icon: AthIcons.chartBar,
     keywords: ['portfolio', 'analytics', 'stats', 'views', 'shares'],
   ),
   helpSupport(
     title: 'HELP & SUPPORT',
     displayName: 'Help & Support',
     subtitle: 'Help center, guidelines, clear cache, report a problem',
-    icon: Icons.help_outline_rounded,
+    icon: AthIcons.questionMarkCircle,
     keywords: [
       'help',
       'support',
@@ -132,7 +133,7 @@ enum SettingsCategory {
     title: 'ABOUT',
     displayName: 'About',
     subtitle: 'App version, release notes, open source licenses, terms',
-    icon: Icons.info_outline_rounded,
+    icon: AthIcons.informationCircle,
     keywords: [
       'about',
       'version',
@@ -166,7 +167,7 @@ class SettingsWidgets {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(
             title.toUpperCase(),
-            style: GoogleFonts.spaceGrotesk(
+            style: GoogleFonts.outfit(
               color: AppTheme.primaryColor,
               fontWeight: FontWeight.w900,
               fontSize: 11,
@@ -198,7 +199,7 @@ class SettingsWidgets {
         ),
         title: Text(
           label,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.outfit(
             color: danger ? Colors.redAccent : Colors.white,
             fontSize: 13,
             fontWeight: FontWeight.w500,
@@ -207,11 +208,11 @@ class SettingsWidgets {
         subtitle: subtitle != null
             ? Text(
                 subtitle,
-                style: GoogleFonts.inter(color: Colors.white38, fontSize: 11),
+                style: GoogleFonts.outfit(color: Colors.white38, fontSize: 11),
               )
             : null,
         trailing: onTap != null
-            ? const Icon(Icons.chevron_right, color: Colors.white24, size: 18)
+            ? const Icon(AthIcons.chevronRight, color: Colors.white24, size: 18)
             : null,
         onTap: onTap != null
             ? () {
@@ -228,7 +229,7 @@ class SettingsWidgets {
         leading: Icon(icon, color: Colors.white24, size: 20),
         title: Text(
           label,
-          style: GoogleFonts.inter(color: Colors.white38, fontSize: 13),
+          style: GoogleFonts.outfit(color: Colors.white38, fontSize: 13),
         ),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -259,7 +260,7 @@ class SettingsWidgets {
       SwitchListTile.adaptive(
         title: Text(
           label,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.outfit(
             color: Colors.white,
             fontSize: 13,
             fontWeight: FontWeight.w500,
@@ -268,7 +269,7 @@ class SettingsWidgets {
         subtitle: subtitle != null
             ? Text(
                 subtitle,
-                style: GoogleFonts.inter(color: Colors.white38, fontSize: 11),
+                style: GoogleFonts.outfit(color: Colors.white38, fontSize: 11),
               )
             : null,
         value: value,
@@ -286,7 +287,7 @@ class SettingsWidgets {
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(
           label,
-          style: GoogleFonts.spaceGrotesk(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.bold,
             fontSize: 11,
             color: Colors.white60,
@@ -393,7 +394,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       appBar: AppBar(
         title: Text(
           'SETTINGS',
-          style: GoogleFonts.spaceGrotesk(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w700,
             letterSpacing: 1.5,
             fontSize: 15,
@@ -423,10 +424,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   decoration: InputDecoration(
                     hintText: 'Search settings, privacy, account...',
                     hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-                    prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 18),
+                    prefixIcon: const Icon(AthIcons.search, color: Colors.white38, size: 18),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear, color: Colors.white38, size: 16),
+                            icon: const Icon(AthIcons.xMark, color: Colors.white38, size: 16),
                             onPressed: () {
                               _searchController.clear();
                               setState(() => _searchQuery = '');
@@ -448,12 +449,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: Center(
                   child: Column(
                     children: [
-                      const Icon(Icons.search_off_rounded,
+                      const Icon(AthIcons.magnifyingGlass,
                           color: Colors.white24, size: 40),
                       const SizedBox(height: 12),
                       Text(
                         'No settings matching "$_searchQuery"',
-                        style: GoogleFonts.spaceGrotesk(
+                        style: GoogleFonts.outfit(
                           color: Colors.white70,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -477,10 +478,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.25)),
                 ),
                 tileColor: Colors.redAccent.withValues(alpha: 0.06),
-                leading: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
+                leading: const Icon(AthIcons.arrowRightOnRectangle, color: Colors.redAccent, size: 20),
                 title: Text(
                   'Sign Out',
-                  style: GoogleFonts.spaceGrotesk(
+                  style: GoogleFonts.outfit(
                     color: Colors.redAccent,
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
@@ -500,7 +501,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Center(
               child: Text(
                 'ATHELEOS • Professional Sports Network',
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   color: Colors.white24,
                   fontSize: 10,
                   letterSpacing: 0.5,
@@ -558,7 +559,7 @@ Future<void> _confirmLogoutDialog(BuildContext context, WidgetRef ref) async {
       ),
       title: Text(
         'Sign Out',
-        style: GoogleFonts.spaceGrotesk(
+        style: GoogleFonts.outfit(
           color: Colors.white,
           fontWeight: FontWeight.bold,
         ),
@@ -681,7 +682,7 @@ class _SettingsCategoryScreenState
       appBar: AppBar(
         title: Text(
           widget.category.title,
-          style: GoogleFonts.spaceGrotesk(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w700,
             letterSpacing: 1.2,
             fontSize: 15,
@@ -734,45 +735,45 @@ class _SettingsCategoryScreenState
       case SettingsCategory.account:
         return [
           SettingsWidgets.tile(
-            Icons.person_outline,
+            AthIcons.user,
             'Edit Profile',
             onTap: () => context.push('/settings/edit-profile'),
           ),
           SettingsWidgets.tile(
-            Icons.people_outline,
+            AthIcons.userGroup,
             'Following',
             subtitle: 'Manage accounts you follow privately',
             onTap: () => context.push('/settings/following'),
           ),
           SettingsWidgets.tile(
-            Icons.alternate_email,
+            AthIcons.atSymbol,
             'Change Username',
             onTap: () => context.push('/settings/username'),
           ),
           SettingsWidgets.tile(
-            Icons.mail_outline,
+            AthIcons.envelope,
             'Change Email Address',
             onTap: () => context.push('/settings/email'),
           ),
           SettingsWidgets.tile(
-            Icons.phone_android_outlined,
+            AthIcons.devicePhoneMobile,
             'Change Phone Number',
             onTap: () => context.push('/settings/phone'),
           ),
           SettingsWidgets.tile(
-            Icons.lock_outline,
+            AthIcons.lockClosed,
             'Change Password',
             onTap: () => context.push('/settings/password'),
           ),
           SettingsWidgets.divider(),
           SettingsWidgets.tile(
-            Icons.logout_rounded,
+            AthIcons.arrowRightOnRectangle,
             'Sign Out',
             danger: true,
             onTap: () => _confirmLogoutDialog(context, ref),
           ),
           SettingsWidgets.tile(
-            Icons.delete_outline_rounded,
+            AthIcons.trash,
             'Delete Account',
             danger: true,
             onTap: () => context.push('/settings/delete-account'),
@@ -785,7 +786,7 @@ class _SettingsCategoryScreenState
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
               'Your profile is always public on ATHELEOS so scouts and coaches can discover you. You may hide specific personal details below.',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.outfit(
                   color: Colors.white38, fontSize: 11, height: 1.5),
             ),
           ),
@@ -864,7 +865,7 @@ class _SettingsCategoryScreenState
               children: [
                 Text(
                   'Who can send you messages',
-                  style: GoogleFonts.spaceGrotesk(
+                  style: GoogleFonts.outfit(
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                     color: Colors.white60,
@@ -1026,22 +1027,22 @@ class _SettingsCategoryScreenState
       case SettingsCategory.safety:
         return [
           SettingsWidgets.tile(
-            Icons.block_outlined,
+            AthIcons.noSymbol,
             'Blocked Users',
             onTap: () => context.push('/settings/blocked-users'),
           ),
           SettingsWidgets.tile(
-            Icons.volume_off_outlined,
+            AthIcons.volumeMute,
             'Muted Users',
             onTap: () => context.push('/settings/muted-users'),
           ),
           SettingsWidgets.tile(
-            Icons.filter_list_outlined,
+            AthIcons.funnel,
             'Hidden Keywords',
             onTap: () => context.push('/settings/hidden-keywords'),
           ),
           SettingsWidgets.tile(
-            Icons.flag_outlined,
+            AthIcons.flag,
             'Report History',
             onTap: () => context.push('/settings/report-history'),
           ),
@@ -1049,11 +1050,11 @@ class _SettingsCategoryScreenState
 
       case SettingsCategory.helpSupport:
         return [
-          SettingsWidgets.tile(Icons.help_outline, 'Help Center',
+          SettingsWidgets.tile(AthIcons.questionMarkCircle, 'Help Center',
               onTap: () => context.push('/settings/help')),
-          SettingsWidgets.tile(Icons.support_agent_outlined, 'Contact Support',
+          SettingsWidgets.tile(AthIcons.chatBubbleLeftRight, 'Contact Support',
               onTap: () => context.push('/settings/contact-support')),
-          SettingsWidgets.tile(Icons.cleaning_services_outlined, 'Clear App Cache',
+          SettingsWidgets.tile(AthIcons.trash, 'Clear App Cache',
               subtitle: 'Free up storage and clear cached files',
               onTap: () async {
             await ref.read(accountActionsProvider).clearAppCache();
@@ -1061,35 +1062,35 @@ class _SettingsCategoryScreenState
               _snack(context, 'Cache cleared successfully.');
             }
           }),
-          SettingsWidgets.tile(Icons.people_outline, 'Community Guidelines',
+          SettingsWidgets.tile(AthIcons.userGroup, 'Community Guidelines',
               onTap: () => context.push('/settings/community-guidelines')),
           SettingsWidgets.tile(
-              Icons.stars_outlined, 'Athlete Verification Guidelines',
+              AthIcons.sparkles, 'Athlete Verification Guidelines',
               onTap: () => context.push('/settings/verification-guidelines')),
-          SettingsWidgets.tile(Icons.privacy_tip_outlined, 'Privacy Policy',
+          SettingsWidgets.tile(AthIcons.shieldCheck, 'Privacy Policy',
               onTap: () => context.push('/settings/privacy-policy')),
-          SettingsWidgets.tile(Icons.article_outlined, 'Terms & Conditions',
+          SettingsWidgets.tile(AthIcons.documentText, 'Terms & Conditions',
               onTap: () => context.push('/settings/terms')),
-          SettingsWidgets.tile(Icons.flag_outlined, 'Report a Problem',
+          SettingsWidgets.tile(AthIcons.flag, 'Report a Problem',
               onTap: () => context.push('/settings/report-problem')),
         ];
 
       case SettingsCategory.about:
         return [
           SettingsWidgets.tile(
-            Icons.info_outline,
+            AthIcons.informationCircle,
             'App Version',
             subtitle: packageInfo == null
                 ? 'Loading...'
                 : 'ATHELEOS v${packageInfo.version} (Build ${packageInfo.buildNumber})',
           ),
-          SettingsWidgets.tile(Icons.new_releases_outlined, 'Release Notes',
+          SettingsWidgets.tile(AthIcons.checkBadge, 'Release Notes',
               onTap: () => context.push('/settings/release-notes')),
-          SettingsWidgets.tile(Icons.code_outlined, 'Open Source Licenses',
+          SettingsWidgets.tile(AthIcons.cpuChip, 'Open Source Licenses',
               onTap: () => showLicensePage(context: context)),
-          SettingsWidgets.tile(Icons.privacy_tip_outlined, 'Privacy Policy',
+          SettingsWidgets.tile(AthIcons.shieldCheck, 'Privacy Policy',
               onTap: () => context.push('/settings/privacy-policy')),
-          SettingsWidgets.tile(Icons.article_outlined, 'Terms & Conditions',
+          SettingsWidgets.tile(AthIcons.documentText, 'Terms & Conditions',
               onTap: () => context.push('/settings/terms')),
         ];
 
@@ -1108,7 +1109,7 @@ class _SettingsCategoryScreenState
         }
         return [
           SettingsWidgets.tile(
-            Icons.verified_outlined,
+            AthIcons.checkBadge,
             actionLabel,
             onTap: () => Navigator.push(
               context,
@@ -1125,7 +1126,7 @@ class _SettingsCategoryScreenState
             ref.watch(activeProfileProvider).valueOrNull;
         return [
           SettingsWidgets.tile(
-            Icons.bar_chart_rounded,
+            AthIcons.chartBar,
             'Open Portfolio Analytics',
             onTap: () => Navigator.push(
               context,
@@ -1173,7 +1174,7 @@ class _PhoneChangeDialogState extends ConsumerState<_PhoneChangeDialog> {
       ),
       title: Text(
         'Change Phone Number',
-        style: GoogleFonts.spaceGrotesk(
+        style: GoogleFonts.outfit(
           color: Colors.white,
           fontWeight: FontWeight.bold,
         ),

@@ -9,6 +9,7 @@ import '../controllers/chat_list_controller.dart';
 import '../controllers/chat_controller.dart';
 import '../widgets/create_group_bottom_sheet.dart';
 import '../../../profile/domain/models/profile_model.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 enum _ChatInboxTab { chats, requests }
 
@@ -166,7 +167,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                               : null,
                           backgroundColor: Colors.white10,
                           child: (user.avatarUrl.isEmpty || (!user.avatarUrl.startsWith('http://') && !user.avatarUrl.startsWith('https://')))
-                              ? const Icon(Icons.person, size: 20, color: Colors.white54)
+                              ? const Icon(AthIcons.userSolid, size: 20, color: Colors.white54)
                               : null,
                         ),
                         title: Row(
@@ -182,7 +183,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                             if (user.verified) ...[
                               const SizedBox(width: 4),
                               const Icon(
-                                Icons.verified,
+                                AthIcons.checkBadgeSolid,
                                 color: Colors.blue,
                                 size: 14,
                               ),
@@ -197,7 +198,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                           ),
                         ),
                         trailing: const Icon(
-                          Icons.chevron_right,
+                          AthIcons.chevronRight,
                           color: Colors.white54,
                           size: 20,
                         ),
@@ -290,7 +291,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                   border: Border.all(color: const Color(0xFF262626), width: 1),
                 ),
                 child: const Icon(
-                  Icons.mark_email_read_outlined,
+                  AthIcons.envelope,
                   color: Colors.white54,
                   size: 40,
                 ),
@@ -334,7 +335,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                   border: Border.all(color: const Color(0xFF262626), width: 1),
                 ),
                 child: const Icon(
-                  Icons.chat_bubble_outline_rounded,
+                  AthIcons.chatRound,
                   color: Colors.white54,
                   size: 40,
                 ),
@@ -362,7 +363,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 children: [
                   ElevatedButton.icon(
                     onPressed: () => _showNewDMModal(context, profiles, myId),
-                    icon: const Icon(Icons.add, color: Colors.black, size: 18),
+                    icon: const Icon(AthIcons.plus, color: Colors.black, size: 18),
                     label: const Text(
                       'Start Chat',
                       style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
@@ -378,7 +379,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                   const SizedBox(width: 12),
                   OutlinedButton.icon(
                     onPressed: () => CreateGroupBottomSheet.show(context, profiles, myId),
-                    icon: const Icon(Icons.groups_rounded, color: AppTheme.primaryColor, size: 18),
+                    icon: const Icon(AthIcons.userGroup, color: AppTheme.primaryColor, size: 18),
                     label: const Text(
                       'New Group',
                       style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
@@ -432,7 +433,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
-                            Icons.delete_outline,
+                            AthIcons.trash,
                             color: Colors.white,
                             size: 26,
                           ),
@@ -512,7 +513,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                                       backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
                                       child: (avatarUrl.isEmpty ||
                                               (!avatarUrl.startsWith('http://') && !avatarUrl.startsWith('https://')))
-                                          ? const Icon(Icons.groups_rounded, size: 26, color: AppTheme.primaryColor)
+                                          ? const Icon(AthIcons.userGroup, size: 26, color: AppTheme.primaryColor)
                                           : null,
                                     ),
                                   )
@@ -527,7 +528,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                                     backgroundColor: Colors.white10,
                                     child: (avatarUrl.isEmpty ||
                                             (!avatarUrl.startsWith('http://') && !avatarUrl.startsWith('https://')))
-                                        ? const Icon(Icons.person, size: 26, color: Colors.white54)
+                                        ? const Icon(AthIcons.userSolid, size: 26, color: Colors.white54)
                                         : null,
                                   ),
                                 const SizedBox(width: 14),
@@ -585,7 +586,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                                           ] else if (isVerified) ...[
                                             const SizedBox(width: 4),
                                             const Icon(
-                                              Icons.verified,
+                                              AthIcons.checkBadgeSolid,
                                               color: Colors.blue,
                                               size: 14,
                                             ),
@@ -663,7 +664,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          icon: const Icon(AthIcons.arrowLeft, color: Colors.white, size: 20),
           onPressed: () {
             if (context.canPop()) {
               context.pop();
@@ -682,7 +683,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                   color: AppTheme.primaryColor.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.group_add_rounded, color: AppTheme.primaryColor, size: 20),
+                child: const Icon(AthIcons.userPlus, color: AppTheme.primaryColor, size: 20),
               ),
               tooltip: 'New Group',
               onPressed: () {
@@ -701,7 +702,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                   shape: BoxShape.circle,
                   border: Border.all(color: const Color(0xFF262626), width: 1),
                 ),
-                child: const Icon(Icons.edit_note_rounded, color: Colors.white, size: 22),
+                child: const Icon(AthIcons.pencilSquare, color: Colors.white, size: 22),
               ),
               tooltip: 'New Direct Message',
               onPressed: () {
@@ -729,10 +730,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                 decoration: InputDecoration(
                   hintText: 'Search chats & conversations...',
                   hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-                  prefixIcon: const Icon(Icons.search, color: Colors.white38, size: 20),
+                  prefixIcon: const Icon(AthIcons.search, color: Colors.white38, size: 20),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear, color: Colors.white38, size: 18),
+                          icon: const Icon(AthIcons.xMark, color: Colors.white38, size: 18),
                           onPressed: () {
                             setState(() {
                               _searchController.clear();
@@ -807,7 +808,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.mark_email_unread_outlined, color: AppTheme.primaryColor, size: 18),
+                        const Icon(AthIcons.envelope, color: AppTheme.primaryColor, size: 18),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -830,7 +831,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.chevron_right_rounded, color: AppTheme.primaryColor, size: 18),
+                        const Icon(AthIcons.chevronRight, color: AppTheme.primaryColor, size: 18),
                       ],
                     ),
                   ),
@@ -897,7 +898,7 @@ class _ChatListShimmerLoadingState extends State<_ChatListShimmerLoading>
                     child: Text(
                       'Loading chats for the first time may take some time...',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.outfit(
                         color: Colors.white.withValues(alpha: 0.38),
                         fontSize: 12,
                         fontWeight: FontWeight.w400,

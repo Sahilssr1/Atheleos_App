@@ -16,6 +16,7 @@ import '../../domain/models/event_model.dart';
 import '../../domain/repositories/events_repository.dart';
 import '../controllers/events_controller.dart';
 import '../../../../core/utils/user_facing_error.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class CreateEventScreen extends ConsumerStatefulWidget {
   const CreateEventScreen({super.key});
@@ -439,7 +440,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
             child: Text(
               'Only Coaches, Federations, and Brands are eligible to host events on ATHELEOS.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.spaceGrotesk(color: Colors.white70, fontSize: 15),
+              style: GoogleFonts.outfit(color: Colors.white70, fontSize: 15),
             ),
           ),
         ),
@@ -453,16 +454,16 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.check_circle_outline_rounded, size: 80, color: AppTheme.primaryColor),
+              const Icon(AthIcons.checkCircle, size: 80, color: AppTheme.primaryColor),
               const SizedBox(height: 16),
               Text(
                 'Event Published!',
-                style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white),
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.white),
               ),
               const SizedBox(height: 8),
               Text(
                 'Your sports event is now open for registration.',
-                style: GoogleFonts.inter(color: Colors.white60, fontSize: 13),
+                style: GoogleFonts.outfit(color: Colors.white60, fontSize: 13),
               ),
             ],
           ),
@@ -495,7 +496,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                   children: [
                     // --- Banner Picker ---
                     Text('Event Banner Cover',
-                        style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white60)),
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white60)),
                     const SizedBox(height: 8),
                     GestureDetector(
                       onTap: _pickBanner,
@@ -517,10 +518,10 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             ? Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.image_outlined, size: 36, color: Colors.white38),
+                                  const Icon(AthIcons.photo, size: 36, color: Colors.white38),
                                   const SizedBox(height: 8),
                                   Text('Select Banner Cover Image',
-                                      style: GoogleFonts.inter(color: Colors.white38, fontSize: 12)),
+                                      style: GoogleFonts.outfit(color: Colors.white38, fontSize: 12)),
                                 ],
                               )
                             : Container(
@@ -551,7 +552,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
 
                     // Sport selection
                     Text('Sport (Mandatory)',
-                        style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white60)),
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white60)),
                     const SizedBox(height: 8),
                     SportSelectorField(
                       initialSport: _selectedSport,
@@ -572,7 +573,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Event Type',
-                                  style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white60)),
+                                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white60)),
                               const SizedBox(height: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -606,7 +607,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Competition Level',
-                                  style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white60)),
+                                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white60)),
                               const SizedBox(height: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -706,7 +707,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Start Date',
-                                  style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.white60)),
+                                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.white60)),
                               const SizedBox(height: 6),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
@@ -731,7 +732,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Start Time',
-                                  style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.white60)),
+                                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.white60)),
                               const SizedBox(height: 6),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
@@ -761,7 +762,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('End Date',
-                                  style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.white60)),
+                                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.white60)),
                               const SizedBox(height: 6),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
@@ -786,7 +787,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('End Time',
-                                  style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.white60)),
+                                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.white60)),
                               const SizedBox(height: 6),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
@@ -818,7 +819,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Registration Deadline',
-                                  style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.white60)),
+                                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.white60)),
                               const SizedBox(height: 6),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
@@ -848,7 +849,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Registration Flow',
-                                  style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white60)),
+                                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white60)),
                               const SizedBox(height: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -950,7 +951,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                     // --- Event Status ---
                     _buildSectionTitle('Current Event Status'),
                     Text('Event Status Tag',
-                        style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white60)),
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white60)),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1026,7 +1027,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                       onPressed: _handleSubmit,
                       child: Text(
                         'HOST SPORTS EVENT',
-                        style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                        style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                       ),
                     ),
                     const SizedBox(height: 40),
@@ -1045,7 +1046,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         children: [
           Text(
             title.toUpperCase(),
-            style: GoogleFonts.spaceGrotesk(
+            style: GoogleFonts.outfit(
               color: AppTheme.primaryColor,
               fontWeight: FontWeight.w900,
               fontSize: 12,
@@ -1071,17 +1072,17 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.white60)),
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.white60)),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
           maxLines: maxLines,
           keyboardType: keyboardType,
-          style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+          style: GoogleFonts.outfit(color: Colors.white, fontSize: 13),
           validator: validator,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: GoogleFonts.inter(color: Colors.white24, fontSize: 12.5),
+            hintStyle: GoogleFonts.outfit(color: Colors.white24, fontSize: 12.5),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFF262626)),

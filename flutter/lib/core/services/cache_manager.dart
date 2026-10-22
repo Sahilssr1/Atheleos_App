@@ -49,8 +49,11 @@ class CacheManager {
   }
 
   Future<void> saveFeed(List<Map<String, dynamic>> posts) async {
-    final list = posts.take(25).toList(); // Capped to 25 latest for instant cold start without disk stalls
-    await prefs.setString(_feedKey, json.encode(list, toEncodable: _customJsonEncoder));
+    final list = posts
+        .take(25)
+        .toList(); // Capped to 25 latest for instant cold start without disk stalls
+    await prefs.setString(
+        _feedKey, json.encode(list, toEncodable: _customJsonEncoder));
   }
 
   /// Load feed posts
@@ -68,7 +71,8 @@ class CacheManager {
   /// Save explore posts
   Future<void> saveExplore(List<Map<String, dynamic>> posts) async {
     final list = posts.take(30).toList(); // Capped to 30 explore items
-    await prefs.setString(_exploreKey, json.encode(list, toEncodable: _customJsonEncoder));
+    await prefs.setString(
+        _exploreKey, json.encode(list, toEncodable: _customJsonEncoder));
   }
 
   /// Load explore posts
@@ -86,8 +90,8 @@ class CacheManager {
   /// Save profile details
   Future<void> saveProfile(
       String userId, Map<String, dynamic> profileData) async {
-    await prefs.setString(
-        '$_profilesKeyPrefix$userId', json.encode(profileData, toEncodable: _customJsonEncoder));
+    await prefs.setString('$_profilesKeyPrefix$userId',
+        json.encode(profileData, toEncodable: _customJsonEncoder));
     // Maintain list of cached profile IDs for LRU / limit eviction if needed
     final List<String> cachedIds =
         prefs.getStringList('cached_profile_ids') ?? [];
@@ -115,7 +119,8 @@ class CacheManager {
   /// Save comments for a specific post
   Future<void> saveComments(
       String postId, List<Map<String, dynamic>> comments) async {
-    await prefs.setString('$_commentsKeyPrefix$postId', json.encode(comments, toEncodable: _customJsonEncoder));
+    await prefs.setString('$_commentsKeyPrefix$postId',
+        json.encode(comments, toEncodable: _customJsonEncoder));
   }
 
   /// Load comments for a specific post
@@ -170,9 +175,11 @@ class CacheManager {
   }
 
   /// Save user's bookmarked post IDs
-  Future<void> saveBookmarkedPostIds(String userId, Set<String> bookmarkedIds) async {
+  Future<void> saveBookmarkedPostIds(
+      String userId, Set<String> bookmarkedIds) async {
     if (userId.isEmpty) return;
-    await prefs.setStringList('$_userBookmarksKeyPrefix$userId', bookmarkedIds.toList());
+    await prefs.setStringList(
+        '$_userBookmarksKeyPrefix$userId', bookmarkedIds.toList());
   }
 
   /// Load user's bookmarked post IDs
@@ -203,7 +210,8 @@ class CacheManager {
 
   /// Save direct message chat list
   Future<void> saveChatList(List<Map<String, dynamic>> rooms) async {
-    await prefs.setString(_chatListKey, json.encode(rooms, toEncodable: _customJsonEncoder));
+    await prefs.setString(
+        _chatListKey, json.encode(rooms, toEncodable: _customJsonEncoder));
   }
 
   /// Load direct message chat list
@@ -223,7 +231,8 @@ class CacheManager {
       String roomId, List<Map<String, dynamic>> messages) async {
     // Save up to 50 latest messages to prevent massive storage bloating
     final list = messages.take(50).toList();
-    await prefs.setString('$_chatMessagesKeyPrefix$roomId', json.encode(list, toEncodable: _customJsonEncoder));
+    await prefs.setString('$_chatMessagesKeyPrefix$roomId',
+        json.encode(list, toEncodable: _customJsonEncoder));
   }
 
   /// Load direct messages for a specific room
@@ -272,13 +281,32 @@ class CacheManager {
     return cacheDir;
   }
 
+  String _getVideoExt(String url) {
+    try {
+      final uri = Uri.parse(url);
+      final pathSegments = uri.pathSegments;
+      if (pathSegments.isNotEmpty) {
+        final last = pathSegments.last;
+        if (last.contains('.')) {
+          final ext = last.split('.').last.toLowerCase();
+          if (ext.length <= 5 && !ext.contains('/')) {
+            return ext;
+          }
+        }
+      }
+    } catch (_) {}
+    return 'mp4';
+  }
+
   /// Get local path of cached video if it exists
   Future<String?> getCachedVideoPath(String url) async {
     if (url.isEmpty) return null;
     try {
       final cacheDir = await _getVideoCacheDir();
-      final hashed = _hashUrl(url);
-      final ext = url.split('.').last.split('?').first;
+      // Bump the cache namespace when the server-side rendition changes. This
+      // prevents old low-quality/corrupt MP4s from surviving a codec rollout.
+      final hashed = _hashUrl('video-v2:$url');
+      final ext = _getVideoExt(url);
       final file = File('${cacheDir.path}/$hashed.$ext');
 
       if (await file.exists()) {
@@ -353,8 +381,8 @@ class CacheManager {
     File? tempFile;
     try {
       final cacheDir = await _getVideoCacheDir();
-      final hashed = _hashUrl(url);
-      final ext = url.split('.').last.split('?').first;
+      final hashed = _hashUrl('video-v2:$url');
+      final ext = _getVideoExt(url);
       final finalPath = '${cacheDir.path}/$hashed.$ext';
       final finalFile = File(finalPath);
 
@@ -379,11 +407,22 @@ class CacheManager {
         return null;
       }
 
+      final expectedLength = response.contentLength;
       final sink = tempFile.openWrite();
+      var downloadedBytes = 0;
       try {
-        await response.stream.pipe(sink);
+        await response.stream.listen((chunk) {
+          downloadedBytes += chunk.length;
+          sink.add(chunk);
+        }).asFuture<void>();
+        await sink.flush();
+        if (expectedLength != null &&
+            expectedLength >= 0 &&
+            downloadedBytes != expectedLength) {
+          throw StateError(
+              'Incomplete video download: $downloadedBytes/$expectedLength bytes');
+        }
       } finally {
-        // pipe closes the sink, but be defensive if it threw before piping.
         try {
           await sink.close();
         } catch (_) {}

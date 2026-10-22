@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Atheleos Architecture & Tech Stack Specification</title>
+<style>
+  @page {
+    size: A4;
+    margin: 14mm 14mm 16mm 14mm;
+    @bottom-right {
+      content: counter(page);
+    }
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    background-color: #ffffff;
+    line-height: 1.55;
+    font-size: 10.5pt;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Document Header */
+  .doc-header {
+    border-bottom: 3px solid #0284c7;
+    padding-bottom: 16px;
+    margin-bottom: 22px;
+  }
+
+  .badge-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .top-badge {
+    background-color: #0f172a;
+    color: #38bdf8;
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+
+  .version-badge {
+    background-color: #f1f5f9;
+    color: #475569;
+    font-size: 8pt;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid #cbd5e1;
+    display: inline-block;
+  }
+
+  h1.doc-title {
+    font-size: 22pt;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 4px 0 6px 0;
+    letter-spacing: -0.5px;
+  }
+
+  .doc-subtitle {
+    font-size: 11pt;
+    color: #64748b;
+    margin: 0 0 12px 0;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 10px;
+  }
+
+  .meta-item {
+    font-size: 8.5pt;
+  }
+
+  .meta-label {
+    color: #64748b;
+    text-transform: uppercase;
+    font-weight: 700;
+    font-size: 7.5pt;
+    letter-spacing: 0.5px;
+  }
+
+  .meta-val {
+    color: #0f172a;
+    font-weight: 600;
+    margin-top: 2px;
+  }
+
+  /* Section Styles */
+  .section-block {
+    margin-top: 24px;
+    page-break-inside: avoid;
+  }
+
+  .section-title {
+    font-size: 13.5pt;
+    font-weight: 750;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+    margin-top: 0;
+  }
+
+  .section-number {
+    background-color: #0284c7;
+    color: #ffffff;
+    font-size: 9pt;
+    font-weight: 800;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  p {
+    margin: 0 0 10px 0;
+    color: #334155;
+  }
+
+  /* Cards Grid */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    page-break-inside: avoid;
+  }
+
+  .card-highlight {
+    border-left: 3.5px solid #0284c7;
+    background-color: #f8fafc;
+  }
+
+  .card-title {
+    font-size: 10pt;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .card-desc {
+    font-size: 9pt;
+    color: #475569;
+    margin: 0;
+  }
+
+  /* Tables */
+  table.spec-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 14px 0;
+    font-size: 8.8pt;
+    page-break-inside: avoid;
+  }
+
+  table.spec-table th {
+    background-color: #0f172a;
+    color: #ffffff;
+    text-align: left;
+    padding: 7px 10px;
+    font-weight: 600;
+    font-size: 8.5pt;
+    letter-spacing: 0.3px;
+  }
+
+  table.spec-table td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: top;
+    color: #334155;
+  }
+
+  table.spec-table tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 7.5pt;
+    font-weight: 600;
+    margin-right: 4px;
+    margin-bottom: 2px;
+    background-color: #e0f2fe;
+    color: #0369a1;
+  }
+
+  .tag-purple {
+    background-color: #f3e8ff;
+    color: #7e22ce;
+  }
+
+  .tag-amber {
+    background-color: #fef3c7;
+    color: #b45309;
+  }
+
+  .tag-emerald {
+    background-color: #d1fae5;
+    color: #047857;
+  }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 8.2pt;
+    background-color: #f1f5f9;
+    color: #0f172a;
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .code-block {
+    background-color: #0f172a;
+    color: #e2e8f0;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 8pt;
+    line-height: 1.45;
+    margin: 8px 0 12px 0;
+    overflow-x: hidden;
+    page-break-inside: avoid;
+  }
+
+  .code-block .keyword { color: #38bdf8; font-weight: 600; }
+  .code-block .string { color: #4ade80; }
+  .code-block .comment { color: #94a3b8; font-style: italic; }
+
+  .callout-box {
+    background-color: #eff6ff;
+    border-left: 4px solid #3b82f6;
+    padding: 10px 14px;
+    border-radius: 4px;
+    margin: 12px 0;
+    font-size: 9pt;
+    color: #1e40af;
+    page-break-inside: avoid;
+  }
+
+  .callout-title {
+    font-weight: 700;
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+
+  .footer-note {
+    font-size: 8pt;
+    color: #94a3b8;
+    text-align: center;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 10px;
+    margin-top: 24px;
+  }
+</style>
+</head>
+<body>
+
+  <!-- DOCUMENT HEADER -->
+  <div class="doc-header">
+    <div class="badge-row">
+      <span class="top-badge">Atheleos Arena Engineering</span>
+      <span class="version-badge">Version 1.0.2+4</span>
+      <span class="version-badge">Production Architecture</span>
+    </div>
+    <h1 class="doc-title">System Architecture & Tech Stack Specification</h1>
+    <div class="doc-subtitle">A Comprehensive Technical Reference for Atheleos: Sports-First Social Platform</div>
+
+    <div class="meta-grid">
+      <div class="meta-item">
+        <div class="meta-label">Primary Client</div>
+        <div class="meta-val">Flutter (iOS & Android)</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Backend Runtime</div>
+        <div class="meta-val">Firebase Functions & Cloudflare</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Database</div>
+        <div class="meta-val">Google Cloud Firestore</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Object Storage</div>
+        <div class="meta-val">Cloudflare R2 Bucket</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: FRONTEND -->
+  <div class="section-block">
+    <h2 class="section-title"><span class="section-number">1</span> Frontend Architecture & Client Stack</h2>
+    <p>
+      The client-facing platform is built with a high-performance, cross-platform <strong>Flutter</strong> architecture designed for media-rich feeds, fluid short-form video streaming, and low-latency interaction across athletes, coaches, scouts, and sports brands.
+    </p>
+
+    <div class="cards-grid">
+      <div class="card card-highlight">
+        <div class="card-title">Core Framework & Language</div>
+        <div class="card-desc">
+          <strong>Flutter SDK (Dart 3.x)</strong> with compile-time null safety, multi-flavor build systems, and native C++ engine bindings for 60/120fps hardware-accelerated UI rendering on Android and iOS.
+        </div>
+      </div>
+      <div class="card card-highlight">
+        <div class="card-title">State Management & DI</div>
+        <div class="card-desc">
+          <strong>Flutter Riverpod</strong> (<code>flutter_riverpod</code>, <code>riverpod_annotation</code>, <code>riverpod_generator</code>). Provides compile-safe reactive state, dependency injection, and automatic provider disposal.
+        </div>
+      </div>
+      <div class="card card-highlight">
+        <div class="card-title">Navigation & Deep Linking</div>
+        <div class="card-desc">
+          <strong>GoRouter</strong> (<code>go_router 14.x</code>). Declarative route orchestration with sub-route hierarchies, parameterized URLs, deep linking, and real-time auth-state redirect guards.
+        </div>
+      </div>
+      <div class="card card-highlight">
+        <div class="card-title">Media & Video Feed Engine</div>
+        <div class="card-desc">
+          <strong>Video Player & Visibility Detector</strong> (<code>video_player</code>, <code>visibility_detector</code>). TikTok/Reels vertical feed autoplay/pause, viewport tracking, aspect-ratio correction, and memory-safe image cache.
+        </div>
+      </div>
+    </div>
+
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th style="width: 25%;">Module / Domain</th>
+          <th style="width: 35%;">Packages & Core Files</th>
+          <th style="width: 40%;">Key Technical Responsibility</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Feature Architecture</strong></td>
+          <td>
+            <code>lib/features/</code><br>
+            <span class="tag">auth</span>
+            <span class="tag">feed</span>
+            <span class="tag">clips</span>
+            <span class="tag">chat</span>
+            <span class="tag">events</span>
+            <span class="tag">profile</span>
+            <span class="tag">upload</span>
+          </td>
+          <td>Clean architecture dividing application layers into Data, Domain, and Presentation (Controllers, StateNotifier, and Widgets).</td>
+        </tr>
+        <tr>
+          <td><strong>Design System & UI</strong></td>
+          <td>
+            <code>google_fonts</code>, <code>shimmer</code>, <code>flutter_spinkit</code>, <code>assets/fonts/AthIcons.ttf</code>
+          </td>
+          <td>Custom athletic dark theme, typography, skeleton loaders for image/post feeds, and bespoke SVG icon glyph font.</td>
+        </tr>
+        <tr>
+          <td><strong>Local Storage & Caching</strong></td>
+          <td>
+            <code>shared_preferences</code>, <code>path_provider</code>, <code>core/services/cache_manager.dart</code>
+          </td>
+          <td>Global memory cache cap (60MB/150 images), local key-value preferences, offline mutation queue, and LRU asset disk caching.</td>
+        </tr>
+        <tr>
+          <td><strong>Notifications & System</strong></td>
+          <td>
+            <code>firebase_messaging</code>, <code>flutter_local_notifications</code>, <code>connectivity_plus</code>
+          </td>
+          <td>FCM push token sync, timezone-scheduled local reminders, real-time connectivity listening, and native share intents.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- SECTION 2: BACKEND & SERVERLESS COMPUTE -->
+  <div class="section-block">
+    <h2 class="section-title"><span class="section-number">2</span> Backend & Serverless Compute</h2>
+    <p>
+      ATHELEOS uses a hybrid serverless model: <strong>Firebase Cloud Functions</strong> handle CPU-heavy operations (video transcoding, integrity triggers, cleanup crons) while <strong>Cloudflare Workers</strong> act as a global edge upload gateway with zero egress fees.
+    </p>
+
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-title">Firebase Cloud Functions (Node.js 20)</div>
+        <div class="card-desc">
+          Written in TypeScript (<code>functions/src/index.ts</code>). High-memory containers (2GB RAM) executing automated triggers, media jobs, and administration endpoints.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Cloudflare Edge Worker</div>
+        <div class="card-desc">
+          Deployed at <code>atheleos-media-worker</code> on Cloudflare's global CDN edge. Handles token validation, streaming uploads, deduplication, and rate limiting.
+        </div>
+      </div>
+    </div>
+
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th style="width: 28%;">Function / Service</th>
+          <th style="width: 25%;">Trigger / Protocol</th>
+          <th style="width: 47%;">Description & Operational Implementation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>processVideoJob</code></td>
+          <td>HTTPS (Authenticated)</td>
+          <td>
+            <strong>FFmpeg Transcoding Pipeline:</strong>
+            Scales input video to 1080p/720p H.264/AAC, eliminates anamorphic distortion via <code>setsar=1</code>, generates poster thumbnails, parses aspect ratios, and executes 3x retries before dispatching to Dead Letter Queue (<code>dead_letter_jobs</code>).
+          </td>
+        </tr>
+        <tr>
+          <td><code>onPostWrite</code><br><code>onStoryWrite</code><br><code>onEventWrite</code><br><code>onProfileWrite</code></td>
+          <td>Firestore Document Triggers</td>
+          <td>
+            <strong>Automated Reference Counting:</strong>
+            Detects added or removed media IDs on documents, writes to <code>media_references</code>, and atomically increments or decrements <code>media.referenceCount</code> in Firestore transactions.
+          </td>
+        </tr>
+        <tr>
+          <td><code>dailyMediaCleanup</code></td>
+          <td>Pub/Sub Cron (Every 24h)</td>
+          <td>
+            <strong>Orphan Garbage Sweep:</strong>
+            Queries media records with <code>referenceCount == 0</code> older than 24 hours, issues deletion requests to Cloudflare R2, removes Firestore documents, and repairs discrepancy counts.
+          </td>
+        </tr>
+        <tr>
+          <td><code>sendEmailOtp</code><br><code>onEmailOtpWrite</code></td>
+          <td>HTTPS & Firestore Trigger</td>
+          <td>
+            <strong>OTP Delivery Service:</strong>
+            Dispatches branded HTML verification codes via Hostinger SMTP with rate limiting and 10-minute expiry validation.
+          </td>
+        </tr>
+        <tr>
+          <td><code>cleanupIncompleteAccount</code></td>
+          <td>HTTPS (Admin)</td>
+          <td>
+            <strong>Orphan Sanitization:</strong>
+            Purges abandoned Firebase Auth user records and incomplete profile drafts if phone/email verification steps were aborted.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout-box">
+      <div class="callout-title">Edge Media Gateway (Cloudflare Worker Pipeline)</div>
+      Mobile devices upload large media files directly to the Cloudflare Worker (<code>/upload</code>). The worker verifies the Firebase ID token at the edge, checks SHA-256 hashes to prevent redundant uploads, stages files into temporary R2 paths, and notifies <code>processVideoJob</code> for asynchronous background transcoding.
+    </div>
+  </div>
+
+  <!-- SECTION 3: DATABASE & STORAGE LAYER -->
+  <div class="section-block">
+    <h2 class="section-title"><span class="section-number">3</span> Database & Storage Layer</h2>
+    <p>
+      The persistence tier couples <strong>Google Cloud Firestore</strong> for real-time document synchronization and querying with <strong>Cloudflare R2</strong> for S3-compatible, zero-egress object storage.
+    </p>
+
+    <div class="cards-grid">
+      <div class="card card-highlight">
+        <div class="card-title">Google Cloud Firestore</div>
+        <div class="card-desc">
+          Document-based NoSQL database with client-side offline persistence (100MB LRU cache). Governed by granular security rules (<code>firestore.rules</code>) and composite indexes (<code>firestore.indexes.json</code>).
+        </div>
+      </div>
+      <div class="card card-highlight">
+        <div class="card-title">Cloudflare R2 Storage Bucket</div>
+        <div class="card-desc">
+          Bucket: <code>atheleos-media</code>. Stores raw ingested video masters, transcode renditions, high-res photos, WebP thumbnails, and story assets with CDN caching.
+        </div>
+      </div>
+    </div>
+
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th style="width: 25%;">Firestore Collection</th>
+          <th style="width: 35%;">Key Document Fields</th>
+          <th style="width: 40%;">Business & Platform Role</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>users</code></td>
+          <td><code>uid</code>, <code>role</code>, <code>username</code>, <code>sports</code>, <code>verified</code>, <code>stats</code></td>
+          <td>Multi-role profile models (Athlete, Coach, Brand, Federation) with verification status, bio, and follower metrics.</td>
+        </tr>
+        <tr>
+          <td><code>posts</code> & <code>stories</code></td>
+          <td><code>media[]</code>, <code>caption</code>, <code>likesCount</code>, <code>commentsCount</code>, <code>expiresAt</code></td>
+          <td>Feed items and 24-hour expiring stories containing video URLs, aspect ratios, thumbnails, and hashtag indexes.</td>
+        </tr>
+        <tr>
+          <td><code>events</code></td>
+          <td><code>title</code>, <code>sport</code>, <code>dates</code>, <code>location</code>, <code>participants/</code></td>
+          <td>Sports tournaments, trial dates, and matches with participant RSVP subcollections.</td>
+        </tr>
+        <tr>
+          <td><code>chat_rooms</code> & <code>messages</code></td>
+          <td><code>participants[]</code>, <code>lastMessage</code>, <code>mediaUrl</code>, <code>readBy[]</code></td>
+          <td>Direct and group messaging rooms with end-to-end receipt acknowledgments and media attachments.</td>
+        </tr>
+        <tr>
+          <td><code>media</code> & <code>media_references</code></td>
+          <td><code>publicId</code>, <code>urls{}</code>, <code>referenceCount</code>, <code>sourceType</code>, <code>ownerId</code></td>
+          <td>Media catalog maintaining video probes, encoding variants, and strict reference counts for automatic GC.</td>
+        </tr>
+        <tr>
+          <td><code>processing_jobs</code> & <code>dead_letter_jobs</code></td>
+          <td><code>jobId</code>, <code>status</code>, <code>retryCount</code>, <code>videoMetadata{}</code>, <code>summary{}</code></td>
+          <td>Asynchronous transcoding queues with progress milestones, durations, and error triage archives.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- SECTION 4: AUTHENTICATION, EMAIL & SECURITY -->
+  <div class="section-block">
+    <h2 class="section-title"><span class="section-number">4</span> Authentication, Email & Security</h2>
+    <p>
+      Security in ATHELEOS combines OAuth standards, short-lived one-time passwords, cryptographic token checks, and server-side authorization boundaries.
+    </p>
+
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-title">Firebase Authentication & OAuth</div>
+        <div class="card-desc">
+          Identity management supporting Email & Password authentication and Google Sign-In (<code>google_sign_in</code>). Issues signed RS256 JWT tokens with custom user claims.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Hostinger SMTP Email Gateway</div>
+        <div class="card-desc">
+          Dedicated TLS email relay (<code>smtp.hostinger.com:465</code>) configured with DKIM/SPF from <code>contact@atheleos.in</code> for OTPs and notifications.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Edge JWT Verification</div>
+        <div class="card-desc">
+          Cloudflare Worker cryptographically validates Firebase ID tokens directly against Google's public x509 certificates before admitting requests.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Zero-Trust Firestore Security</div>
+        <div class="card-desc">
+          <code>firestore.rules</code> strictly prevents client edits to verified badges, reference counters, report states, or impersonating other athletes.
+        </div>
+      </div>
+    </div>
+
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th style="width: 25%;">Workflow / Component</th>
+          <th style="width: 35%;">Implementation Detail</th>
+          <th style="width: 40%;">Security Guarantees</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Email OTP Verification</strong></td>
+          <td>
+            6-digit cryptographically generated OTP stored in <code>email_otps/{email}</code> with timestamp. Dispatched via Nodemailer.
+          </td>
+          <td>10-minute expiry window, single-use invalidation upon verification, rate-limited resend cooldowns.</td>
+        </tr>
+        <tr>
+          <td><strong>Server Password Reset</strong></td>
+          <td>
+            HTTPS endpoint <code>resetPasswordWithOtp</code> requires valid OTP matching the user before calling <code>admin.auth().updateUser()</code>.
+          </td>
+          <td>Enforces strict password complexity (min 8 chars, uppercase, lowercase, numbers, special characters) entirely on server.</td>
+        </tr>
+        <tr>
+          <td><strong>Admin & Moderation Separation</strong></td>
+          <td>
+            Role-based custom claims (<code>admin</code>, <code>moderator</code>) checked by Firestore rules and Cloud Functions.
+          </td>
+          <td>Clients cannot approve athlete verification applications, delete foreign media, or modify sports taxonomy.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="code-block">
+      <span class="comment">// Example: Zero-Trust Verification Rule from firestore.rules</span><br>
+      <span class="keyword">match</span> /users/{userId} {<br>
+      &nbsp;&nbsp;<span class="keyword">allow</span> read: <span class="keyword">if</span> true;<br>
+      &nbsp;&nbsp;<span class="keyword">allow</span> update: <span class="keyword">if</span> request.auth.uid == userId <br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&amp;&amp; !request.resource.data.diff(resource.data).affectedKeys()<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.hasAny([<span class="string">'verified'</span>, <span class="string">'verificationBadge'</span>, <span class="string">'verificationLevel'</span>]);<br>
+      }
+    </div>
+  </div>
+
+  <div class="footer-note">
+    ATHELEOS Architecture Specification &bull; Generated Automatically from Active Codebase &bull; Confidential & Proprietary
+  </div>
+
+</body>
+</html>

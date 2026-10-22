@@ -17,6 +17,7 @@ import '../../domain/models/story_model.dart';
 import '../../domain/models/comment_model.dart';
 import '../controllers/feed_controller.dart';
 import '../widgets/post_card.dart';
+import '../widgets/home_upload_banner.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../notifications/data/notification_service.dart';
 import '../../../../core/services/cache_manager.dart';
@@ -31,6 +32,7 @@ import '../../../clips/presentation/screens/clips_screen.dart';
 import '../../../../core/utils/user_facing_error.dart';
 import '../../../../core/widgets/app_avatar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class FeedScreen extends ConsumerStatefulWidget {
   const FeedScreen({super.key});
@@ -93,6 +95,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                     // decoded bitmaps in RAM.
                     cacheExtent: 500.0,
                     slivers: [
+                      // Background Upload Progress Banner
+                      const SliverToBoxAdapter(child: HomeUploadBanner()),
+
                       // Stories row scrolls with the page
                       SliverToBoxAdapter(child: _buildStoriesSection(context, ref)),
 
@@ -108,6 +113,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         child: _buildCategoriesRow(context, ref, selectedCategory),
                       ),
 
+                      // Sort & Sport filter header
+                      SliverToBoxAdapter(
+                        child: _buildSortAndFilterHeader(context, ref),
+                      ),
 
                       // Sport chips scroll with the page
                       SliverToBoxAdapter(
@@ -144,7 +153,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                   child: Column(
                                     children: [
                                       Icon(
-                                        Icons.sports_rounded,
+                                        AthIcons.trophy,
                                         size: 48,
                                         color: Colors.white.withOpacity(0.15),
                                       ),
@@ -373,7 +382,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                             ),
                             if (representativeStory.verified) ...[
                               const SizedBox(width: 2),
-                              const Icon(Icons.verified, size: 10, color: AppTheme.primaryColor),
+                              const Icon(AthIcons.checkBadgeSolid, size: 10, color: AppTheme.primaryColor),
                             ],
                           ],
                         ),
@@ -458,7 +467,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                             )
                           : null,
                       child: !(avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))
-                          ? const Icon(Icons.person, color: AppTheme.primaryColor, size: 20)
+                          ? const Icon(AthIcons.userSolid, color: AppTheme.primaryColor, size: 20)
                           : null,
                     ),
                   ),
@@ -476,7 +485,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         border: Border.all(color: Colors.black, width: 1.5),
                       ),
                       child: const Icon(
-                        Icons.add,
+                        AthIcons.plus,
                         color: Colors.black,
                         size: 14,
                       ),
@@ -488,7 +497,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             const SizedBox(height: 6),
             Text(
               'Your Story',
-              style: GoogleFonts.inter(color: Colors.white54, fontSize: 10),
+              style: GoogleFonts.outfit(color: Colors.white54, fontSize: 10),
             ),
           ],
         ),
@@ -554,7 +563,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                 ),
               ),
               Icon(
-                Icons.add_circle_outline_rounded,
+                AthIcons.plusCircle,
                 color: AppTheme.primaryColor.withOpacity(0.8),
                 size: 22,
               ),
@@ -566,39 +575,56 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   Widget _buildCategoriesRow(BuildContext context, WidgetRef ref, String selectedCategory) {
-    final categoriesList = ['All', 'Training', 'Match', 'Achievement', 'Recovery', 'General'];
+    const categoriesList = ['All', 'Training', 'Match', 'Achievement', 'Recovery', 'General'];
 
     return SizedBox(
-      height: 48,
-      child: ListView.builder(
+      height: 44,
+      child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         itemCount: categoriesList.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final category = categoriesList[index];
           final isSelected = selectedCategory == category;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: ChoiceChip(
-              showCheckmark: false,
-              label: Text(category),
-              selected: isSelected,
-              onSelected: (selected) {
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
                 HapticFeedback.selectionClick();
                 ref.read(selectedCategoryProvider.notifier).state = category;
               },
-              backgroundColor: const Color(0xFF141414),
-              selectedColor: AppTheme.primaryColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(
-                  color: isSelected ? AppTheme.primaryColor : const Color(0xFF262626),
+              borderRadius: BorderRadius.circular(999),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6.5),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppTheme.primaryColor : Colors.white.withOpacity(0.04),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: isSelected ? AppTheme.primaryColor : Colors.white.withOpacity(0.08),
+                    width: 1,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppTheme.primaryColor.withOpacity(0.4),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
                 ),
-              ),
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.black : Colors.white70,
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
+                child: Center(
+                  child: Text(
+                    category,
+                    style: TextStyle(
+                      color: isSelected ? Colors.black : Colors.white.withOpacity(0.72),
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
               ),
             ),
           );
@@ -607,42 +633,164 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     );
   }
 
+  Widget _buildSortAndFilterHeader(BuildContext context, WidgetRef ref) {
+    final sortOption = ref.watch(selectedFeedSortProvider); // 'Latest' or 'Trending'
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Left: FILTER BY CATEGORY with gold/accent dot
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'FILTER BY CATEGORY',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                  color: Colors.white.withOpacity(0.4),
+                ),
+              ),
+            ],
+          ),
+
+          // Right: Segmented toggle [ LATEST | TRENDING ]
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.04),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildSortPill(
+                  label: 'LATEST',
+                  isSelected: sortOption == 'Latest',
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    ref.read(selectedFeedSortProvider.notifier).state = 'Latest';
+                  },
+                ),
+                _buildSortPill(
+                  label: 'TRENDING',
+                  isSelected: sortOption == 'Trending',
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    ref.read(selectedFeedSortProvider.notifier).state = 'Trending';
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortPill({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withOpacity(0.35),
+                    blurRadius: 6,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+            letterSpacing: 0.8,
+            color: isSelected ? Colors.black : Colors.white.withOpacity(0.45),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildSportsRow(BuildContext context, WidgetRef ref, String selectedSport) {
     ref.watch(sportsHierarchyProvider); // Reactively rebuild if Firestore hierarchy changes
     final categories = ['All', ...SportsService.getCategories()];
 
     return SizedBox(
-      height: 44,
-      child: ListView.builder(
+      height: 42,
+      child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         itemCount: categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final cat = categories[index];
           final isSelected = selectedSport == cat;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: ChoiceChip(
-              showCheckmark: false,
-              label: Text(cat),
-              selected: isSelected,
-              onSelected: (selected) {
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
                 HapticFeedback.selectionClick();
                 ref.read(selectedSportProvider.notifier).state = cat;
               },
-              backgroundColor: const Color(0xFF141414),
-              selectedColor: AppTheme.primaryColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(
-                  color: isSelected ? AppTheme.primaryColor : const Color(0xFF262626),
+              borderRadius: BorderRadius.circular(12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppTheme.primaryColor : const Color(0xFF141414),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected ? AppTheme.primaryColor : Colors.white.withOpacity(0.08),
+                    width: 1,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppTheme.primaryColor.withOpacity(0.32),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
                 ),
-              ),
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.black : Colors.white70,
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
+                child: Center(
+                  child: Text(
+                    cat,
+                    style: TextStyle(
+                      color: isSelected ? Colors.black : Colors.white.withOpacity(0.72),
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
               ),
             ),
           );
@@ -720,10 +868,13 @@ class _AnimatedLikeButtonState extends State<AnimatedLikeButton> with SingleTick
     return ScaleTransition(
       scale: _scaleAnimation,
       child: IconButton(
+        visualDensity: VisualDensity.compact,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
         icon: Icon(
-          widget.isLiked ? Icons.favorite : Icons.favorite_border_rounded,
-          color: widget.isLiked ? AppTheme.primaryColor : Colors.white60,
-          size: 21,
+          widget.isLiked ? AthIcons.heartFill : AthIcons.heart,
+          color: widget.isLiked ? AppTheme.primaryColor : Colors.white,
+          size: 22,
         ),
         onPressed: () {
           _controller.forward(from: 0.0);
@@ -777,10 +928,13 @@ class _AnimatedBookmarkButtonState extends State<AnimatedBookmarkButton> with Si
     return ScaleTransition(
       scale: _scaleAnimation,
       child: IconButton(
+        visualDensity: VisualDensity.compact,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
         icon: Icon(
-          widget.isBookmarked ? Icons.bookmark : Icons.bookmark_border_rounded,
-          color: widget.isBookmarked ? AppTheme.primaryColor : Colors.white60,
-          size: 21,
+          widget.isBookmarked ? AthIcons.bookmarkFill : AthIcons.bookmark,
+          color: widget.isBookmarked ? AppTheme.primaryColor : Colors.white,
+          size: 22,
         ),
         onPressed: () {
           _controller.forward(from: 0.0);
@@ -890,7 +1044,7 @@ class _PostMediaViewerState extends State<PostMediaViewer> with SingleTickerProv
                   height: 240,
                   color: Colors.white.withOpacity(0.04),
                   child: const Center(
-                    child: Icon(Icons.broken_image_outlined, color: Colors.white24, size: 36),
+                    child: Icon(AthIcons.photo, color: Colors.white24, size: 36),
                   ),
                 );
               },
@@ -905,7 +1059,7 @@ class _PostMediaViewerState extends State<PostMediaViewer> with SingleTickerProv
                   child: Transform.scale(
                     scale: _heartScale.value,
                     child: const Icon(
-                      Icons.favorite,
+                      AthIcons.heartFill,
                       color: AppTheme.primaryColor,
                       size: 80,
                     ),
@@ -1105,7 +1259,7 @@ class _StoryViewerDialogState extends ConsumerState<StoryViewerDialog> with Sing
               },
               errorBuilder: (context, error, stackTrace) {
                 return const Center(
-                  child: Icon(Icons.broken_image, color: Colors.white24, size: 48),
+                  child: Icon(AthIcons.photo, color: Colors.white24, size: 48),
                 );
               },
             ),
@@ -1227,7 +1381,7 @@ class _StoryViewerDialogState extends ConsumerState<StoryViewerDialog> with Sing
                                   ),
                                   if (story.verified) ...[
                                     const SizedBox(width: 4),
-                                    const Icon(Icons.verified, size: 14, color: AppTheme.primaryColor),
+                                    const Icon(AthIcons.checkBadgeSolid, size: 14, color: AppTheme.primaryColor),
                                   ],
                                 ],
                               ),
@@ -1238,7 +1392,7 @@ class _StoryViewerDialogState extends ConsumerState<StoryViewerDialog> with Sing
                         const Spacer(),
                         if (story.userId == myId)
                           IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.white, size: 24),
+                            icon: const Icon(AthIcons.trash, color: Colors.white, size: 24),
                             onPressed: () async {
                               _progressController.stop();
                               final confirm = await showDialog<bool>(
@@ -1274,7 +1428,7 @@ class _StoryViewerDialogState extends ConsumerState<StoryViewerDialog> with Sing
                             },
                           ),
                         IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white, size: 24),
+                          icon: const Icon(AthIcons.xMark, color: Colors.white, size: 24),
                           onPressed: () {
                             Navigator.of(context).pop();
                           },
@@ -1334,7 +1488,7 @@ class _StoryViewerDialogState extends ConsumerState<StoryViewerDialog> with Sing
                   GestureDetector(
                     onTap: _toggleLike,
                     child: Icon(
-                      hasLiked ? Icons.favorite : Icons.favorite_border,
+                      hasLiked ? AthIcons.heartFill : AthIcons.heart,
                       color: hasLiked ? const Color(0xFFFF2F7A) : Colors.white,
                       size: 26,
                     ),
@@ -1346,7 +1500,7 @@ class _StoryViewerDialogState extends ConsumerState<StoryViewerDialog> with Sing
                       context.push('/chat/room?receiverId=${story.userId}');
                     },
                     child: const Icon(
-                      Icons.send_outlined,
+                      AthIcons.send,
                       color: Colors.white,
                       size: 24,
                     ),
@@ -1756,7 +1910,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                                       ),
                                       if (comment.verified) ...[
                                         const SizedBox(width: 4),
-                                        const Icon(Icons.verified, size: 11, color: AppTheme.primaryColor),
+                                        const Icon(AthIcons.checkBadgeSolid, size: 11, color: AppTheme.primaryColor),
                                       ],
                                       const SizedBox(width: 8),
                                       Text(
@@ -1818,7 +1972,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                           ),
                           IconButton(
                             icon: Icon(
-                              isLiked ? Icons.favorite : Icons.favorite_border,
+                              isLiked ? AthIcons.heartFill : AthIcons.heart,
                               color: isLiked ? Colors.red : Colors.white38,
                               size: 14,
                             ),
@@ -1846,7 +2000,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
               child: Row(
                 children: [
                   Icon(
-                    _editingComment != null ? Icons.edit : Icons.reply,
+                    _editingComment != null ? AthIcons.pencilSquare : AthIcons.arrowUturnLeft,
                     color: AppTheme.primaryColor,
                     size: 14,
                   ),
@@ -1867,7 +2021,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                         _commentController.clear();
                       });
                     },
-                    child: const Icon(Icons.close, color: Colors.white38, size: 14),
+                    child: const Icon(AthIcons.xMark, color: Colors.white38, size: 14),
                   ),
                 ],
               ),
@@ -1899,7 +2053,7 @@ class _CommentBottomSheetState extends ConsumerState<CommentBottomSheet> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.send_rounded, color: AppTheme.primaryColor, size: 20),
+                  icon: const Icon(AthIcons.send, color: AppTheme.primaryColor, size: 20),
                   onPressed: _submitComment,
                 ),
               ],
@@ -1923,12 +2077,12 @@ class ShareBottomSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final channels = [
-      {'name': 'Direct Message', 'icon': Icons.chat_bubble_outline_rounded},
-      {'name': 'Share as Clip', 'icon': Icons.play_circle_outline_rounded},
-      {'name': 'WhatsApp', 'icon': Icons.chat_bubble_rounded},
-      {'name': 'Instagram Stories', 'icon': Icons.camera_alt_outlined},
-      {'name': 'Twitter / X', 'icon': Icons.close},
-      {'name': 'Copy Link', 'icon': Icons.copy_rounded},
+      {'name': 'Direct Message', 'icon': AthIcons.chatRound},
+      {'name': 'Share as Clip', 'icon': AthIcons.playCircle},
+      {'name': 'WhatsApp', 'icon': AthIcons.chatRoundFill},
+      {'name': 'Instagram Stories', 'icon': AthIcons.camera},
+      {'name': 'Twitter / X', 'icon': AthIcons.xMark},
+      {'name': 'Copy Link', 'icon': AthIcons.documentDuplicate},
     ];
 
     return Container(
@@ -2088,7 +2242,7 @@ class _StoryUploadDialogState extends ConsumerState<StoryUploadDialog> {
             top: 50,
             left: 16,
             child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 30),
+              icon: const Icon(AthIcons.xMark, color: Colors.white, size: 30),
               onPressed: () => Navigator.pop(context),
             ),
           ),
@@ -2139,7 +2293,7 @@ class _StoryUploadDialogState extends ConsumerState<StoryUploadDialog> {
                         child: DropdownButton<String>(
                           value: _visibility,
                           dropdownColor: const Color(0xFF141414),
-                          icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                          icon: const Icon(AthIcons.chevronDown, color: Colors.white),
                           items: const [
                             DropdownMenuItem(value: 'public', child: Text('Public', style: TextStyle(color: Colors.white))),
                             DropdownMenuItem(value: 'followers', child: Text('Followers', style: TextStyle(color: Colors.white))),

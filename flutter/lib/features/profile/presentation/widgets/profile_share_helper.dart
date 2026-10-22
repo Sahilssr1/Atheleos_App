@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/profile_model.dart';
 import '../controllers/profile_controller.dart';
 import '../../../chat/presentation/widgets/share_content_bottom_sheet.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 void showProfileShareDialog(BuildContext context, ProfileModel profile, WidgetRef ref) {
   showDialog(
@@ -16,7 +17,7 @@ void showProfileShareDialog(BuildContext context, ProfileModel profile, WidgetRe
         backgroundColor: const Color(0xFF121212),
         title: Text(
           'SHARE ${profile.role.toUpperCase()} PROFILE',
-          style: GoogleFonts.spaceGrotesk(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             fontSize: 14,
             color: AppTheme.primaryColor,
@@ -53,7 +54,7 @@ void showProfileShareDialog(BuildContext context, ProfileModel profile, WidgetRe
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.copy, size: 16, color: AppTheme.primaryColor),
+                    icon: const Icon(AthIcons.documentDuplicate, size: 16, color: AppTheme.primaryColor),
                     onPressed: () {
                       try {
                         ref.read(userRepositoryProvider).incrementPortfolioShares(profile.id);
@@ -76,7 +77,7 @@ void showProfileShareDialog(BuildContext context, ProfileModel profile, WidgetRe
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                icon: const Icon(AthIcons.chatRound, size: 16),
                 label: const Text('SHARE TO DIRECT MESSAGE'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,

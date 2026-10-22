@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:atheleos/features/profile/domain/models/profile_model.dart'
+    show pickAvatarUrl;
 
 class UserModel {
   final String uid;
@@ -164,7 +166,7 @@ class UserModel {
           : (map['profileCompletion'] as num?)?.toInt() ?? 0,
       phoneVerified: map['phoneVerified'] ?? false,
       googleVerified: map['googleVerified'] ?? false,
-      avatarUrl: map['avatarUrl'] ?? map['photoUrl'] ?? map['googlePhotoUrl'] ?? map['profileImageUrl'] ?? '',
+      avatarUrl: pickAvatarUrl(map),
       isDeleted: map['isDeleted'] ?? false,
       deletedAt: map['deletedAt'] is Timestamp
           ? (map['deletedAt'] as Timestamp).toDate()

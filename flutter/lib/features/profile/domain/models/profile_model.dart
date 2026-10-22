@@ -2,6 +2,23 @@ import 'stat_entry.dart';
 
 const _unsetProfileValue = Object();
 
+/// First non-empty avatar field, in the same order the website reads them.
+/// Empty strings must be skipped: older documents store `photoUrl: ''`
+/// alongside a real `avatarUrl`.
+String pickAvatarUrl(Map<String, dynamic> data) {
+  for (final key in const [
+    'photoUrl',
+    'avatarUrl',
+    'avatar_url',
+    'googlePhotoUrl',
+    'profileImageUrl',
+  ]) {
+    final value = data[key];
+    if (value is String && value.trim().isNotEmpty) return value.trim();
+  }
+  return '';
+}
+
 class ProfileModel {
   final String id;
   final String name;
@@ -279,8 +296,7 @@ class ProfileModel {
       id: data['id'] ?? data['uid'] ?? '',
       name: data['name'] ?? data['displayName'] ?? data['fullName'] ?? '',
       username: data['username'] ?? '',
-      avatarUrl:
-          data['avatarUrl'] ?? data['photoUrl'] ?? data['googlePhotoUrl'] ?? '',
+      avatarUrl: pickAvatarUrl(data),
       coverUrl: data['coverUrl'] ?? data['coverPhoto'] ?? '',
       role: data['role'] ?? 'Athlete',
       verified: data['verified'] ?? data['googleVerified'] ?? false,

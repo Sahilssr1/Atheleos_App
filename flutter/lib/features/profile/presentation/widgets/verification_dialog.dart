@@ -7,6 +7,7 @@ import '../../../../core/utils/user_facing_error.dart';
 import '../../../../core/services/media_upload_service.dart';
 import '../../domain/models/profile_model.dart';
 import '../controllers/profile_controller.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 /// Represents a single proof document upload slot with max 1 MB validation (Cloudflare R2).
 class VerificationDocumentItem {
@@ -282,35 +283,35 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           slotKey: 'regCert',
           title: 'Federation Registration Certificate',
           isRequired: true,
-          icon: Icons.article_outlined,
+          icon: AthIcons.documentText,
           iconColor: Colors.amber,
         ),
         VerificationDocumentItem(
           slotKey: 'constitution',
           title: 'Constitution / Bye-Laws',
           isRequired: true,
-          icon: Icons.description_outlined,
+          icon: AthIcons.documentText,
           iconColor: Colors.amber,
         ),
         VerificationDocumentItem(
           slotKey: 'affiliationCert',
           title: 'Recognition / Affiliation Certificate',
           isRequired: false,
-          icon: Icons.verified_outlined,
+          icon: AthIcons.checkBadge,
           iconColor: const Color(0xFFFFA726),
         ),
         VerificationDocumentItem(
           slotKey: 'electionRecord',
           title: 'Executive Committee / Election Record',
           isRequired: false,
-          icon: Icons.groups_outlined,
+          icon: AthIcons.userGroup,
           iconColor: Colors.lightBlueAccent,
         ),
         VerificationDocumentItem(
           slotKey: 'repLetter',
           title: 'Authorized Representative Letter',
           isRequired: false,
-          icon: Icons.assignment_ind_outlined,
+          icon: AthIcons.identification,
           iconColor: Colors.amber,
         ),
       ];
@@ -320,28 +321,28 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           slotKey: 'coachingCert',
           title: 'Coaching Certification / License',
           isRequired: true,
-          icon: Icons.workspace_premium_outlined,
+          icon: AthIcons.trophy,
           iconColor: Colors.amber,
         ),
         VerificationDocumentItem(
           slotKey: 'academyAffiliation',
           title: 'Club or Academy Affiliation Letter',
           isRequired: true,
-          icon: Icons.domain_outlined,
+          icon: AthIcons.buildingOffice,
           iconColor: Colors.lightBlueAccent,
         ),
         VerificationDocumentItem(
           slotKey: 'govtId',
           title: 'Government Identity Proof',
           isRequired: true,
-          icon: Icons.badge_outlined,
+          icon: AthIcons.identification,
           iconColor: Colors.tealAccent,
         ),
         VerificationDocumentItem(
           slotKey: 'federationLicense',
           title: 'Federation Coach Accreditation',
           isRequired: false,
-          icon: Icons.verified_outlined,
+          icon: AthIcons.checkBadge,
           iconColor: const Color(0xFFFFA726),
         ),
       ];
@@ -351,28 +352,28 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           slotKey: 'bizRegCert',
           title: 'Business Registration Certificate',
           isRequired: true,
-          icon: Icons.article_outlined,
+          icon: AthIcons.documentText,
           iconColor: Colors.amber,
         ),
         VerificationDocumentItem(
           slotKey: 'trademarkProof',
           title: 'Trademark / Brand Ownership Proof',
           isRequired: true,
-          icon: Icons.branding_watermark_outlined,
+          icon: AthIcons.swatch,
           iconColor: const Color(0xFFFFA726),
         ),
         VerificationDocumentItem(
           slotKey: 'brandBusinessProof',
           title: 'Official Brand / Business Proof',
           isRequired: true,
-          icon: Icons.public_outlined,
+          icon: AthIcons.globeAlt,
           iconColor: const Color(0xFF4DD0E1),
         ),
         VerificationDocumentItem(
           slotKey: 'repLetter',
           title: 'Authorized Representative Letter',
           isRequired: true,
-          icon: Icons.assignment_ind_outlined,
+          icon: AthIcons.identification,
           iconColor: Colors.amber,
         ),
       ];
@@ -382,35 +383,35 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           slotKey: 'officialCert',
           title: 'Official Certificate',
           isRequired: true,
-          icon: Icons.workspace_premium_outlined,
+          icon: AthIcons.trophy,
           iconColor: Colors.amber,
         ),
         VerificationDocumentItem(
           slotKey: 'medalProof',
           title: 'Medal Proof / Podium Photo',
           isRequired: false,
-          icon: Icons.emoji_events_outlined,
+          icon: AthIcons.trophy,
           iconColor: Colors.amber,
         ),
         VerificationDocumentItem(
           slotKey: 'resultSheet',
           title: 'Official Result Sheet',
           isRequired: true,
-          icon: Icons.table_chart_outlined,
+          icon: AthIcons.chartBar,
           iconColor: Colors.lightBlueAccent,
         ),
         VerificationDocumentItem(
           slotKey: 'tournamentId',
           title: 'Tournament ID Card / Accreditation',
           isRequired: false,
-          icon: Icons.badge_outlined,
+          icon: AthIcons.identification,
           iconColor: Colors.tealAccent,
         ),
         VerificationDocumentItem(
           slotKey: 'mediaClipping',
           title: 'Newspaper Article / Press Mention',
           isRequired: false,
-          icon: Icons.newspaper_outlined,
+          icon: AthIcons.newspaper,
           iconColor: Colors.white70,
         ),
       ];
@@ -539,7 +540,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
       slotKey: 'supporting_doc_${_documents.length + 1}',
       title: 'Supporting Document (Optional)',
       isRequired: false,
-      icon: Icons.attach_file,
+      icon: AthIcons.paperClip,
       iconColor: Colors.white70,
     );
     setState(() {
@@ -1081,13 +1082,13 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
   }) {
     return InputDecoration(
       labelText: isRequired ? '$labelText *' : labelText,
-      labelStyle: GoogleFonts.inter(
+      labelStyle: GoogleFonts.outfit(
         fontSize: 13,
         color: Colors.white70,
         fontWeight: FontWeight.w500,
       ),
       hintText: hintText,
-      hintStyle: GoogleFonts.inter(
+      hintStyle: GoogleFonts.outfit(
         fontSize: 12.5,
         color: Colors.white30,
       ),
@@ -1124,13 +1125,13 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
     return TextFormField(
       controller: controller,
       readOnly: true,
-      style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+      style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
       decoration: _fieldDecoration(
         labelText: labelText,
         hintText: 'DD/MM/YYYY',
         isRequired: isRequired,
         suffixIcon: IconButton(
-          icon: const Icon(Icons.calendar_month_outlined, size: 18, color: AppTheme.primaryColor),
+          icon: const Icon(AthIcons.calendar, size: 18, color: AppTheme.primaryColor),
           onPressed: () => _selectDate(context, controller),
           constraints: const BoxConstraints(),
           padding: const EdgeInsets.only(right: 8),
@@ -1178,7 +1179,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                   ),
                   child: Text(
                     number,
-                    style: GoogleFonts.spaceGrotesk(
+                    style: GoogleFonts.outfit(
                       fontWeight: FontWeight.w900,
                       fontSize: 12.5,
                       color: AppTheme.primaryColor,
@@ -1190,7 +1191,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               Expanded(
                 child: Text(
                   title,
-                  style: GoogleFonts.spaceGrotesk(
+                  style: GoogleFonts.outfit(
                     fontWeight: FontWeight.w800,
                     fontSize: 13.5,
                     color: Colors.white,
@@ -1285,7 +1286,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                   children: [
                     Text(
                       item.title,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
@@ -1330,7 +1331,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.cloud_upload_outlined, size: 15, color: AppTheme.primaryColor),
+                        Icon(AthIcons.cloudArrowUp, size: 15, color: AppTheme.primaryColor),
                         SizedBox(width: 5),
                         Text(
                           'Upload',
@@ -1369,7 +1370,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle, color: Colors.greenAccent, size: 18),
+                  const Icon(AthIcons.checkCircleSolid, color: Colors.greenAccent, size: 18),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -1390,7 +1391,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, size: 18, color: Colors.white60),
+                    icon: const Icon(AthIcons.xMark, size: 18, color: Colors.white60),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                     tooltip: 'Remove document',
@@ -1423,8 +1424,8 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
     return DropdownButtonFormField<String>(
       initialValue: (value != null && items.contains(value)) ? value : null,
       dropdownColor: const Color(0xFF1E1E24),
-      style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
-      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white54, size: 20),
+      style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
+      icon: const Icon(AthIcons.chevronDown, color: Colors.white54, size: 20),
       isExpanded: true,
       decoration: _fieldDecoration(
         labelText: labelText,
@@ -1436,7 +1437,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           value: t,
           child: Text(
             t,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             overflow: TextOverflow.ellipsis,
           ),
         );
@@ -1460,7 +1461,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
     return DropdownButtonFormField<String>(
       initialValue: _federationType,
       dropdownColor: const Color(0xFF1E1E24),
-      style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+      style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
       decoration: _fieldDecoration(
         labelText: 'Federation Type',
         isRequired: true,
@@ -1468,7 +1469,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
       items: types.map((t) {
         return DropdownMenuItem<String>(
           value: t,
-          child: Text(t, style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white)),
+          child: Text(t, style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white)),
         );
       }).toList(),
       onChanged: (val) {
@@ -1490,7 +1491,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
         children: [
           TextFormField(
             controller: _federationNameController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Federation Name', isRequired: true),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Federation Name is required' : null,
           ),
@@ -1499,7 +1500,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           const SizedBox(height: 10),
           TextFormField(
             controller: _sportController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Sport / Discipline', isRequired: true),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Sport / Discipline is required' : null,
           ),
@@ -1509,7 +1510,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               Expanded(
                 child: TextFormField(
                   controller: _stateRegionController,
-                  style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+                  style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
                   decoration: _fieldDecoration(labelText: 'State / Region'),
                 ),
               ),
@@ -1517,7 +1518,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               Expanded(
                 child: TextFormField(
                   controller: _countryController,
-                  style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+                  style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
                   decoration: _fieldDecoration(labelText: 'Country', isRequired: true),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Country is required' : null,
                 ),
@@ -1528,7 +1529,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           TextFormField(
             controller: _yearEstablishedController,
             keyboardType: TextInputType.number,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Year Established', hintText: 'YYYY (e.g. 1946)', isRequired: true),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Year Established is required' : null,
           ),
@@ -1536,14 +1537,14 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           TextFormField(
             controller: _officialAddressController,
             maxLines: 2,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Official Address', isRequired: true),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Official Address is required' : null,
           ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _officialWebsiteController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Official Website', hintText: 'https://...'),
           ),
         ],
@@ -1556,14 +1557,14 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
         children: [
           TextFormField(
             controller: _regNumController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Registration Number', isRequired: true),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Registration Number is required' : null,
           ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _regAuthorityController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(
               labelText: 'Registration Authority',
               hintText: 'e.g. Registrar of Societies, MCA',
@@ -1589,7 +1590,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
         children: [
           TextFormField(
             controller: _affiliationTypeController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(
               labelText: 'Affiliation Type',
               hintText: 'e.g. IOA / World Athletics / Continental',
@@ -1598,7 +1599,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           const SizedBox(height: 10),
           TextFormField(
             controller: _recognizingAuthorityController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(
               labelText: 'Recognizing Authority',
               hintText: 'e.g. Ministry of Youth Affairs and Sports (MYAS)',
@@ -1610,7 +1611,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               Expanded(
                 child: TextFormField(
                   controller: _affiliationNumController,
-                  style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+                  style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
                   decoration: _fieldDecoration(labelText: 'Affiliation Number'),
                 ),
               ),
@@ -1634,21 +1635,21 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
         children: [
           TextFormField(
             controller: _presidentNameController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'President Name', isRequired: true),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'President Name is required' : null,
           ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _secretaryGeneralController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Secretary General Name', isRequired: true),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Secretary General Name is required' : null,
           ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _treasurerNameController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Treasurer Name'),
           ),
           const SizedBox(height: 10),
@@ -1681,14 +1682,14 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
         children: [
           TextFormField(
             controller: _sportController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Coaching Sport Specialties', isRequired: true),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Sport specialty is required' : null,
           ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _competitionNameController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Current Academy / Club Affiliation', isRequired: true),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Academy affiliation is required' : null,
           ),
@@ -1696,7 +1697,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           TextFormField(
             controller: _achievementController,
             maxLines: 3,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(
               labelText: 'Professional Experience & Certifications Overview',
               isRequired: true,
@@ -1706,19 +1707,19 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           const SizedBox(height: 10),
           TextFormField(
             controller: _regNumController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Coaching License Number'),
           ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _regAuthorityController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Certifying Body'),
           ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _compLinkController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Coaching Portfolio / Website URL (Optional)'),
           ),
         ],
@@ -1746,7 +1747,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
             color: AppTheme.primaryColor.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: const Icon(Icons.account_balance_outlined, color: AppTheme.primaryColor, size: 15),
+          child: const Icon(AthIcons.buildingLibrary, color: AppTheme.primaryColor, size: 15),
         ),
         title: '1. BRAND DETAILS',
         children: [
@@ -1755,7 +1756,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               Expanded(
                 child: TextFormField(
                   controller: _brandNameController,
-                  style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+                  style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
                   decoration: _fieldDecoration(labelText: 'Brand Name', hintText: 'Enter brand name', isRequired: true),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Brand Name is required' : null,
                 ),
@@ -1803,13 +1804,13 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                 child: TextFormField(
                   controller: _brandYearEstablishedController,
                   readOnly: true,
-                  style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+                  style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
                   decoration: _fieldDecoration(
                     labelText: 'Year Established',
                     hintText: 'YYYY',
                     isRequired: true,
                     suffixIcon: IconButton(
-                      icon: const Icon(Icons.calendar_month_outlined, size: 16, color: AppTheme.primaryColor),
+                      icon: const Icon(AthIcons.calendar, size: 16, color: AppTheme.primaryColor),
                       onPressed: () => _selectYear(context, _brandYearEstablishedController),
                       constraints: const BoxConstraints(),
                       padding: const EdgeInsets.only(right: 8),
@@ -1823,7 +1824,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               Expanded(
                 child: TextFormField(
                   controller: _brandStateRegionController,
-                  style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+                  style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
                   decoration: _fieldDecoration(labelText: 'State / Region', hintText: 'Enter state/region'),
                 ),
               ),
@@ -1832,19 +1833,19 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           const SizedBox(height: 10),
           TextFormField(
             controller: _brandAddressController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Official Address', hintText: 'Enter full address', isRequired: true),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Address is required' : null,
           ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _brandWebsiteController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(
               labelText: 'Official Website',
               hintText: 'Enter website URL',
               isRequired: true,
-              suffixIcon: const Icon(Icons.language, size: 16, color: Colors.white38),
+              suffixIcon: const Icon(AthIcons.globeAlt, size: 16, color: Colors.white38),
             ),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Website is required' : null,
           ),
@@ -1860,13 +1861,13 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
             color: AppTheme.primaryColor.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: const Icon(Icons.description_outlined, color: AppTheme.primaryColor, size: 15),
+          child: const Icon(AthIcons.documentText, color: AppTheme.primaryColor, size: 15),
         ),
         title: '2. BUSINESS / LEGAL REGISTRATION',
         children: [
           TextFormField(
             controller: _brandBusinessRegNumController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(
               labelText: 'Business / Company Registration No.',
               hintText: 'Enter registration number',
@@ -1877,7 +1878,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           const SizedBox(height: 10),
           TextFormField(
             controller: _brandLegalNameController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(
               labelText: 'Legal Business Name',
               hintText: 'Enter legal business name',
@@ -1891,7 +1892,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               Expanded(
                 child: TextFormField(
                   controller: _brandRegAuthorityController,
-                  style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+                  style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
                   decoration: _fieldDecoration(
                     labelText: 'Registration Authority',
                     hintText: 'Enter authority name',
@@ -1930,13 +1931,13 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
             color: AppTheme.primaryColor.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: const Icon(Icons.verified_outlined, color: AppTheme.primaryColor, size: 15),
+          child: const Icon(AthIcons.checkBadge, color: AppTheme.primaryColor, size: 15),
         ),
         title: '3. BRAND OWNERSHIP & SPORTS PRESENCE',
         children: [
           TextFormField(
             controller: _brandTrademarkNameController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(
               labelText: 'Brand / Trademark Name',
               hintText: 'Enter brand/trademark name',
@@ -1947,7 +1948,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           const SizedBox(height: 10),
           TextFormField(
             controller: _brandTrademarkRegNumController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(
               labelText: 'Trademark / Brand Registration No.',
               hintText: 'Enter registration number',
@@ -1999,13 +2000,13 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
             color: AppTheme.primaryColor.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: const Icon(Icons.groups_outlined, color: AppTheme.primaryColor, size: 15),
+          child: const Icon(AthIcons.userGroup, color: AppTheme.primaryColor, size: 15),
         ),
         title: '4. AUTHORIZED REPRESENTATIVE & BUSINESS PRESENCE',
         children: [
           TextFormField(
             controller: _brandRepNameController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(
               labelText: 'Authorized Representative Name',
               hintText: 'Enter full name',
@@ -2016,7 +2017,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           const SizedBox(height: 10),
           TextFormField(
             controller: _brandRepDesignationController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(
               labelText: 'Designation / Position',
               hintText: 'Enter designation',
@@ -2030,7 +2031,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               Expanded(
                 child: TextFormField(
                   controller: _brandRepEmailController,
-                  style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+                  style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
                   decoration: _fieldDecoration(
                     labelText: 'Official Business Email',
                     hintText: 'Enter email address',
@@ -2043,12 +2044,12 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               Expanded(
                 child: TextFormField(
                   controller: _brandRepPhoneController,
-                  style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+                  style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
                   decoration: _fieldDecoration(
                     labelText: 'Business Contact Number',
                     hintText: 'Enter mobile number',
                     isRequired: true,
-                    suffixIcon: const Icon(Icons.phone_outlined, size: 16, color: Colors.white38),
+                    suffixIcon: const Icon(AthIcons.phone, size: 16, color: Colors.white38),
                   ),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Contact number is required' : null,
                 ),
@@ -2061,11 +2062,11 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               Expanded(
                 child: TextFormField(
                   controller: _brandSocialUrlController,
-                  style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+                  style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
                   decoration: _fieldDecoration(
                     labelText: 'Official Social / Business Profile',
                     hintText: 'Enter URL',
-                    suffixIcon: const Icon(Icons.link, size: 16, color: Colors.white38),
+                    suffixIcon: const Icon(AthIcons.link, size: 16, color: Colors.white38),
                   ),
                 ),
               ),
@@ -2085,14 +2086,14 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           TextFormField(
             controller: _brandDescriptionController,
             maxLines: 3,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(
               labelText: 'Brief Description of Brand',
               hintText: 'Enter brand description',
               isRequired: true,
               suffixIcon: const Padding(
                 padding: EdgeInsets.only(top: 8.0, right: 8.0),
-                child: Icon(Icons.subject, size: 16, color: Colors.white38),
+                child: Icon(AthIcons.documentText, size: 16, color: Colors.white38),
               ),
             ),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Description is required' : null,
@@ -2109,7 +2110,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
             color: AppTheme.primaryColor.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: const Icon(Icons.folder_shared_outlined, color: AppTheme.primaryColor, size: 15),
+          child: const Icon(AthIcons.folderOpen, color: AppTheme.primaryColor, size: 15),
         ),
         title: '5. REQUIRED PROOF DOCUMENTS',
         subtitle: 'Upload the following documents (PDF, JPG, PNG - Max 1MB each)',
@@ -2125,11 +2126,11 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.add_circle_outline, size: 18, color: Colors.white70),
+                  const Icon(AthIcons.plusCircle, size: 18, color: Colors.white70),
                   const SizedBox(width: 8),
                   Text(
                     'Add Supporting Document (Optional)',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.outfit(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                       color: Colors.white70,
@@ -2156,7 +2157,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               Expanded(
                 child: TextFormField(
                   controller: _sportController,
-                  style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+                  style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
                   decoration: _fieldDecoration(labelText: 'Sport', isRequired: true),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Sport is required' : null,
                 ),
@@ -2165,7 +2166,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               Expanded(
                 child: TextFormField(
                   controller: _competitionNameController,
-                  style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+                  style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
                   decoration: _fieldDecoration(labelText: 'Competition Name', isRequired: true),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Competition name is required' : null,
                 ),
@@ -2178,7 +2179,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               Expanded(
                 child: TextFormField(
                   controller: _eventController,
-                  style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+                  style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
                   decoration: _fieldDecoration(labelText: 'Event / Category', isRequired: true),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Event is required' : null,
                 ),
@@ -2187,7 +2188,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               Expanded(
                 child: TextFormField(
                   controller: _positionController,
-                  style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+                  style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
                   decoration: _fieldDecoration(labelText: 'Position / Medal', isRequired: true),
                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Position is required' : null,
                 ),
@@ -2203,7 +2204,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           const SizedBox(height: 10),
           TextFormField(
             controller: _federationController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Organizing Federation', isRequired: true),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Federation is required' : null,
           ),
@@ -2211,20 +2212,20 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
           TextFormField(
             controller: _achievementController,
             maxLines: 2,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Description of Accomplishment', isRequired: true),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Description is required' : null,
           ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _regNumController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Athlete Reg Number (Optional)'),
           ),
           const SizedBox(height: 10),
           TextFormField(
             controller: _compLinkController,
-            style: GoogleFonts.inter(fontSize: 13.5, color: Colors.white),
+            style: GoogleFonts.outfit(fontSize: 13.5, color: Colors.white),
             decoration: _fieldDecoration(labelText: 'Official Results Link (Optional)'),
           ),
         ],
@@ -2257,11 +2258,11 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
         titleSpacing: 16,
         title: Row(
           children: [
-            const Icon(Icons.shield_outlined, color: AppTheme.primaryColor, size: 22),
+            const Icon(AthIcons.shieldCheck, color: AppTheme.primaryColor, size: 22),
             const SizedBox(width: 10),
             Text(
               'PORTFOLIO VERIFICATION',
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w800,
                 fontSize: 15,
                 letterSpacing: 0.8,
@@ -2272,7 +2273,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.close, color: Colors.white70),
+            icon: const Icon(AthIcons.xMark, color: Colors.white70),
             onPressed: () => Navigator.pop(context),
           ),
           const SizedBox(width: 4),
@@ -2366,7 +2367,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                                 children: [
                                   Text(
                                     'SUBMIT VERIFICATION APPLICATION',
-                                    style: GoogleFonts.spaceGrotesk(
+                                    style: GoogleFonts.outfit(
                                       fontWeight: FontWeight.w800,
                                       fontSize: 13.5,
                                       letterSpacing: 0.6,
@@ -2374,7 +2375,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  const Icon(Icons.arrow_forward, size: 18, color: Colors.black),
+                                  const Icon(AthIcons.arrowRight, size: 18, color: Colors.black),
                                 ],
                               ),
                       ),
@@ -2407,7 +2408,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               color: AppTheme.primaryColor.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.stars_rounded, color: AppTheme.primaryColor, size: 22),
+            child: const Icon(AthIcons.sparkles, color: AppTheme.primaryColor, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -2416,7 +2417,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               children: [
                 Text(
                   'APPLYING FOR NEXT LEVEL',
-                  style: GoogleFonts.spaceGrotesk(
+                  style: GoogleFonts.outfit(
                     fontWeight: FontWeight.w700,
                     fontSize: 10.5,
                     color: AppTheme.primaryColor,
@@ -2439,7 +2440,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
               ),
               child: Text(
                 'AUTO PRE-FILL',
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   color: AppTheme.primaryColor,
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
@@ -2454,18 +2455,18 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
 
   Widget _buildStatusOverview(String status) {
     Color statusColor = Colors.amber;
-    IconData statusIcon = Icons.hourglass_empty;
+    IconData statusIcon = AthIcons.clock;
     String statusTitle = 'Pending Review';
     String desc = 'Your verification request has been received and is waiting in the administrative review queue.';
 
     if (status == 'underReview') {
       statusColor = Colors.blueAccent;
-      statusIcon = Icons.search;
+      statusIcon = AthIcons.search;
       statusTitle = 'Under Review';
       desc = 'An administrative reviewer is currently analyzing your credentials and registered documentation.';
     } else if (status == 'approved') {
       statusColor = AppTheme.primaryColor;
-      statusIcon = Icons.check_circle;
+      statusIcon = AthIcons.checkCircleSolid;
       statusTitle = 'Approved';
       desc = 'Congratulations! Your verification is approved. Your official verified status is active across ATHELEOS.';
     }
@@ -2491,7 +2492,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
                   const SizedBox(width: 8),
                   Text(
                     statusTitle.toUpperCase(),
-                    style: GoogleFonts.spaceGrotesk(
+                    style: GoogleFonts.outfit(
                       fontWeight: FontWeight.bold,
                       color: statusColor,
                       fontSize: 13,
@@ -2526,7 +2527,7 @@ class _VerificationDialogState extends ConsumerState<VerificationDialog> {
         if (details.isNotEmpty) ...[
           Text(
             'SUBMITTED APPLICATION DETAILS',
-            style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold, fontSize: 10.5, color: AppTheme.primaryColor),
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 10.5, color: AppTheme.primaryColor),
           ),
           const SizedBox(height: 8),
           Container(

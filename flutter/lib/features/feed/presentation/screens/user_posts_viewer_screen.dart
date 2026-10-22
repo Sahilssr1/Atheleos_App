@@ -7,6 +7,7 @@ import '../controllers/feed_controller.dart';
 import '../widgets/post_card.dart';
 import '../../../clips/presentation/screens/clips_screen.dart';
 import '../../../../core/utils/user_facing_error.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 /// Instagram-style vertical posts viewer.
 ///
@@ -99,13 +100,13 @@ class _UserPostsViewerScreenState extends ConsumerState<UserPostsViewerScreen> {
         backgroundColor: AppTheme.backgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          icon: const Icon(AthIcons.arrowLeft, color: Colors.white, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
         centerTitle: false,
         title: Text(
           widget.title.toUpperCase(),
-          style: GoogleFonts.spaceGrotesk(
+          style: GoogleFonts.outfit(
             color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 15,
@@ -150,11 +151,11 @@ class _UserPostsViewerScreenState extends ConsumerState<UserPostsViewerScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.camera_alt_outlined, size: 40, color: Colors.white.withOpacity(0.3)),
+            Icon(AthIcons.camera, size: 40, color: Colors.white.withOpacity(0.3)),
             const SizedBox(height: 12),
             Text(
               'NO POSTS YET',
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                 color: Colors.white38,
                 fontWeight: FontWeight.bold,
                 fontSize: 12,

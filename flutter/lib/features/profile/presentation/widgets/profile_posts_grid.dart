@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_media_thumbnail.dart';
 import '../../../feed/presentation/controllers/feed_controller.dart';
 import '../../../feed/domain/models/post_model.dart';
 import '../../../feed/presentation/screens/user_posts_viewer_screen.dart';
 import '../controllers/profile_controller.dart';
 import '../../../clips/presentation/screens/clips_screen.dart';
 import '../../../../core/utils/user_facing_error.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
+enum _GridTab { posts, saved, clips }
+
+/// Posts / Saved / Clips grid matching the website profile page.
 class ProfilePostsGrid extends ConsumerStatefulWidget {
   final String userId;
 
@@ -20,236 +24,73 @@ class ProfilePostsGrid extends ConsumerStatefulWidget {
 }
 
 class _ProfilePostsGridState extends ConsumerState<ProfilePostsGrid> {
-  String _selectedTab = 'posts'; // 'posts' | 'saved_posts' | 'saved_clips'
+  _GridTab _tab = _GridTab.posts;
 
   @override
   Widget build(BuildContext context) {
-    final loggedInId = ref.watch(loggedInUserIdProvider);
-    final isOwner = loggedInId == widget.userId;
+    final isOwner = ref.watch(loggedInUserIdProvider) == widget.userId;
+    final tab = isOwner ? _tab : _GridTab.posts;
 
-    // Determine what provider to watch
-    AsyncValue<List<PostModel>> postsAsync;
-    if (_selectedTab == 'posts') {
-      postsAsync = ref.watch(userPostsProvider(widget.userId));
-    } else {
-      postsAsync = ref.watch(bookmarkedPostsProvider);
-    }
+    final AsyncValue<List<PostModel>> postsAsync = tab == _GridTab.saved
+        ? ref.watch(bookmarkedPostsProvider)
+        : ref.watch(userPostsProvider(widget.userId));
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 1. Tab Selector (Only shown if isOwner is true)
-        if (isOwner) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        if (isOwner)
+          Container(
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Color(0x1AFFFFFF))),
+            ),
             child: Row(
               children: [
-                _buildTabButton('posts', 'POSTS'),
-                const SizedBox(width: 8),
-                _buildTabButton('saved_posts', 'SAVED POSTS'),
-                const SizedBox(width: 8),
-                _buildTabButton('saved_clips', 'SAVED CLIPS'),
+                _tabButton(_GridTab.posts, 'Posts'),
+                _tabButton(_GridTab.saved, 'Saved'),
+                _tabButton(_GridTab.clips, 'Clips'),
               ],
             ),
           ),
-          const SizedBox(height: 12),
-        ],
-
-        // 2. Grid Body
+        const SizedBox(height: 16),
         postsAsync.when(
-          loading: () => const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 40.0),
-              child: CircularProgressIndicator(color: AppTheme.primaryColor),
-            ),
-          ),
-          error: (err, stack) => Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
-              child: Text(
-                UserFacingError.message(err, fallback: 'Unable to load posts right now.'),
-                style: const TextStyle(color: Colors.white54, fontSize: 13),
-                textAlign: TextAlign.center,
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 48),
+            child: Center(
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppTheme.primaryColor,
+                ),
               ),
             ),
           ),
-          data: (allPosts) {
-            // Apply filtering based on selected tab
-            List<PostModel> displayPosts = [];
-            if (_selectedTab == 'posts') {
-              displayPosts = allPosts;
-            } else if (_selectedTab == 'saved_posts') {
-              // Saved posts: show bookmarked items with image media
-              displayPosts = allPosts.where((p) => !p.hasVideo).toList();
-            } else if (_selectedTab == 'saved_clips') {
-              // Saved clips: show bookmarked items with video media
-              displayPosts = allPosts.where((p) => p.hasVideo).toList();
-            }
-
-            // Keep only posts with media
-            final mediaPosts = displayPosts.where((p) => p.media.isNotEmpty).toList();
-
-            if (mediaPosts.isEmpty) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 16.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.camera_alt_outlined,
-                        size: 40,
-                        color: Colors.white.withOpacity(0.3),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        _selectedTab == 'posts'
-                            ? 'NO POSTS GALLERY YET'
-                            : _selectedTab == 'saved_posts'
-                                ? 'NO SAVED POSTS YET'
-                                : 'NO SAVED CLIPS YET',
-                        style: GoogleFonts.spaceGrotesk(
-                          color: Colors.white38,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
-                  child: Text(
-                    '${_selectedTab.replaceAll('_', ' ').toUpperCase()} GALLERY (${mediaPosts.length})',
-                    style: GoogleFonts.spaceGrotesk(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                      color: AppTheme.primaryColor,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: mediaPosts.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 3,
-                    mainAxisSpacing: 3,
-                    childAspectRatio: 1.0,
-                  ),
-                  itemBuilder: (context, idx) {
-                    final post = mediaPosts[idx];
-                    final mediaItem = post.media.first;
-                    final isVideo = mediaItem.mediaType == 'video';
-                    final thumbnailUrl = mediaItem.thumbnailUrl ?? mediaItem.mediaUrl;
-
-                    return GestureDetector(
-                      onTap: () {
-                        if (_selectedTab == 'posts') {
-                          // Unified feed: opens the scrollable viewer for BOTH pictures and reels.
-                          // Reels can be tapped inside that feed to enter fullscreen mode.
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => UserPostsViewerScreen.forUser(
-                                userId: widget.userId,
-                                initialPostId: post.id,
-                                title: 'Posts',
-                              ),
-                            ),
-                          );
-                        } else if (_selectedTab == 'saved_clips') {
-                          // Saved Clips tab goes directly to the fullscreen Reels Viewer
-                          final reels = mediaPosts.where((p) => p.hasVideo).toList();
-                          int initialIndex = reels.indexWhere((p) => p.id == post.id);
-                          if (initialIndex == -1) initialIndex = 0;
-
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ReelsViewerScreen(
-                                clips: reels,
-                                initialIndex: initialIndex,
-                              ),
-                            ),
-                          );
-                        } else {
-                          // Saved gallery: browse the bookmarked image posts.
-                          final imagePosts = mediaPosts.where((p) => !p.hasVideo).toList();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => UserPostsViewerScreen.forPosts(
-                                posts: imagePosts,
-                                initialPostId: post.id,
-                                title: 'Saved Posts',
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF141414),
-                          border: Border.all(color: const Color(0xFF262626)),
-                        ),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            CachedNetworkImage(
-                              imageUrl: thumbnailUrl,
-                              fit: BoxFit.cover,
-                              memCacheWidth: 360,
-                              memCacheHeight: 360,
-                              placeholder: (context, url) => Container(
-                                color: const Color(0xFF141414),
-                                child: const Center(
-                                  child: SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: AppTheme.primaryColor,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              errorWidget: (context, url, error) => const Center(
-                                child: Icon(Icons.broken_image, color: Colors.white24),
-                              ),
-                            ),
-                            if (isVideo)
-                              Container(
-                                color: const Color(0x3D000000),
-                                child: const Center(
-                                  child: CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor: Colors.black54,
-                                    child: Icon(
-                                      Icons.play_arrow,
-                                      size: 16,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
+          error: (err, _) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            child: Text(
+              UserFacingError.message(err, fallback: 'Unable to load posts right now.'),
+              style: const TextStyle(color: Colors.white54, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          data: (all) {
+            final posts = tab == _GridTab.clips
+                ? all.where((p) => p.hasVideo).toList()
+                : all;
+            if (posts.isEmpty) return _emptyState(tab);
+            return GridView.builder(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: posts.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 6,
+                mainAxisSpacing: 6,
+              ),
+              itemBuilder: (context, index) =>
+                  _tile(context, posts, posts[index], tab),
             );
           },
         ),
@@ -257,31 +98,137 @@ class _ProfilePostsGridState extends ConsumerState<ProfilePostsGrid> {
     );
   }
 
-  Widget _buildTabButton(String tabKey, String label) {
-    final isSelected = _selectedTab == tabKey;
-    return ChoiceChip(
-      showCheckmark: false,
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        if (selected) {
-          setState(() {
-            _selectedTab = tabKey;
-          });
-        }
-      },
-      backgroundColor: const Color(0xFF141414),
-      selectedColor: AppTheme.primaryColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: isSelected ? AppTheme.primaryColor : const Color(0xFF262626),
+  Widget _tabButton(_GridTab tab, String label) {
+    final selected = _tab == tab;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _tab = tab),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: selected ? AppTheme.primaryColor : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: selected
+                  ? AppTheme.primaryColor
+                  : Colors.white.withValues(alpha: 0.45),
+            ),
+          ),
         ),
       ),
-      labelStyle: TextStyle(
-        color: isSelected ? Colors.black : Colors.white70,
-        fontWeight: FontWeight.bold,
-        fontSize: 10,
+    );
+  }
+
+  Widget _emptyState(_GridTab tab) {
+    final label = switch (tab) {
+      _GridTab.saved => 'NO SAVED POSTS YET',
+      _GridTab.clips => 'NO CLIPS YET',
+      _GridTab.posts => 'NO POSTS YET',
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Column(
+        children: [
+          Icon(AthIcons.camera, size: 32, color: Colors.white.withValues(alpha: 0.3)),
+          const SizedBox(height: 12),
+          Text(
+            label,
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+              color: Colors.white.withValues(alpha: 0.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _open(BuildContext context, List<PostModel> posts, PostModel post, _GridTab tab) {
+    if (tab == _GridTab.clips || post.hasVideo) {
+      final reels = posts.where((p) => p.hasVideo).toList();
+      final index = reels.indexWhere((p) => p.id == post.id);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ReelsViewerScreen(
+            clips: reels.isNotEmpty ? reels : [post],
+            initialIndex: index < 0 ? 0 : index,
+          ),
+        ),
+      );
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => tab == _GridTab.saved
+            ? UserPostsViewerScreen.forPosts(
+                posts: posts,
+                initialPostId: post.id,
+                title: 'Saved',
+              )
+            : UserPostsViewerScreen.forUser(
+                userId: widget.userId,
+                initialPostId: post.id,
+                title: 'Posts',
+              ),
+      ),
+    );
+  }
+
+  Widget _tile(BuildContext context, List<PostModel> posts, PostModel post, _GridTab tab) {
+    final media = post.media.isNotEmpty ? post.media.first : null;
+    final isVideo = post.hasVideo || (media?.isVideo ?? false);
+
+    Widget content;
+    if (media == null) {
+      content = Container(
+        color: const Color(0x05FFFFFF),
+        padding: const EdgeInsets.all(12),
+        alignment: Alignment.center,
+        child: Text(
+          post.content,
+          maxLines: 4,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+        ),
+      );
+    } else {
+      final imageUrl = isVideo ? (media.thumbnailUrl ?? '') : media.mediaUrl;
+      content = AppMediaThumbnail(
+        imageUrl: imageUrl,
+        videoUrl: isVideo ? media.mediaUrl : null,
+        isVideo: isVideo,
+        fit: BoxFit.cover,
+        memCacheWidth: 360,
+        showPlayIcon: isVideo,
+        playIconSize: 16,
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => _open(context, posts, post, tab),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF171717),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0x1AFFFFFF)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: content,
       ),
     );
   }

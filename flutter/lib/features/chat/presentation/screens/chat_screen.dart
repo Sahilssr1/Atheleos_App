@@ -20,6 +20,7 @@ import '../controllers/chat_controller.dart';
 import '../controllers/chat_theme_controller.dart';
 import 'shared_content_screen.dart';
 import '../../../../core/services/messaging_access_service.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String? receiverId;
@@ -323,7 +324,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 backgroundColor: currentTheme.appBarColor.withValues(alpha: 0.72),
                 elevation: 0,
                 leading: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  icon: const Icon(AthIcons.arrowLeft, color: Colors.white),
                   onPressed: () {
                     if (context.canPop()) {
                       context.pop();
@@ -362,7 +363,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                   radius: 17,
                                   backgroundColor: currentTheme.accentColor.withValues(alpha: 0.2),
                                   child: (iconUrl.isEmpty || (!iconUrl.startsWith('http://') && !iconUrl.startsWith('https://')))
-                                      ? Icon(Icons.groups_rounded, size: 18, color: currentTheme.accentColor)
+                                      ? Icon(AthIcons.userGroup, size: 18, color: currentTheme.accentColor)
                                       : null,
                                 ),
                                 const SizedBox(width: 10),
@@ -372,12 +373,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                     children: [
                                       Text(
                                         groupName,
-                                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       Text(
                                         '$memberCount members • Active now',
-                                        style: GoogleFonts.inter(color: currentTheme.accentColor, fontSize: 9),
+                                        style: GoogleFonts.outfit(color: currentTheme.accentColor, fontSize: 9),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
@@ -419,7 +420,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                   radius: 17,
                                   backgroundColor: Colors.white10,
                                   child: (avatarUrl.isEmpty || (!avatarUrl.startsWith('http://') && !avatarUrl.startsWith('https://')))
-                                      ? const Icon(Icons.person, size: 18, color: Colors.white54)
+                                      ? const Icon(AthIcons.userSolid, size: 18, color: Colors.white54)
                                       : null,
                                 ),
                                 const SizedBox(width: 10),
@@ -429,12 +430,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                     children: [
                                       Text(
                                         name,
-                                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       Text(
                                         '$role • Active now',
-                                        style: GoogleFonts.inter(color: currentTheme.accentColor, fontSize: 9),
+                                        style: GoogleFonts.outfit(color: currentTheme.accentColor, fontSize: 9),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
@@ -460,7 +461,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.chat_bubble_outline_rounded, size: 48, color: Colors.white24),
+                              Icon(AthIcons.chatRound, size: 48, color: Colors.white24),
                               SizedBox(height: 12),
                               Text(
                                 'No messages yet',
@@ -905,7 +906,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.reply_rounded, color: currentTheme.accentColor, size: 13),
+                              Icon(AthIcons.arrowUturnLeft, color: currentTheme.accentColor, size: 13),
                               const SizedBox(width: 4),
                               Text(
                                 'Replying to ${_getReplyAuthorName(_replyingToMessage!, myId, receiverName)}',
@@ -931,7 +932,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Colors.white60, size: 18),
+                      icon: const Icon(AthIcons.xMark, color: Colors.white60, size: 18),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       onPressed: () {
@@ -967,7 +968,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.mark_email_unread_outlined, color: AppTheme.primaryColor, size: 20),
+                        const Icon(AthIcons.envelope, color: AppTheme.primaryColor, size: 20),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -1145,7 +1146,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.person_add_outlined, color: AppTheme.primaryColor, size: 22),
+                      const Icon(AthIcons.userPlus, color: AppTheme.primaryColor, size: 22),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -1244,7 +1245,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           border: Border.all(color: currentTheme.accentColor.withValues(alpha: 0.35), width: 1),
                         ),
                         child: IconButton(
-                          icon: Icon(Icons.send_rounded, color: currentTheme.accentColor, size: 20),
+                          icon: Icon(AthIcons.send, color: currentTheme.accentColor, size: 20),
                           onPressed: _sendMessage,
                         ),
                       ),
@@ -1307,7 +1308,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
               // Options
               ListTile(
-                leading: Icon(Icons.reply_rounded, color: currentTheme.accentColor),
+                leading: Icon(AthIcons.arrowUturnLeft, color: currentTheme.accentColor),
                 title: const Text('Reply', style: TextStyle(color: Colors.white)),
                 onTap: () {
                   Navigator.pop(context);
@@ -1316,7 +1317,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
               if (isOwn)
                 ListTile(
-                  leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  leading: const Icon(AthIcons.trash, color: Colors.redAccent),
                   title: const Text('Unsend message', style: TextStyle(color: Colors.redAccent)),
                   onTap: () async {
                     Navigator.pop(context);
@@ -1352,7 +1353,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   },
                 ),
               ListTile(
-                leading: const Icon(Icons.copy_rounded, color: Colors.white70),
+                leading: const Icon(AthIcons.documentDuplicate, color: Colors.white70),
                 title: const Text('Copy text', style: TextStyle(color: Colors.white)),
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: msg.content));
@@ -1493,7 +1494,7 @@ class _SwipeToReplyWrapperState extends State<_SwipeToReplyWrapper> with SingleT
                     border: Border.all(color: widget.accentColor.withValues(alpha: 0.5), width: 1),
                   ),
                   child: Icon(
-                    Icons.reply_rounded,
+                    AthIcons.arrowUturnLeft,
                     color: widget.accentColor,
                     size: 16,
                   ),
@@ -1640,7 +1641,7 @@ class _SharedReelCard extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Icon(Icons.video_library_rounded, size: 14, color: accentColor),
+                      Icon(AthIcons.film, size: 14, color: accentColor),
                     ],
                   ),
                 ),
@@ -1658,12 +1659,12 @@ class _SharedReelCard extends ConsumerWidget {
                               placeholder: (_, __) => Container(color: Colors.black26),
                               errorWidget: (_, __, ___) => Container(
                                 color: Colors.black26,
-                                child: const Icon(Icons.movie_creation_outlined, color: Colors.white24, size: 36),
+                                child: const Icon(AthIcons.film, color: Colors.white24, size: 36),
                               ),
                             )
                           : Container(
                               color: Colors.black26,
-                              child: const Icon(Icons.movie_creation_outlined, color: Colors.white24, size: 36),
+                              child: const Icon(AthIcons.film, color: Colors.white24, size: 36),
                             ),
                     ),
                     ClipRRect(
@@ -1677,7 +1678,7 @@ class _SharedReelCard extends ConsumerWidget {
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white24, width: 1),
                           ),
-                          child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+                          child: const Icon(AthIcons.play, color: Colors.white, size: 28),
                         ),
                       ),
                     ),
@@ -1716,7 +1717,7 @@ class _SharedReelCard extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(Icons.arrow_forward_ios_rounded, size: 9, color: accentColor),
+                      Icon(AthIcons.chevronRight, size: 9, color: accentColor),
                       const Spacer(),
                       Text(
                         formattedTime,
@@ -1887,7 +1888,7 @@ class _SharedPostCard extends ConsumerWidget {
                         ),
                       ),
                       Icon(
-                        isVideo ? Icons.video_library_rounded : Icons.feed_rounded,
+                        isVideo ? AthIcons.film : AthIcons.documentText,
                         size: 14,
                         color: accentColor,
                       ),
@@ -1910,7 +1911,7 @@ class _SharedPostCard extends ConsumerWidget {
                                 errorWidget: (_, __, ___) => Container(
                                   color: Colors.black26,
                                   child: Icon(
-                                    isVideo ? Icons.movie_creation_outlined : Icons.image_outlined,
+                                    isVideo ? AthIcons.film : AthIcons.photo,
                                     color: Colors.white24,
                                     size: 36,
                                   ),
@@ -1919,7 +1920,7 @@ class _SharedPostCard extends ConsumerWidget {
                             : Container(
                                 color: Colors.black26,
                                 child: Icon(
-                                  isVideo ? Icons.movie_creation_outlined : Icons.image_outlined,
+                                  isVideo ? AthIcons.film : AthIcons.photo,
                                   color: Colors.white24,
                                   size: 36,
                                 ),
@@ -1937,7 +1938,7 @@ class _SharedPostCard extends ConsumerWidget {
                                 shape: BoxShape.circle,
                                 border: Border.all(color: Colors.white24, width: 1),
                               ),
-                              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+                              child: const Icon(AthIcons.play, color: Colors.white, size: 28),
                             ),
                           ),
                         ),
@@ -1976,7 +1977,7 @@ class _SharedPostCard extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(Icons.arrow_forward_ios_rounded, size: 9, color: accentColor),
+                      Icon(AthIcons.chevronRight, size: 9, color: accentColor),
                       const Spacer(),
                       Text(
                         formattedTime,
@@ -2279,7 +2280,7 @@ class _SharedEventCard extends ConsumerWidget {
                             : null,
                         backgroundColor: Colors.white10,
                         child: (organizerAvatar.isEmpty || !organizerAvatar.startsWith('http'))
-                            ? const Icon(Icons.event_seat_rounded, size: 13, color: Colors.white54)
+                            ? const Icon(AthIcons.ticket, size: 13, color: Colors.white54)
                             : null,
                       ),
                       const SizedBox(width: 6),
@@ -2295,7 +2296,7 @@ class _SharedEventCard extends ConsumerWidget {
                             ),
                             if (event.verifiedOrganizer) ...[
                               const SizedBox(width: 3),
-                              const Icon(Icons.verified, color: Colors.blue, size: 11),
+                              const Icon(AthIcons.checkBadgeSolid, color: Colors.blue, size: 11),
                             ],
                           ],
                         ),
@@ -2310,7 +2311,7 @@ class _SharedEventCard extends ConsumerWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.calendar_month_rounded, size: 10, color: accentColor),
+                            Icon(AthIcons.calendar, size: 10, color: accentColor),
                             const SizedBox(width: 3),
                             Text(
                               event.sport.toUpperCase(),
@@ -2336,14 +2337,14 @@ class _SharedEventCard extends ConsumerWidget {
                               errorWidget: (_, __, ___) => Container(
                                 color: const Color(0xFF181818),
                                 child: const Center(
-                                  child: Icon(Icons.sports_rounded, color: Colors.white24, size: 36),
+                                  child: Icon(AthIcons.trophy, color: Colors.white24, size: 36),
                                 ),
                               ),
                             )
                           : Container(
                               color: const Color(0xFF181818),
                               child: const Center(
-                                child: Icon(Icons.sports_rounded, color: Colors.white24, size: 36),
+                                child: Icon(AthIcons.trophy, color: Colors.white24, size: 36),
                               ),
                             ),
                     ),
@@ -2397,7 +2398,7 @@ class _SharedEventCard extends ConsumerWidget {
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          Icon(Icons.calendar_today_outlined, size: 11, color: accentColor),
+                          Icon(AthIcons.calendar, size: 11, color: accentColor),
                           const SizedBox(width: 4),
                           Text(
                             '${event.startDate.month}/${event.startDate.day}/${event.startDate.year}${event.startTime.isNotEmpty ? " • ${event.startTime}" : ""}',
@@ -2408,7 +2409,7 @@ class _SharedEventCard extends ConsumerWidget {
                       const SizedBox(height: 3),
                       Row(
                         children: [
-                          const Icon(Icons.location_on_outlined, size: 11, color: Colors.white38),
+                          const Icon(AthIcons.mapPin, size: 11, color: Colors.white38),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
@@ -2442,7 +2443,7 @@ class _SharedEventCard extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(Icons.arrow_forward_ios_rounded, size: 9, color: accentColor),
+                      Icon(AthIcons.chevronRight, size: 9, color: accentColor),
                       const Spacer(),
                       Text(
                         formattedTime,
@@ -2604,7 +2605,7 @@ class _ChatScreenShimmerLoadingState extends State<_ChatScreenShimmerLoading>
                   child: Text(
                     'Loading conversation for the first time may take some time...',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.outfit(
                       color: Colors.white.withValues(alpha: 0.38),
                       fontSize: 12,
                       fontWeight: FontWeight.w400,

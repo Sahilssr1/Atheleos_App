@@ -34,8 +34,7 @@ class FirestoreUserRepository implements UserRepository {
       id: id,
       name: data['displayName'] ?? data['name'] ?? data['fullName'] ?? '',
       username: data['username'] ?? '',
-      avatarUrl:
-          data['photoUrl'] ?? data['avatarUrl'] ?? data['googlePhotoUrl'] ?? '',
+      avatarUrl: pickAvatarUrl(data),
       coverUrl: data['coverPhoto'] ?? data['coverUrl'] ?? '',
       role: data['role'] ?? 'Athlete',
       verified: data['verified'] ?? data['googleVerified'] ?? false,

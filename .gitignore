@@ -10,3 +10,7 @@ coverage/
 functions/lib/
 test*.gif
 admin/
+.idea/
+.vscode/
+.opencode/
+*.iml

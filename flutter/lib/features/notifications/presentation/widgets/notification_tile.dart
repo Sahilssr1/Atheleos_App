@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/notification_model.dart';
 import 'follow_back_button.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 /// A single Instagram-style notification row: sender avatar with a small
 /// type-badge, the message body, relative time, an optional media thumbnail and
@@ -66,7 +67,7 @@ class NotificationTile extends StatelessWidget {
                   : null,
               child: hasAvatar
                   ? null
-                  : const Icon(Icons.person, color: Colors.white38, size: 24),
+                  : const Icon(AthIcons.userSolid, color: Colors.white38, size: 24),
             ),
             Positioned(
               right: -2,
@@ -95,8 +96,15 @@ class NotificationTile extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         RichText(
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
           text: TextSpan(
-            style: const TextStyle(fontSize: 13.5, height: 1.35, color: Colors.white),
+            style: const TextStyle(
+              fontSize: 13,
+              height: 1.45,
+              letterSpacing: -0.08,
+              color: Colors.white,
+            ),
             children: [
               if (showSender)
                 TextSpan(
@@ -189,35 +197,35 @@ class NotificationTile extends StatelessWidget {
         if (type == NotificationType.follow ||
             type == NotificationType.followRequest ||
             type == NotificationType.followAccept) {
-          return const _Badge(Icons.person_add, Color(0xFF3897F0));
+          return const _Badge(AthIcons.userPlus, Color(0xFF3897F0));
         }
         if (type == NotificationType.postComment ||
             type == NotificationType.reelComment ||
             type == NotificationType.commentReply) {
-          return const _Badge(Icons.mode_comment, Color(0xFF5C6BC0));
+          return const _Badge(AthIcons.chatRoundFill, Color(0xFF5C6BC0));
         }
         if (type == NotificationType.mention) {
-          return const _Badge(Icons.alternate_email, Color(0xFF26A69A));
+          return const _Badge(AthIcons.atSymbol, Color(0xFF26A69A));
         }
-        return const _Badge(Icons.favorite, Color(0xFFED4956));
+        return const _Badge(AthIcons.heartFill, Color(0xFFED4956));
       case NotificationCategory.stories:
-        return const _Badge(Icons.auto_stories, Color(0xFFAB47BC));
+        return const _Badge(AthIcons.newspaper, Color(0xFFAB47BC));
       case NotificationCategory.messages:
-        return const _Badge(Icons.chat_bubble, Color(0xFF29B6F6));
+        return const _Badge(AthIcons.chatRoundFill, Color(0xFF29B6F6));
       case NotificationCategory.verification:
-        return const _Badge(Icons.verified, Color(0xFF42A5F5));
+        return const _Badge(AthIcons.checkBadgeSolid, Color(0xFF42A5F5));
       case NotificationCategory.events:
-        return const _Badge(Icons.emoji_events, Color(0xFFFFB300));
+        return const _Badge(AthIcons.trophy, Color(0xFFFFB300));
       case NotificationCategory.coaches:
-        return const _Badge(Icons.sports, Color(0xFF66BB6A));
+        return const _Badge(AthIcons.trophy, Color(0xFF66BB6A));
       case NotificationCategory.federations:
-        return const _Badge(Icons.campaign, Color(0xFFFF7043));
+        return const _Badge(AthIcons.megaphone, Color(0xFFFF7043));
       case NotificationCategory.collaborations:
         return const _Badge(Icons.handshake, Color(0xFF8D6E63));
       case NotificationCategory.system:
-        return const _Badge(Icons.info, Color(0xFF78909C));
+        return const _Badge(AthIcons.informationCircle, Color(0xFF78909C));
       case NotificationCategory.all:
-        return const _Badge(Icons.notifications, Color(0xFF78909C));
+        return const _Badge(AthIcons.bellFill, Color(0xFF78909C));
     }
   }
 }

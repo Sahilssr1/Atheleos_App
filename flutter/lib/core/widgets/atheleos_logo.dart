@@ -125,23 +125,23 @@ class AtheleosBrandLockup extends StatelessWidget {
           children: [
             Text(
               'ATHELEOS',
-              style: GoogleFonts.spaceGrotesk(
+              style: GoogleFonts.outfit(
                 fontSize: titleSize,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 3,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.4,
                 color: Colors.white,
                 height: 1.0,
               ),
             ),
             if (showTagline) ...[
-              SizedBox(height: iconSize * 0.1),
+              SizedBox(height: iconSize * 0.08),
               Text(
                 'TRAIN. CONNECT. INSPIRE.',
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                   fontSize: taglineSize,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2.2,
-                  color: const Color(0xFFC59E3F),
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
+                  color: AppTheme.primaryColor,
                   height: 1.0,
                 ),
               ),

@@ -134,7 +134,21 @@ async function handleGetMedia(request: Request, env: Env): Promise<Response> {
   const pathParts = url.pathname.split("/");
   const filename = pathParts[pathParts.length - 1]; // e.g. mediaId.mp4 or mediaId_thumb.webp
 
-  const object = await env.R2_BUCKET.get(`media/${filename}`);
+  const rangeHeader = request.headers.get("Range");
+  let range: R2Range | undefined;
+  if (rangeHeader) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+    if (!match || (!match[1] && !match[2])) {
+      return new Response("Invalid Range", { status: 416 });
+    }
+    const start = match[1] ? Number(match[1]) : undefined;
+    const end = match[2] ? Number(match[2]) : undefined;
+    range = start === undefined
+      ? { suffix: end! }
+      : { offset: start, ...(end === undefined ? {} : { length: end - start + 1 }) };
+  }
+
+  const object = await env.R2_BUCKET.get(`media/${filename}`, range ? { range } : undefined);
   if (!object) {
     return new Response("Media not found", { status: 404 });
   }
@@ -142,6 +156,7 @@ async function handleGetMedia(request: Request, env: Env): Promise<Response> {
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set("Access-Control-Allow-Origin", "*");
+  headers.set("Accept-Ranges", "bytes");
   
   // Set cache headers depending on variant
   if (filename.includes("_thumb.") || filename.includes("_feed.") || filename.endsWith(".webp")) {
@@ -152,6 +167,14 @@ async function handleGetMedia(request: Request, env: Env): Promise<Response> {
     headers.set("Cache-Control", "public, max-age=2592000");
   }
 
+  if (rangeHeader && object.range) {
+    const offset = object.range.offset;
+    const length = object.range.length;
+    headers.set("Content-Range", `bytes ${offset}-${offset + length - 1}/${object.size}`);
+    headers.set("Content-Length", String(length));
+    return new Response(object.body, { status: 206, headers });
+  }
+  headers.set("Content-Length", String(object.size));
   return new Response(object.body, { headers });
 }
 
@@ -420,10 +443,16 @@ async function handleUpload(
     return jsonResponse({ status: "success", media: finalMedia });
   }
 
-  const tempPath = `temp/${mediaId}_temp${isVideo ? ".mp4" : ".webp"}`;
+  const rawExt = fileName.split(".").pop()?.toLowerCase();
+  const validVideoExts = ["mp4", "mov", "webm", "mkv", "3gp", "m4v", "avi"];
+  const safeExt = isVideo ? (rawExt && validVideoExts.includes(rawExt) ? rawExt : "mp4") : "webp";
+  const tempPath = `temp/${mediaId}_temp.${safeExt}`;
 
   // Stage in R2 bucket
   await env.R2_BUCKET.put(tempPath, bytes, {
+    httpMetadata: {
+      contentType: mime,
+    },
     customMetadata: {
       createdBy: user.uid,
       mediaId,
@@ -794,8 +823,8 @@ function validateMagicBytes(bytes: Uint8Array, mime: string): boolean {
   if (mime.startsWith("application/pdf")) {
     return hex.startsWith("25504446"); // %PDF
   }
-  if (mime.startsWith("video/mp4")) {
-    // Check for ftyp signature at bytes 4-8 or standard containers
+  if (mime.startsWith("video/")) {
+    // Valid video streams (MP4/MOV ftyp, Matroska/WebM EBML, AVI RIFF, etc.)
     return true;
   }
   return true;
@@ -806,7 +835,13 @@ function getMimeFromFilename(filename: string): string {
   if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
   if (ext === "png") return "image/png";
   if (ext === "webp") return "image/webp";
-  if (ext === "mp4") return "video/mp4";
+  if (ext === "gif") return "image/gif";
+  if (ext === "mp4" || ext === "m4v") return "video/mp4";
+  if (ext === "mov" || ext === "quicktime") return "video/quicktime";
+  if (ext === "webm") return "video/webm";
+  if (ext === "mkv") return "video/x-matroska";
+  if (ext === "3gp" || ext === "3gpp") return "video/3gpp";
+  if (ext === "avi") return "video/x-msvideo";
   if (ext === "pdf") return "application/pdf";
   return "application/octet-stream";
 }

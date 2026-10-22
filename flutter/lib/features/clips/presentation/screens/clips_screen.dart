@@ -29,6 +29,7 @@ import '../../../feed/presentation/controllers/like_controller.dart';
 import '../../../chat/presentation/widgets/share_content_bottom_sheet.dart';
 import '../../../../core/widgets/app_avatar.dart';
 import '../../../../core/widgets/expandable_caption.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 String formatNumber(int number) {
   if (number >= 1000000) {
@@ -155,7 +156,7 @@ class _ClipsScreenState extends ConsumerState<ClipsScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+              const Icon(AthIcons.exclamationCircle, color: Colors.redAccent, size: 48),
               const SizedBox(height: 12),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -314,6 +315,15 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
 
   void _onControllerUpdate() {
     if (!mounted || _controller == null) return;
+    if (_controller!.value.hasError) {
+      if (!_hasError) {
+        setState(() {
+          _hasError = true;
+          _isInitialized = false;
+        });
+      }
+      return;
+    }
     final nowPlaying = _controller!.value.isPlaying;
     if (nowPlaying != _isPlaying) {
       setState(() {
@@ -500,25 +510,13 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
         thumbnailUrl = firstMedia.mediaUrl
             .replaceAll('/video/upload/', '/video/upload/so_0/')
             .replaceAll(RegExp(r'\.(mp4|mov|webm)$', caseSensitive: false), '.jpg');
+      } else if (firstMedia.mediaUrl.contains('/media/') && firstMedia.mediaUrl.endsWith('.mp4')) {
+        thumbnailUrl = firstMedia.mediaUrl.replaceAll('.mp4', '_thumb.jpg');
       }
     }
-
-    BoxFit determineFit(double? aspect) {
-      if (aspect == null || aspect <= 0) return BoxFit.cover;
-      // Instagram-style frame calculation:
-      // If the video is landscape or square (> 0.85, such as 1:1, 4:3, or 16:9 landscape),
-      // render with BoxFit.contain centered on clean black letterboxing so the full frame,
-      // burned-in text, and composition are 100% preserved without zoom cropping.
-      // Vertical reels (<= 0.85, such as 9:16 portrait ~0.56, 3:4, or 4:5) use BoxFit.cover
-      // to fill the screen immersively like Instagram Reels.
-      return aspect > 0.85 ? BoxFit.contain : BoxFit.cover;
-    }
-
     final double liveAspect = (_isInitialized && _controller != null && _controller!.value.aspectRatio > 0)
         ? _controller!.value.aspectRatio
         : (storedAspect != null && storedAspect > 0 ? storedAspect : 9 / 16);
-    final liveFit = determineFit(liveAspect);
-    final thumbFit = determineFit(storedAspect);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final effectiveBottom = 16.0 + (bottomInset > 0 ? bottomInset : 0);
 
@@ -559,13 +557,13 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.error_outline, color: Colors.white54, size: 40),
+                          const Icon(AthIcons.exclamationCircle, color: Colors.white54, size: 40),
                           const SizedBox(height: 8),
                           const Text('Could not load video', style: TextStyle(color: Colors.white54, fontSize: 13)),
                           const SizedBox(height: 12),
                           TextButton.icon(
                             onPressed: _initializePlayer,
-                            icon: const Icon(Icons.refresh, color: AppTheme.primaryColor, size: 16),
+                            icon: const Icon(AthIcons.arrowPath, color: AppTheme.primaryColor, size: 16),
                             label: const Text('Retry', style: TextStyle(color: AppTheme.primaryColor, fontSize: 12)),
                           ),
                         ],
@@ -573,12 +571,15 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
                     )
                   : _isInitialized && _controller != null
                   ? Center(
-                      child: FittedBox(
-                        fit: liveFit,
-                        child: SizedBox(
-                          width: liveAspect * 1000,
-                          height: 1000,
-                          child: VideoPlayer(_controller!),
+                      child: AspectRatio(
+                        aspectRatio: liveAspect,
+                        child: FittedBox(
+                          fit: BoxFit.contain,
+                          child: SizedBox(
+                            width: _controller!.value.size.width > 0 ? _controller!.value.size.width : null,
+                            height: _controller!.value.size.height > 0 ? _controller!.value.size.height : null,
+                            child: VideoPlayer(_controller!),
+                          ),
                         ),
                       ),
                     )
@@ -587,22 +588,18 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
                       children: [
                         if (thumbnailUrl.isNotEmpty)
                           Center(
-                            child: FittedBox(
-                              fit: thumbFit,
-                              child: SizedBox(
-                                width: (storedAspect ?? (9 / 16)) * 1000,
-                                height: 1000,
-                                child: CachedNetworkImage(
-                                  imageUrl: thumbnailUrl,
-                                  fit: BoxFit.cover,
-                                  memCacheWidth: 1080,
-                                  memCacheHeight: 1920,
-                                  placeholder: (context, url) => const Center(
-                                    child: CircularProgressIndicator(color: AppTheme.primaryColor),
-                                  ),
-                                  errorWidget: (context, url, error) => const Center(
-                                    child: Icon(Icons.broken_image, color: Colors.white24, size: 40),
-                                  ),
+                            child: AspectRatio(
+                              aspectRatio: (storedAspect ?? (9 / 16)),
+                              child: CachedNetworkImage(
+                                imageUrl: thumbnailUrl,
+                                fit: BoxFit.contain,
+                                memCacheWidth: 1080,
+                                memCacheHeight: 1920,
+                                placeholder: (context, url) => const Center(
+                                  child: CircularProgressIndicator(color: AppTheme.primaryColor),
+                                ),
+                                errorWidget: (context, url, error) => const Center(
+                                  child: Icon(AthIcons.photo, color: Colors.white24, size: 40),
                                 ),
                               ),
                             ),
@@ -660,7 +657,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
                             children: [
                               Text(
                                 widget.clip.userName,
-                                style: GoogleFonts.spaceGrotesk(
+                                style: GoogleFonts.outfit(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13,
@@ -668,7 +665,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
                               ),
                               if (widget.clip.verified) ...[
                                 const SizedBox(width: 4),
-                                  const Icon(Icons.verified, size: 14, color: AppTheme.primaryColor),
+                                  const Icon(AthIcons.checkBadgeSolid, size: 14, color: AppTheme.primaryColor),
                               ],
                             ],
                           ),
@@ -693,7 +690,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
                     ),
                     child: Text(
                       widget.clip.sport.toUpperCase(),
-                      style: GoogleFonts.spaceGrotesk(
+                      style: GoogleFonts.outfit(
                         color: Colors.black,
                         fontWeight: FontWeight.w900,
                         fontSize: 9,
@@ -724,7 +721,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.play_arrow_rounded, color: Colors.white70, size: 14),
+                  const Icon(AthIcons.play, color: Colors.white70, size: 14),
                   const SizedBox(width: 2),
                   Text(
                     '${formatNumber(widget.clip.views)} views',
@@ -745,7 +742,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
             children: [
               // Like Button
               _buildInteractionButton(
-                icon: likeState.isLiked ? Icons.favorite : Icons.favorite_border,
+                icon: likeState.isLiked ? AthIcons.heartFill : AthIcons.heart,
                 iconColor: likeState.isLiked ? AppTheme.primaryColor : Colors.white,
                 label: '${likeState.likesCount}',
                 onTap: () {
@@ -757,7 +754,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
 
               // Comment Button
               _buildInteractionButton(
-                icon: Icons.chat_bubble_outline_rounded,
+                icon: AthIcons.chatRound,
                 iconColor: Colors.white,
                 label: '${widget.clip.commentsCount}',
                 onTap: () {
@@ -769,7 +766,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
 
               // Bookmark Save Button
               _buildInteractionButton(
-                icon: widget.clip.hasBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                icon: widget.clip.hasBookmarked ? AthIcons.bookmarkFill : AthIcons.bookmark,
                 iconColor: widget.clip.hasBookmarked ? AppTheme.primaryColor : Colors.white,
                 label: 'Save',
                 onTap: () {
@@ -792,7 +789,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
 
               // Share Button
               _buildInteractionButton(
-                icon: Icons.share_rounded,
+                icon: AthIcons.share,
                 iconColor: Colors.white,
                 label: '${widget.clip.shares}',
                 onTap: () {
@@ -824,7 +821,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
                   radius: 20,
                   backgroundColor: Colors.black54,
                   child: Icon(
-                    isGlobalMuted ? Icons.volume_off : Icons.volume_up,
+                    isGlobalMuted ? AthIcons.volumeMute : AthIcons.volumeHigh,
                     color: Colors.white,
                     size: 18,
                   ),
@@ -839,7 +836,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
                   child: const CircleAvatar(
                     radius: 20,
                     backgroundColor: Colors.black54,
-                    child: Icon(Icons.more_vert, color: Colors.white, size: 18),
+                    child: Icon(AthIcons.ellipsisVertical, color: Colors.white, size: 18),
                   ),
                 ),
               ],
@@ -862,7 +859,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
               child: CircleAvatar(
                 radius: 32,
                 backgroundColor: Colors.black54,
-                child: Icon(Icons.play_arrow, size: 40, color: Colors.white),
+                child: Icon(AthIcons.play, size: 40, color: Colors.white),
               ),
             ),
           ),
@@ -939,7 +936,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
             ),
             const SizedBox(height: 4),
             ListTile(
-              leading: const Icon(Icons.edit_outlined, color: Colors.white70, size: 22),
+              leading: const Icon(AthIcons.pencilSquare, color: Colors.white70, size: 22),
               title: const Text(
                 'Edit',
                 style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
@@ -956,7 +953,7 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+              leading: const Icon(AthIcons.trash, color: Colors.redAccent, size: 22),
               title: const Text(
                 'Delete',
                 style: TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w600),
@@ -1005,28 +1002,26 @@ class _ClipPlayerItemState extends ConsumerState<ClipPlayerItem> {
 
     if (confirmed != true) return;
 
+    final messenger = ScaffoldMessenger.maybeOf(context);
     try {
       _controller?.pause();
       await ref.read(postDeleteControllerProvider).deletePost(widget.clip);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Reel deleted'),
-            backgroundColor: AppTheme.primaryColor,
-            duration: Duration(seconds: 1),
-          ),
-        );
-      }
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('Reel deleted successfully'),
+          backgroundColor: AppTheme.primaryColor,
+          duration: Duration(seconds: 2),
+        ),
+      );
       widget.onDelete?.call();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to delete reel. Please try again.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
+      debugPrint('Error deleting reel: $e');
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('Failed to delete reel. Please try again.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 }
@@ -1263,7 +1258,7 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
           const SizedBox(height: 16),
           Text(
             'Clip Responses',
-            style: GoogleFonts.spaceGrotesk(
+            style: GoogleFonts.outfit(
               fontWeight: FontWeight.bold,
               fontSize: 15,
               color: Colors.white,
@@ -1400,7 +1395,7 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
                                         ),
                                         if (comment.verified) ...[
                                           const SizedBox(width: 4),
-                                          const Icon(Icons.verified, size: 12, color: AppTheme.primaryColor),
+                                          const Icon(AthIcons.checkBadgeSolid, size: 12, color: AppTheme.primaryColor),
                                         ],
                                         const SizedBox(width: 8),
                                         Text(
@@ -1463,7 +1458,7 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
                             ),
                             IconButton(
                               icon: Icon(
-                                isLiked ? Icons.favorite : Icons.favorite_border,
+                                isLiked ? AthIcons.heartFill : AthIcons.heart,
                                 color: isLiked ? Colors.red : Colors.white38,
                                 size: 12,
                               ),
@@ -1494,7 +1489,7 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
               child: Row(
                 children: [
                   Icon(
-                    _editingComment != null ? Icons.edit : Icons.reply,
+                    _editingComment != null ? AthIcons.pencilSquare : AthIcons.arrowUturnLeft,
                     color: AppTheme.primaryColor,
                     size: 14,
                   ),
@@ -1515,7 +1510,7 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
                         _commentController.clear();
                       });
                     },
-                    child: const Icon(Icons.close, color: Colors.white38, size: 14),
+                    child: const Icon(AthIcons.xMark, color: Colors.white38, size: 14),
                   ),
                 ],
               ),
@@ -1556,7 +1551,7 @@ class _ClipCommentsBottomSheetState extends ConsumerState<ClipCommentsBottomShee
                 backgroundColor: AppTheme.primaryColor,
                 radius: 18,
                 child: IconButton(
-                  icon: const Icon(Icons.send, size: 14, color: Colors.black),
+                  icon: const Icon(AthIcons.send, size: 14, color: Colors.black),
                   onPressed: _submitComment,
                 ),
               ),
@@ -1607,7 +1602,7 @@ class _InteractiveHeartOverlayState extends State<InteractiveHeartOverlay> with 
     return ScaleTransition(
       scale: _scaleAnimation,
       child: const Icon(
-        Icons.favorite,
+        AthIcons.heartFill,
         color: Colors.white,
         size: 96,
       ),
@@ -1744,7 +1739,7 @@ class _ReelsViewerScreenState extends ConsumerState<ReelsViewerScreen> {
             top: MediaQuery.of(context).padding.top + 10,
             left: 10,
             child: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 22),
+              icon: const Icon(AthIcons.arrowLeft, color: Colors.white, size: 22),
               onPressed: () => context.pop(),
             ),
           ),

@@ -87,7 +87,8 @@ async function runTranscodingPipeline(jobId: string, jobData: any, token: string
   const tempFilePath = jobData.tempFilePath; // e.g. "temp/med_xxx_temp.mp4"
 
   const tempDir = os.tmpdir();
-  const localInputPath = path.join(tempDir, `${mediaId}_input.mp4`);
+  const inputExt = path.extname(tempFilePath) || ".mp4";
+  const localInputPath = path.join(tempDir, `${mediaId}_input${inputExt}`);
   const localOutputPath = path.join(tempDir, `${mediaId}_optimized.mp4`);
   const localThumbPath = path.join(tempDir, `${mediaId}_thumb.jpg`);
 
@@ -107,32 +108,47 @@ async function runTranscodingPipeline(jobId: string, jobData: any, token: string
 
     // 2. Transcode and optimize with FFmpeg (Limit processing duration to 180s)
     // Scale preserving natural aspect ratio without adding any letterbox/pillarbox padding (pad=).
-    // Cap maximum dimension to 1280 (HD tier) while ensuring both dimensions are even integers for H.264.
+    // Keep a 1080p-class rendition so high-density phones and desktop do not receive
+    // an unnecessarily soft 720p/1280px master. The -2 dimension keeps H.264 sizes even.
     const { stdout: inProbeJson } = await execPromise(
       `ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration,r_frame_rate -of json "${localInputPath}"`,
       { maxBuffer: 10 * 1024 * 1024 }
     );
     console.log(`[VIDEO JOB ${jobId}] Input Probe:`, inProbeJson.trim());
 
-    const scaleFilter = "scale='if(gt(iw,ih),min(1280,iw),-2)':'if(gt(iw,ih),-2,min(1280,ih))'";
+    // Scale preserving natural aspect ratio without letterbox/pillarbox padding.
+    // Force square pixel aspect ratio (setsar=1) to eliminate anamorphic distortion.
+    const scaleFilter = "scale='if(gte(iw,ih),min(1920,iw),-2)':'if(gte(iw,ih),-2,min(1920,ih))',setsar=1";
 
-    // Transcode command (H.264 + AAC + pix_fmt yuv420p + faststart)
-    const cmd = `ffmpeg -y -nostdin -i "${localInputPath}" -vf "${scaleFilter}" -c:v libx264 -preset fast -crf 23 -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 128k -t 180 "${localOutputPath}"`;
+    // Main profile, no B-frames, and bounded references avoid known Android hardware
+    // decoder stride/artifact failures while retaining high visual quality (CRF 20).
+    const cmd = `ffmpeg -y -nostdin -i "${localInputPath}" -vf "${scaleFilter}" -c:v libx264 -preset fast -crf 20 -pix_fmt yuv420p -profile:v main -level 4.1 -refs 2 -bf 0 -colorspace bt709 -color_primaries bt709 -color_trc bt709 -movflags +faststart -c:a aac -b:a 160k -ac 2 -t 180 "${localOutputPath}"`;
     await execPromise(cmd, { maxBuffer: 50 * 1024 * 1024 });
 
     // 3. Simple Thumbnail Generation & Probing directly from the optimized output video
     // (guarantees matching aspect ratio, upright orientation, and zero padding)
     const { stdout: outProbeJson } = await execPromise(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration,r_frame_rate -of json "${localOutputPath}"`,
+      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration,r_frame_rate,codec_name,pix_fmt,profile,level -of json "${localOutputPath}"`,
       { maxBuffer: 10 * 1024 * 1024 }
     );
     console.log(`[VIDEO JOB ${jobId}] Output Probe:`, outProbeJson.trim());
 
     const outMetadata = JSON.parse(outProbeJson);
     const outStream = outMetadata.streams?.[0] || {};
+    if (outStream.codec_name !== "h264" || outStream.pix_fmt !== "yuv420p") {
+      throw new Error(`Unsupported transcoder output: codec=${outStream.codec_name}, pix_fmt=${outStream.pix_fmt}`);
+    }
     const finalWidth = parseInt(outStream.width, 10) || 720;
     const finalHeight = parseInt(outStream.height, 10) || 1280;
     const finalDuration = parseFloat(outStream.duration) || 0;
+    if (finalWidth < 2 || finalHeight < 2 || finalDuration <= 0) {
+      throw new Error("Transcoder produced invalid video metadata");
+    }
+    // Decode the generated file before publishing it, so malformed output is retried
+    // instead of being exposed as a ready MP4 to device decoders.
+    await execPromise(`ffmpeg -v error -xerror -nostdin -i "${localOutputPath}" -f null -`, {
+      maxBuffer: 10 * 1024 * 1024,
+    });
     let finalFps = 30;
     try {
       finalFps = eval(outStream.r_frame_rate || "30");

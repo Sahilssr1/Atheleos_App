@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/models/profile_model.dart';
 import '../controllers/profile_controller.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class PortfolioAnalyticsScreen extends ConsumerWidget {
   final ProfileModel? profile;
@@ -24,7 +25,7 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
       backgroundColor: Colors.black,
       appBar: AppBar(
         title: Text('PORTFOLIO',
-            style: GoogleFonts.spaceGrotesk(
+            style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w700, letterSpacing: 1.2, fontSize: 15)),
         backgroundColor: Colors.black,
       ),
@@ -65,13 +66,13 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
-                      const Icon(Icons.link,
+                      const Icon(AthIcons.link,
                           color: AppTheme.primaryColor, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           portfolioLink,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.outfit(
                               color: Colors.white70,
                               fontSize: 13,
                               fontWeight: FontWeight.bold),
@@ -83,7 +84,7 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
                     Row(children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          icon: const Icon(Icons.copy_outlined, size: 14),
+                          icon: const Icon(AthIcons.documentDuplicate, size: 14),
                           label: const Text('Copy Link',
                               style: TextStyle(
                                   fontSize: 12, fontWeight: FontWeight.bold)),
@@ -108,7 +109,7 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: OutlinedButton.icon(
-                          icon: const Icon(Icons.share_outlined, size: 14),
+                          icon: const Icon(AthIcons.share, size: 14),
                           label: const Text('Share',
                               style: TextStyle(
                                   fontSize: 12, fontWeight: FontWeight.bold)),
@@ -148,7 +149,7 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
                   border: Border.all(color: Colors.white10),
                 ),
                 child: Row(children: [
-                  const Icon(Icons.qr_code_outlined,
+                  const Icon(AthIcons.qrCode,
                       color: Colors.white24, size: 20),
                   const SizedBox(width: 14),
                   Column(
@@ -160,7 +161,7 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold)),
                         Text('Coming soon',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.outfit(
                                 color: Colors.white24, fontSize: 10)),
                       ]),
                   const Spacer(),
@@ -185,7 +186,7 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
               const SizedBox(height: 4),
               Text(
                 'Based on the last 30 days of activity.',
-                style: GoogleFonts.inter(color: Colors.white38, fontSize: 11),
+                style: GoogleFonts.outfit(color: Colors.white38, fontSize: 11),
               ),
               const SizedBox(height: 14),
               GridView.count(
@@ -197,13 +198,13 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
                 mainAxisSpacing: 12,
                 children: [
                   _statCard('Profile Views', profileViews,
-                      Icons.visibility_outlined, const Color(0xFF3B82F6)),
+                      AthIcons.eye, const Color(0xFF3B82F6)),
                   _statCard('Portfolio Views', portfolioViews,
-                      Icons.web_asset_outlined, const Color(0xFF8B5CF6)),
+                      AthIcons.globeAlt, const Color(0xFF8B5CF6)),
                   _statCard('Portfolio Shares', portfolioShares,
-                      Icons.share_outlined, const Color(0xFFE5A93B)),
+                      AthIcons.share, const Color(0xFFE5A93B)),
                   _statCard('Search Appearances', searchAppearances,
-                      Icons.search_outlined, const Color(0xFF10B981)),
+                      AthIcons.search, const Color(0xFF10B981)),
                 ],
               ),
               const SizedBox(height: 28),
@@ -220,15 +221,15 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
               Row(children: [
                 Expanded(
                     child: _contentTile(
-                        'Posts', profile.postsCount, Icons.grid_on_outlined)),
+                        'Posts', profile.postsCount, AthIcons.squares2X2)),
                 const SizedBox(width: 12),
                 Expanded(
                     child: _contentTile('Following', profile.followingCount,
-                        Icons.person_add_outlined)),
+                        AthIcons.userPlus)),
                 const SizedBox(width: 12),
                 Expanded(
                     child: _contentTile('Followers', profile.followersCount,
-                        Icons.people_outline)),
+                        AthIcons.userGroup)),
               ]),
               const SizedBox(height: 28),
 
@@ -244,7 +245,7 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
                   border: Border.all(color: Colors.white10),
                 ),
                 child: Row(children: [
-                  const Icon(Icons.picture_as_pdf_outlined,
+                  const Icon(AthIcons.documentArrowDown,
                       color: Colors.white24, size: 20),
                   const SizedBox(width: 14),
                   Column(
@@ -256,7 +257,7 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold)),
                         Text('Printable athlete resume format',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.outfit(
                                 color: Colors.white24, fontSize: 10)),
                       ]),
                   const Spacer(),
@@ -284,7 +285,7 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
 
   Widget _sectionTitle(String t) => Text(
         t,
-        style: GoogleFonts.spaceGrotesk(
+        style: GoogleFonts.outfit(
             color: AppTheme.primaryColor,
             fontWeight: FontWeight.w900,
             fontSize: 11,
@@ -311,14 +312,14 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
                   value >= 1000
                       ? '${(value / 1000).toStringAsFixed(1)}k'
                       : value.toString(),
-                  style: GoogleFonts.spaceGrotesk(
+                  style: GoogleFonts.outfit(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 22),
                 ),
                 Text(label,
                     style:
-                        GoogleFonts.inter(color: Colors.white38, fontSize: 10)),
+                        GoogleFonts.outfit(color: Colors.white38, fontSize: 10)),
               ],
             ),
           ],
@@ -338,12 +339,12 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
             Icon(icon, color: AppTheme.primaryColor, size: 18),
             const SizedBox(height: 6),
             Text('$value',
-                style: GoogleFonts.spaceGrotesk(
+                style: GoogleFonts.outfit(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 18)),
             Text(label,
-                style: GoogleFonts.inter(color: Colors.white38, fontSize: 9)),
+                style: GoogleFonts.outfit(color: Colors.white38, fontSize: 9)),
           ],
         ),
       );
@@ -397,7 +398,7 @@ class PortfolioAnalyticsScreen extends ConsumerWidget {
         const SizedBox(height: 6),
         Text(
             'Complete your profile, add media, and get verified to increase your discovery score.',
-            style: GoogleFonts.inter(color: Colors.white24, fontSize: 10)),
+            style: GoogleFonts.outfit(color: Colors.white24, fontSize: 10)),
       ],
     );
   }

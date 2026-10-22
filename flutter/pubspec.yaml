@@ -1,6 +1,6 @@
 name: atheleos
 description: ATHELEOS - A sports-first social platform connecting athletes, coaches, scouts, and brands.
-version: 1.0.0+1
+version: 1.0.2+4
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -37,7 +37,8 @@ dependencies:
   flutter_spinkit: ^5.2.1
   cached_network_image: ^3.3.1
   shimmer: ^3.0.0
-  video_player: ^2.8.6
+  video_player: ^2.9.2
+  video_player_android: ^2.12.2
   visibility_detector: ^0.4.0+2
   # Local Persistence
   shared_preferences: ^2.2.3
@@ -63,3 +64,7 @@ flutter:
   assets:
     - assets/images/
     - assets/videos/
+  fonts:
+    - family: AthIcons
+      fonts:
+        - asset: assets/fonts/AthIcons.ttf

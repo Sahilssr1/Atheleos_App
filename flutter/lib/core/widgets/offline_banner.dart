@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/network_service.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class OfflineBanner extends ConsumerStatefulWidget {
   const OfflineBanner({super.key});
@@ -83,8 +84,8 @@ class _OfflineBannerState extends ConsumerState<OfflineBanner> with SingleTicker
         : 'Offline Mode';
 
     final bannerIcon = _isReconnected
-        ? Icons.wifi_rounded
-        : Icons.wifi_off_rounded;
+        ? AthIcons.wifi
+        : AthIcons.signalSlash;
 
     return AnimatedBuilder(
       animation: _controller,
@@ -104,7 +105,7 @@ class _OfflineBannerState extends ConsumerState<OfflineBanner> with SingleTicker
                   const SizedBox(width: 8),
                   Text(
                     bannerText,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.outfit(
                       color: Colors.white,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,

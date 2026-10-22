@@ -19,6 +19,7 @@ import '../../../profile/presentation/controllers/settings_controller.dart';
 import '../../../clips/presentation/screens/clips_screen.dart' show ReelsViewerScreen;
 import '../controllers/chat_controller.dart';
 import '../controllers/chat_theme_controller.dart';
+import 'package:atheleos/core/widgets/ath_icons.dart';
 
 class SharedContentScreen extends ConsumerStatefulWidget {
   final String roomId;
@@ -81,11 +82,11 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Icon(Icons.palette_outlined, color: AppTheme.primaryColor, size: 22),
+                    const Icon(AthIcons.swatch, color: AppTheme.primaryColor, size: 22),
                     const SizedBox(width: 10),
                     Text(
                       'Chat Theme',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.outfit(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -100,7 +101,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                     isGroup
                         ? (isAdmin ? 'Change theme for all group members' : 'Group theme (Set by Admin)')
                         : 'Pick a theme for your conversation',
-                    style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
+                    style: GoogleFonts.outfit(color: Colors.white54, fontSize: 12),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -198,7 +199,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                                 ),
                               ),
                               if (isSelected)
-                                Icon(Icons.check_circle_rounded, color: theme.accentColor, size: 22),
+                                Icon(AthIcons.checkCircleSolid, color: theme.accentColor, size: 22),
                             ],
                           ),
                         ),
@@ -311,7 +312,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                     color: AppTheme.primaryColor.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.camera_alt_rounded, color: AppTheme.primaryColor, size: 20),
+                  child: const Icon(AthIcons.camera, color: AppTheme.primaryColor, size: 20),
                 ),
                 title: const Text('Take Photo', style: TextStyle(color: Colors.white, fontSize: 14)),
                 onTap: () {
@@ -326,7 +327,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                     color: AppTheme.primaryColor.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.photo_library_rounded, color: AppTheme.primaryColor, size: 20),
+                  child: const Icon(AthIcons.photo, color: AppTheme.primaryColor, size: 20),
                 ),
                 title: const Text('Choose from Gallery', style: TextStyle(color: Colors.white, fontSize: 14)),
                 onTap: () {
@@ -342,7 +343,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                       color: Colors.red.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                    child: const Icon(AthIcons.trash, color: Colors.redAccent, size: 20),
                   ),
                   title: const Text('Remove Group Icon', style: TextStyle(color: Colors.redAccent, fontSize: 14)),
                   onTap: () {
@@ -516,7 +517,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                           style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white70),
+                          icon: const Icon(AthIcons.xMark, color: Colors.white70),
                           onPressed: () => Navigator.pop(ctx),
                         ),
                       ],
@@ -535,7 +536,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                         decoration: const InputDecoration(
                           hintText: 'Search athletes...',
                           hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
-                          prefixIcon: Icon(Icons.search, color: Colors.white38, size: 18),
+                          prefixIcon: Icon(AthIcons.search, color: Colors.white38, size: 18),
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(vertical: 10),
                         ),
@@ -562,7 +563,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                                         : null,
                                     backgroundColor: Colors.white10,
                                     child: (p.avatarUrl.isEmpty || (!p.avatarUrl.startsWith('http://') && !p.avatarUrl.startsWith('https://')))
-                                        ? const Icon(Icons.person, size: 18, color: Colors.white54)
+                                        ? const Icon(AthIcons.userSolid, size: 18, color: Colors.white54)
                                         : null,
                                   ),
                                   title: Text(p.name, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
@@ -764,7 +765,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
         backgroundColor: Colors.black,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(AthIcons.arrowLeft, color: Colors.white),
           onPressed: () => context.pop(),
         ),
         title: Text(
@@ -800,7 +801,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                               : null,
                           backgroundColor: currentTheme.accentColor.withValues(alpha: 0.15),
                           child: (roomDetails?.iconUrl == null || roomDetails!.iconUrl!.isEmpty)
-                              ? Icon(Icons.groups_rounded, size: 46, color: currentTheme.accentColor)
+                              ? Icon(AthIcons.userGroup, size: 46, color: currentTheme.accentColor)
                               : null,
                         ),
                         if (_isUploadingIcon)
@@ -829,7 +830,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                               color: currentTheme.accentColor,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.black),
+                            child: const Icon(AthIcons.camera, size: 14, color: Colors.black),
                           ),
                       ],
                     ),
@@ -860,7 +861,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                               color: Colors.white.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.edit_rounded, color: AppTheme.primaryColor, size: 14),
+                            child: const Icon(AthIcons.pencilSquare, color: AppTheme.primaryColor, size: 14),
                           ),
                         ),
                       ],
@@ -880,20 +881,20 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         _buildActionButton(
-                          icon: Icons.palette_outlined,
+                          icon: AthIcons.swatch,
                           label: 'Theme',
                           color: currentTheme.accentColor,
                           onTap: () => _showThemeSelector(context, ref, isGroup: true, isAdmin: isAdmin),
                         ),
                         if (roomDetails != null)
                           _buildActionButton(
-                            icon: Icons.person_add_alt_1_rounded,
+                            icon: AthIcons.userPlus,
                             label: 'Add',
                             color: Colors.white,
                             onTap: () => _showAddMembersModal(context, roomDetails),
                           ),
                         _buildActionButton(
-                          icon: Icons.logout_rounded,
+                          icon: AthIcons.arrowRightOnRectangle,
                           label: 'Leave',
                           color: Colors.redAccent,
                           onTap: () => _handleLeaveGroup(context, myId),
@@ -929,7 +930,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                             onBackgroundImageError: (_, __) {},
                             backgroundColor: const Color(0xFF141414),
                             child: (avatarUrl.isEmpty || (!avatarUrl.startsWith('http://') && !avatarUrl.startsWith('https://')))
-                                ? const Icon(Icons.person, size: 46, color: Colors.white54)
+                                ? const Icon(AthIcons.userSolid, size: 46, color: Colors.white54)
                                 : null,
                           ),
                           const SizedBox(height: 12),
@@ -974,7 +975,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 _buildActionButton(
-                                  icon: Icons.person_outline_rounded,
+                                  icon: AthIcons.user,
                                   label: 'Profile',
                                   color: Colors.white,
                                   onTap: () {
@@ -984,13 +985,13 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
                                   },
                                 ),
                                 _buildActionButton(
-                                  icon: Icons.palette_outlined,
+                                  icon: AthIcons.swatch,
                                   label: 'Theme',
                                   color: currentTheme.accentColor,
                                   onTap: () => _showThemeSelector(context, ref, isGroup: false, isAdmin: true),
                                 ),
                                 _buildActionButton(
-                                  icon: isBlocked ? Icons.lock_open_rounded : Icons.block_flipped,
+                                  icon: isBlocked ? AthIcons.lockOpen : AthIcons.noSymbol,
                                   label: isBlocked ? 'Unblock' : 'Block',
                                   color: isBlocked ? AppTheme.primaryColor : Colors.redAccent,
                                   onTap: () => _handleBlockUser(context, effectiveReceiverId, name, isBlocked),
@@ -1124,7 +1125,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
   Widget _buildMergedPostsTab(List<ChatMessage> postMsgs) {
     if (postMsgs.isEmpty) {
       return const _EmptyTabPlaceholder(
-        icon: Icons.grid_view_rounded,
+        icon: AthIcons.squares2X2,
         title: 'No Shared Posts or Reels',
         subtitle: 'Photos, videos, and clips shared in this chat will appear here.',
       );
@@ -1155,7 +1156,7 @@ class _SharedContentScreenState extends ConsumerState<SharedContentScreen> with 
   Widget _buildProfilesTab(List<ChatMessage> profileMsgs) {
     if (profileMsgs.isEmpty) {
       return const _EmptyTabPlaceholder(
-        icon: Icons.person_outline_rounded,
+        icon: AthIcons.user,
         title: 'No Shared Profiles',
         subtitle: 'Profiles shared in this chat will appear here.',
       );
@@ -1210,7 +1211,7 @@ class _GroupMemberTile extends ConsumerWidget {
                 : null,
             backgroundColor: Colors.white12,
             child: (avatarUrl.isEmpty || (!avatarUrl.startsWith('http://') && !avatarUrl.startsWith('https://')))
-                ? const Icon(Icons.person, size: 18, color: Colors.white54)
+                ? const Icon(AthIcons.userSolid, size: 18, color: Colors.white54)
                 : null,
           ),
           title: Row(
@@ -1248,7 +1249,7 @@ class _GroupMemberTile extends ConsumerWidget {
             children: [
               if (canRemove)
                 IconButton(
-                  icon: const Icon(Icons.person_remove_rounded, color: Colors.redAccent, size: 18),
+                  icon: const Icon(AthIcons.userMinus, color: Colors.redAccent, size: 18),
                   tooltip: 'Remove from group',
                   onPressed: () async {
                     final confirm = await showDialog<bool>(
@@ -1290,7 +1291,7 @@ class _GroupMemberTile extends ConsumerWidget {
                     }
                   },
                 ),
-              const Icon(Icons.chevron_right, color: Colors.white38, size: 18),
+              const Icon(AthIcons.chevronRight, color: Colors.white38, size: 18),
             ],
           ),
           onTap: () {
@@ -1343,7 +1344,7 @@ class _SharedContentGridTile extends ConsumerWidget {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: const Color(0xFF262626)),
         ),
-        child: const Icon(Icons.broken_image, color: Colors.white24),
+        child: const Icon(AthIcons.photo, color: Colors.white24),
       ),
       data: (post) {
         if (post == null) {
@@ -1354,7 +1355,7 @@ class _SharedContentGridTile extends ConsumerWidget {
               border: Border.all(color: const Color(0xFF262626)),
             ),
             child: const Center(
-              child: Icon(Icons.info_outline, color: Colors.white24, size: 20),
+              child: Icon(AthIcons.informationCircle, color: Colors.white24, size: 20),
             ),
           );
         }
@@ -1389,12 +1390,12 @@ class _SharedContentGridTile extends ConsumerWidget {
                         fit: BoxFit.cover,
                         errorWidget: (_, __, ___) => Container(
                           color: const Color(0xFF141414),
-                          child: Icon(isClip ? Icons.movie_creation_outlined : Icons.image_outlined, color: Colors.white30, size: 28),
+                          child: Icon(isClip ? AthIcons.film : AthIcons.photo, color: Colors.white30, size: 28),
                         ),
                       )
                     : Container(
                         color: const Color(0xFF141414),
-                        child: Icon(isClip ? Icons.movie_creation_outlined : Icons.image_outlined, color: Colors.white30, size: 28),
+                        child: Icon(isClip ? AthIcons.film : AthIcons.photo, color: Colors.white30, size: 28),
                       ),
               ),
               if (isClip) ...[
@@ -1402,7 +1403,7 @@ class _SharedContentGridTile extends ConsumerWidget {
                   child: CircleAvatar(
                     backgroundColor: Colors.black54,
                     radius: 16,
-                    child: Icon(Icons.play_arrow_rounded, color: Colors.white, size: 22),
+                    child: Icon(AthIcons.play, color: Colors.white, size: 22),
                   ),
                 ),
                 Positioned(
@@ -1417,7 +1418,7 @@ class _SharedContentGridTile extends ConsumerWidget {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.video_library_rounded, color: AppTheme.primaryColor, size: 10),
+                        Icon(AthIcons.film, color: AppTheme.primaryColor, size: 10),
                         SizedBox(width: 3),
                         Text('Clip', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
                       ],
@@ -1467,7 +1468,7 @@ class _SharedProfileListTile extends ConsumerWidget {
                 onBackgroundImageError: (_, __) {},
                 backgroundColor: Colors.white10,
                 child: (avatarUrl.isEmpty || (!avatarUrl.startsWith('http://') && !avatarUrl.startsWith('https://')))
-                    ? const Icon(Icons.person, size: 22, color: Colors.white54)
+                    ? const Icon(AthIcons.userSolid, size: 22, color: Colors.white54)
                     : null,
               ),
               const SizedBox(width: 12),
